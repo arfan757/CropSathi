@@ -1,4 +1,4 @@
-const API = window.CROPSATHI_API_URL || 'http://localhost:5000/api';
+const API = window.CROPSATHI_API_URL || 'http://localhost:5000';
 let currentLang = localStorage.getItem('preferredLang') || 'en';
 let allAdvisories = [];
 
@@ -66,7 +66,7 @@ async function loadAdvisories() {
   showLoading(true);
   try {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API}/advisory/latest`, {
+    const res = await fetch(`${API}/api/advisory/latest`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) throw new Error('Failed to fetch');
