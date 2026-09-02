@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropSathi - Diagnose</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: "class" };</script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="config.js"></script>
+  <script src="preferences.js"></script>
+  <script src="nav-profile.js"></script>
+  <style>
+    body { font-family: "Noto Sans", sans-serif; background-color: #fbf9f8; color: #1b1c1c; }
+    h1, h2, h3, h4, .font-headline { font-family: "Be Vietnam Pro", sans-serif; }
+    .tactile-card { box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05); }
+    .thumb-strip::-webkit-scrollbar { height: 4px; }
+    .thumb-strip::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-white font-bold shadow-md"><i data-lucide="sprout" class="w-6 h-6"></i></div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+      <nav class="space-y-2">
+        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="layout-grid" class="w-5 h-5"></i><span>Dashboard</span></a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="map-pin" class="w-5 h-5"></i><span>My Fields</span></a>
+        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-white rounded-xl font-semibold transition shadow-sm"><i data-lucide="camera" class="w-5 h-5"></i><span>Diagnose</span></a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="lightbulb" class="w-5 h-5"></i><span>Advisory</span></a>
+      </nav>
+    </div>
+    <div class="pt-6 border-t border-[#e4e2e1]"><a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="settings" class="w-5 h-5"></i><span>Settings</span></a></div>
+  </aside>
+
+  <main class="flex-1 p-6 md:p-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
+    <header class="mb-8 flex items-start justify-between">
+      <div>
+        <h1 class="text-3xl font-bold font-headline">Diagnose</h1>
+        <p class="text-[#3f4941] text-sm mt-1">Upload crop photos for AI-powered disease identification</p>
+      </div>
+      <button onclick="showUploadModal()" class="flex items-center gap-2 px-5 py-2.5 bg-[#006038] text-white font-semibold rounded-full hover:bg-[#1a7a4c] transition shadow-sm flex-shrink-0 mt-1">
+        <i data-lucide="camera" class="w-4 h-4"></i><span>New Diagnosis</span>
+      </button>
+    </header>
+
+    <!-- Alert Banner -->
+    <div id="alertBanner" class="hidden bg-[#933302]/10 border border-[#933302]/30 rounded-xl p-4 mb-6">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-full bg-[#933302] flex items-center justify-center flex-shrink-0"><i data-lucide="alert-triangle" class="w-5 h-5 text-white"></i></div>
+        <div class="flex-1">
+          <h3 class="font-bold text-sm text-[#933302]">Risk Alert Active</h3>
+          <p class="text-xs text-[#933302]/80 mt-0.5" id="alertText"></p>
+          <button onclick="showUploadModalFromAlert()" class="mt-2 px-4 py-2 bg-[#933302] text-white text-xs font-semibold rounded-full hover:bg-[#7a2a02] transition">Upload Photo Now</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Cases -->
+    <section class="mb-8">
+      <h2 class="text-lg font-bold font-headline mb-4">Active Cases</h2>
+      <div id="activeCases" class="space-y-3"><div class="text-center py-8 text-sm text-[#6f7a71]">Loading...</div></div>
+    </section>
+
+    <!-- Case History -->
+    <section class="mb-8">
+      <h2 class="text-lg font-bold font-headline mb-4">Case History</h2>
+      <div id="caseHistory" class="space-y-3"><div class="text-center py-8 text-sm text-[#6f7a71]">Loading...</div></div>
+    </section>
+  </main>
+
+  <!-- Upload Modal -->
+  <div id="uploadModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-md tactile-card">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-headline font-bold text-lg">Upload Crop Photos</h3>
+        <button onclick="closeUploadModal()" class="w-8 h-8 rounded-full bg-[#f0eded] flex items-center justify-center hover:bg-[#eae8e7]"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <!-- Step 1 -->
+      <div id="uploadStep1">
+        <p class="text-sm text-[#3f4941] mb-2">Select the field:</p>
+        <select id="uploadFarmSelect" class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm mb-4"><option value="">Select a field...</option></select>
+        <div id="thumbStrip" class="hidden flex gap-2 mb-3 thumb-strip overflow-x-auto pb-1"></div>
+        <div id="photoDropZone" class="border-2 border-dashed border-[#e4e2e1] rounded-xl p-6 text-center cursor-pointer hover:border-[#006038] transition">
+          <i data-lucide="camera" class="w-8 h-8 text-[#6f7a71] mx-auto mb-1"></i>
+          <p class="text-sm font-semibold text-[#3f4941]" id="dropZoneText">Tap to take photo or upload</p>
+          <p class="text-xs text-[#6f7a71] mt-1" id="dropZoneHint">Up to 5 images</p>
+          <input type="file" id="photoInput" accept="image/*" capture="environment" multiple class="hidden">
+        </div>
+        <button id="diagnoseBtn" onclick="submitForDiagnosis()" disabled class="w-full mt-4 px-4 py-3 bg-[#006038] text-white font-semibold rounded-full disabled:opacity-50 hover:bg-[#1a7a4c] transition">Diagnose</button>
+      </div>
+      <!-- Step 2 -->
+      <div id="uploadStep2" class="hidden text-center py-8">
+        <div class="w-16 h-16 rounded-full bg-[#006038]/10 flex items-center justify-center mx-auto mb-4"><i data-lucide="loader-2" class="w-8 h-8 text-[#006038] animate-spin"></i></div>
+        <h4 class="font-headline font-bold text-lg">Diagnosing...</h4>
+        <p class="text-sm text-[#6f7a71] mt-1">AI is analyzing your photos</p>
+      </div>
+      <!-- Step 3 -->
+      <div id="uploadStep3" class="hidden text-center py-8">
+        <div id="resultIcon" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"></div>
+        <h4 id="resultTitle" class="font-headline font-bold text-lg mb-1"></h4>
+        <p id="resultText" class="text-sm text-[#3f4941] mb-4"></p>
+        <button onclick="closeUploadModal()" class="px-6 py-2.5 bg-[#006038] text-white font-semibold rounded-full">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm tactile-card text-center">
+      <div class="w-12 h-12 rounded-full bg-[#ba1a1a]/10 flex items-center justify-center mx-auto mb-3"><i data-lucide="trash-2" class="w-6 h-6 text-[#ba1a1a]"></i></div>
+      <h3 class="font-headline font-bold text-lg mb-1">Delete Case?</h3>
+      <p class="text-sm text-[#6f7a71] mb-5">This action cannot be undone.</p>
+      <div class="flex gap-3">
+        <button onclick="closeDeleteModal()" class="flex-1 px-4 py-2.5 border border-[#e4e2e1] text-[#3f4941] font-semibold rounded-full hover:bg-[#f0eded] transition">Cancel</button>
+        
+        <button onclick="confirmDelete()" class="flex-1 px-4 py-2.5 bg-[#ba1a1a] text-white font-semibold rounded-full hover:bg-[#9a1515] transition">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Case Detail Modal -->
+  <div id="caseDetailModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto tactile-card">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-headline font-bold text-lg">Case Details</h3>
+        <button onclick="closeCaseDetail()" class="w-8 h-8 rounded-full bg-[#f0eded] flex items-center justify-center hover:bg-[#eae8e7]"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div id="caseDetailContent"><div class="text-center py-8 text-sm text-[#6f7a71]">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- Full Image Viewer -->
+  <div id="imageViewer" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4 cursor-pointer" onclick="closeImageViewer()">
+    <img id="viewerImg" class="max-w-full max-h-full object-contain rounded-lg" />
+  </div>
+
+  <script src="diagnose.js"></script>
+</body>
+</html>

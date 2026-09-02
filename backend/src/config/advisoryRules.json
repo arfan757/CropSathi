@@ -1,0 +1,597 @@
+{
+  "version": "1.0",
+  "description": "IPM advisory rules per (disease_code, severity). Trilingual: en/hi/mr. Chemical only for medium+ severity.",
+  "rules": {
+    "cotton_bollworm": {
+      "low": {
+        "cultural": [
+          { "actionKey": "monitor_ph traps", "en": "Install pheromone traps (5/ha) for monitoring", "hi": "निगरानी के लिए फेरोमोन ट्रैप लगाएं (5/हेक्टेयर)", "mr": "देखरेखासाठी फेरोमोन ट्रॅप लावा (5/हेक्टेयर)" },
+          { "actionKey": "remove_moths", "en": "Handpick and destroy egg masses and larvae", "hi": "अंडे और लार्वा को हाथ से निकालकर नष्ट करें", "mr": "अंडी आणि लार्वा हाताने काढून नष्ट करा" }
+        ],
+        "biological": [
+          { "actionKey": "trichogramma", "en": "Release Trichogramma card at 1.5 lakh/ha", "hi": "ट्राइकोग्रामा कार्ड छोड़ें (1.5 लाख/हेक्टेयर)", "mr": "ट्राइकोग्रामा कार्ड सोडा (1.5 लाख/हेक्टेयर)" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "remove_moths", "en": "Handpick and destroy egg masses and larvae", "hi": "अंडे और लार्वा को हाथ से निकालकर नष्ट करें", "mr": "अंडी आणि लार्वा हाताने काढून नष्ट करा" },
+          { "actionKey": "intercrop", "en": "Intercrop with okra or marigold to disrupt moth flight", "hi": "भिंडी या गेंदा के साथ अंतरफसल करें", "mr": "भोंडी किंवा गेंदा यांच्यासह अंतरफसल करा" }
+        ],
+        "biological": [
+          { "actionKey": "bt_spray", "en": "Apply Bacillus thuringiensis (Bt) spray", "hi": "बेसिलस थुरिंजिएंसिस (Bt) स्प्रे करें", "mr": "बॅसिलस थुरिंजिएंसिस (Bt) स्प्रे करा" },
+          { "actionKey": "npv", "en": "Apply HaNPV (nuclear polyhedrosis virus) spray", "hi": "HaNPV (न्यूक्लियर पॉलीहेड्रोसिस वायरस) स्प्रे करें", "mr": "HaNPV (न्यूक्लियर पॉलीहेड्रोसिस व्हायरस) स्प्रे करा" }
+        ],
+        "chemical": {
+          "productClass": "Insecticide (Carbamate)",
+          "dosage": "1.5 ml/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 10 days if needed",
+          "applicationTiming": "Evening spray, target flower buds",
+          "preHarvestIntervalDays": 7
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_moths", "en": "Handpick and destroy all visible larvae", "hi": "सभी दिखने वाले लार्वा को हाथ से निकालकर नष्ट करें", "mr": "सर्व दिसणाऱ्या लार्वा हाताने काढून नष्ट करा" }
+        ],
+        "biological": [
+          { "actionKey": "npv", "en": "Apply HaNPV spray immediately", "hi": "तुरंत HaNPV स्प्रे करें", "mr": "ताबडतोब HaNPV स्प्रे करा" }
+        ],
+        "chemical": {
+          "productClass": "Insecticide (Neonicotinoid)",
+          "dosage": "0.3 ml/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 7 days",
+          "applicationTiming": "Evening spray, thorough coverage",
+          "preHarvestIntervalDays": 10
+        }
+      }
+    },
+
+    "cotton_wilt": {
+      "low": {
+        "cultural": [
+          { "actionKey": "drainage", "en": "Improve field drainage to reduce soil moisture", "hi": "मिट्टी की नमी कम करने के लिए जल निकासी सुधारें", "mr": "मातीतील ओलसरपणा कमी करण्यासाठी जलनिकास सुधारा" },
+          { "actionKey": "remove_plants", "en": "Remove and destroy wilting plants immediately", "hi": "झुकने वाले पौधों को तुरंत हटाएं और नष्ट करें", "mr": "वाढणाऱ्या रोपांना लगेच काढून नष्ट करा" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma_soil", "en": "Drench soil with Trichoderma harzianum (2g/L)", "hi": "ट्राइकोडर्मा हार्जियनम (2g/L) से मिट्टी की जड़ी", "mr": "ट्राइकोडर्मा हार्जियनम (2g/L) ने माती भिजवा" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Remove and destroy wilting plants", "hi": "झुकने वाले पौधों को हटाएं और नष्ट करें", "mr": "वाढणाऱ्या रोपांना काढून नष्ट करा" },
+          { "actionKey": "crop_rotation", "en": "Plan crop rotation with non-host crops next season", "hi": "अगले मौसम में अन्य फसलों के साथ फसल चक्र की योजना बनाएं", "mr": "पुढच्या हंगामात इतर पिकांसह पिक फेरबदल योजना करा" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma_soil", "en": "Drench soil with Trichoderma harzianum (2g/L)", "hi": "ट्राइकोडर्मा हार्जियनम (2g/L) से मिट्टी की जड़ी", "mr": "ट्राइकोडर्मा हार्जियनम (2g/L) ने माती भिजवा" },
+          { "actionKey": "pseudomonas", "en": "Apply Pseudomonas fluorescens drench (2g/L)", "hi": "स्यूडोमोनास फ्लोरोसेंस (2g/L) की जड़ी करें", "mr": "स्यूडोमोनास फ्लोरोसेंस (2g/L) ची जड़ी करा" }
+        ],
+        "chemical": {
+          "productClass": "Fungicide (Carbamate)",
+          "dosage": "2.5 g/L soil drench",
+          "unit": "water",
+          "frequency": "Once, repeat after 15 days",
+          "applicationTiming": "At first symptom appearance, drench root zone",
+          "preHarvestIntervalDays": 14
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Remove and destroy all infected plants + soil around roots", "hi": "सभी संक्रमित पौधों को जड़ों के साथ हटाएं", "mr": "सर्व संसर्गित रोपे मुळांसह काढून टाका" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma_soil", "en": "Heavy Trichoderma drench (4g/L)", "hi": "भारी ट्राइकोडर्मा जड़ी (4g/L)", "mr": "जाड ट्राइकोडर्मा जड़ी (4g/L)" }
+        ],
+        "chemical": {
+          "productClass": "Fungicide (Carbamate)",
+          "dosage": "2.5 g/L soil drench",
+          "unit": "water",
+          "frequency": "Twice at 15-day interval",
+          "applicationTiming": "Drench root zone thoroughly",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "soybean_rust": {
+      "low": {
+        "cultural": [
+          { "actionKey": "spacing", "en": "Ensure proper plant spacing for air circulation", "hi": "हवा के संचार के लिए उचित पौध दूरी बनाए रखें", "mr": "हवा वाहून येण्यासाठी योग्य रोप अंतर ठेवा" },
+          { "actionKey": "monitor", "en": "Scout lower leaves for pustules early morning", "hi": "सुबह के समय निचली पत्तियों पर पुस्टल की जांच करें", "mr": "सकाळी खालच्या पानांवर पुस्टल तपासा" }
+        ],
+        "biological": [
+          { "actionKey": "neem_oil", "en": "Spray neem oil extract (3ml/L)", "hi": "नीम का तेल निकाल (3ml/L) का छिड़काव करें", "mr": "निंबाचे तेल निचोड (3ml/L) चे फवारणी करा" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "remove_leaves", "en": "Remove and destroy severely infected lower leaves", "hi": "गंभीर रूप से संक्रमित निचली पत्तियों को हटाएं", "mr": "गंभीर संसर्गित खालची पाने काढून टाका" }
+        ],
+        "biological": [
+          { "actionKey": "neem_oil", "en": "Spray neem oil extract (5ml/L)", "hi": "नीम का तेल निकाल (5ml/L) का छिड़काव करें", "mr": "निंबाचे तेल निचोड (5ml/L) चे फवारणी करा" }
+        ],
+        "chemical": {
+          "productClass": "Fungicide (Triazole)",
+          "dosage": "1 ml/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 10 days",
+          "applicationTiming": "Early morning spray, cover both leaf surfaces",
+          "preHarvestIntervalDays": 10
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_leaves", "en": "Remove all severely infected plant material", "hi": "सभी गंभीर संक्रमित पौध सामग्री हटाएं", "mr": "सर्व गंभीर संसर्गित रोप सामग्री काढून टाका" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Strobilurin + Triazole)",
+          "dosage": "1.5 ml/L",
+          "unit": "water",
+          "frequency": "Twice at 10-day interval",
+          "applicationTiming": "Thorough spray, both leaf surfaces",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "soybean_leaf_spot": {
+      "low": {
+        "cultural": [
+          { "actionKey": "debris", "en": "Remove crop debris from previous season", "hi": "पिछले मौसम के फसल अवशेष हटाएं", "mr": "मागील हंगामाचा पिक अवशेष काढून टाका" },
+          { "actionKey": "monitor", "en": "Scout field for circular brown spots on leaves", "hi": "पत्तियों पर गोल भूरे धब्बों की जांच करें", "mr": "पानांवर गोल तपकिरी डोळ्यांसाठी शेत तपासा" }
+        ],
+        "biological": [
+          { "actionKey": "neem_oil", "en": "Spray neem oil (3ml/L)", "hi": "नीम का तेल (3ml/L) का छिड़काव करें", "mr": "निंबाचे तेल (3ml/L) चे फवारणी करा" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "debris", "en": "Remove crop debris thoroughly", "hi": "फसल अवशेष पूरी तरह से हटाएं", "mr": "पिक अवशेष पूर्णपणे काढून टाका" }
+        ],
+        "biological": [
+          { "actionKey": "neem_oil", "en": "Spray neem oil (5ml/L)", "hi": "नीम का तेल (5ml/L) का छिड़काव करें", "mr": "निंबाचे तेल (5ml/L) चे फवारणी करा" }
+        ],
+        "chemical": {
+          "productClass": "Fungicide (Chlorothalonil)",
+          "dosage": "2 ml/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 12 days",
+          "applicationTiming": "Spray when spots first appear",
+          "preHarvestIntervalDays": 10
+        }
+      },
+      "high": {
+        "cultural": [],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Mancozeb + Carbendazim)",
+          "dosage": "2.5 g/L",
+          "unit": "water",
+          "frequency": "Twice at 10-day interval",
+          "applicationTiming": "Full canopy spray",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "tur_wilt": {
+      "low": {
+        "cultural": [
+          { "actionKey": "drainage", "en": "Improve drainage, avoid waterlogging", "hi": "जल निकासी सुधारें, जलभराव से बचें", "mr": "जलनिकास सुधारा, पाण्याचा साठा टाळा" },
+          { "actionKey": "remove_plants", "en": "Remove wilting plants with root intact", "hi": "मूल सहित झुके हुए पौधों को हटाएं", "mr": "मुळ अखंड झुकलेली रोपे काढून टाका" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma_soil", "en": "Soil application of Trichoderma (2g/L drench)", "hi": "ट्राइकोडर्मा (2g/L जड़ी) का मिट्टी में उपयोग", "mr": "ट्राइकोडर्मा (2g/L जड़ी) चा मातीत वापर" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Remove all wilting plants immediately", "hi": "सभी झुके हुए पौधों को तुरंत हटाएं", "mr": "सर्व झुकलेली रोपे लगेच काढून टाका" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma_soil", "en": "Heavy Trichoderma application (4g/L)", "hi": "भारी ट्राइकोडर्मा उपयोग (4g/L)", "mr": "जाड ट्राइकोडर्मा वापर (4g/L)" }
+        ],
+        "chemical": {
+          "productClass": "Fungicide (Carbendazim)",
+          "dosage": "2 g/L soil drench",
+          "unit": "water",
+          "frequency": "Once",
+          "applicationTiming": "Drench at base of plants",
+          "preHarvestIntervalDays": 14
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Uproot and destroy all infected plants + surrounding soil", "hi": "सभी संक्रमित पौधों को आसपास की मिट्टी सहित उखाड़ें", "mr": "सर्व संसर्गित रोपे आसपासच्या मातीसह काढून टाका" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Carbendazim)",
+          "dosage": "2 g/L soil drench",
+          "unit": "water",
+          "frequency": "Twice at 15-day interval",
+          "applicationTiming": "Drench root zone thoroughly",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "tur_pod_borer": {
+      "low": {
+        "cultural": [
+          { "actionKey": "monitor", "en": "Install pheromone traps (5/ha) for Helicoverpa", "hi": "हेलिकोवर्पा के लिए फेरोमोन ट्रैप (5/हेक्टेयर) लगाएं", "mr": "हेलिकोवर्पासाठी फेरोमोन ट्रॅप (5/हेक्टेयर) लावा" },
+          { "actionKey": "pick_pods", "en": "Handpick infested pods and destroy", "hi": "संक्रमित फलियों को हाथ से निकालें और नष्ट करें", "mr": "संसर्गित शेंगा हाताने काढून नष्ट करा" }
+        ],
+        "biological": [
+          { "actionKey": "trichogramma", "en": "Release Trichogramma card (1.5 lakh/ha)", "hi": "ट्राइकोग्रामा कार्ड छोड़ें (1.5 लाख/हेक्टेयर)", "mr": "ट्राइकोग्रामा कार्ड सोडा (1.5 लाख/हेक्टेयर)" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "pick_pods", "en": "Handpick and destroy infested pods", "hi": "संक्रमित फलियों को निकालें और नष्ट करें", "mr": "संसर्गित शेंगा काढून नष्ट करा" }
+        ],
+        "biological": [
+          { "actionKey": "bt_spray", "en": "Apply Bt spray (1ml/L)", "hi": "Bt स्प्रे करें (1ml/L)", "mr": "Bt स्प्रे करा (1ml/L)" }
+        ],
+        "chemical": {
+          "productClass": "Insecticide (Carbamate)",
+          "dosage": "1.5 ml/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 10 days",
+          "applicationTiming": "Evening spray on pods",
+          "preHarvestIntervalDays": 7
+        }
+      },
+      "high": {
+        "cultural": [],
+        "biological": [
+          { "actionKey": "npv", "en": "Apply HaNPV spray (250 LE/ha)", "hi": "HaNPV स्प्रे करें (250 LE/हेक्टेयर)", "mr": "HaNPV स्प्रे करा (250 LE/हेक्टेयर)" }
+        ],
+        "chemical": {
+          "productClass": "Insecticide (Neonicotinoid)",
+          "dosage": "0.3 ml/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 7 days",
+          "applicationTiming": "Evening spray, thorough pod coverage",
+          "preHarvestIntervalDays": 10
+        }
+      }
+    },
+
+    "wheat_rust": {
+      "low": {
+        "cultural": [
+          { "actionKey": "spacing", "en": "Ensure proper plant spacing", "hi": "उचित पौध दूरी बनाए रखें", "mr": "योग्य रोप अंतर ठेवा" },
+          { "actionKey": "monitor", "en": "Scout for orange-brown pustules on leaves", "hi": "पत्तियों पर नारंगी-भूरे पुस्टल की जांच करें", "mr": "पानांवर नारंगी-तपकिरी पुस्टल तपासा" }
+        ],
+        "biological": [],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "remove_leaves", "en": "Remove and destroy infected leaves", "hi": "संक्रमित पत्तियों को हटाएं और नष्ट करें", "mr": "संसर्गित पाने काढून नष्ट करा" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Triazole)",
+          "dosage": "1 ml/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 15 days",
+          "applicationTiming": "Foliar spray at first pustule appearance",
+          "preHarvestIntervalDays": 14
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_leaves", "en": "Remove severely infected plants", "hi": "गंभीर रूप से संक्रमित पौधों को हटाएं", "mr": "गंभीर संसर्गित रोपे काढून टाका" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Propiconazole)",
+          "dosage": "1.5 ml/L",
+          "unit": "water",
+          "frequency": "Twice at 10-day interval",
+          "applicationTiming": "Full canopy spray, both surfaces",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "wheat_powdery_mildew": {
+      "low": {
+        "cultural": [
+          { "actionKey": "spacing", "en": "Ensure proper spacing for air circulation", "hi": "हवा के संचार के लिए उचित दूरी बनाए रखें", "mr": "हवा वाहून येण्यासाठी योग्य अंतर ठेवा" },
+          { "actionKey": "monitor", "en": "Watch for white powdery patches on leaves", "hi": "पत्तियों पर सफेद पाउडर जैसे धब्बों की निगरानी करें", "mr": "पानांवर पांढरा पावडरसारखे डोळे पहा" }
+        ],
+        "biological": [],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "remove_leaves", "en": "Remove infected leaves", "hi": "संक्रमित पत्तियों को हटाएं", "mr": "संसर्गित पाने काढून टाका" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Sulphur-based)",
+          "dosage": "3 g/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 12 days",
+          "applicationTiming": "Morning spray when dew is present",
+          "preHarvestIntervalDays": 10
+        }
+      },
+      "high": {
+        "cultural": [],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Triazole)",
+          "dosage": "1 ml/L",
+          "unit": "water",
+          "frequency": "Twice at 10-day interval",
+          "applicationTiming": "Full canopy spray",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "rice_blast": {
+      "low": {
+        "cultural": [
+          { "actionKey": "water_mgmt", "en": "Avoid continuous flooding; alternate wetting and drying", "hi": "लगातार बाढ़ से बचें; गीला-सूखा वैकल्पिक करें", "mr": "सलग पूर टाळा; ओले-कोरे एकमेकांना बदला" },
+          { "actionKey": "monitor", "en": "Scout for diamond-shaped lesions on leaves", "hi": "पत्तियों पर हीरे के आकार के घावों की जांच करें", "mr": "पानांवर हिरा आकाराचे जखम तपासा" }
+        ],
+        "biological": [
+          { "actionKey": "pseudomonas", "en": "Spray Pseudomonas fluorescens (5g/L)", "hi": "स्यूडोमोनास फ्लोरोसेंस (5g/L) का छिड़काव करें", "mr": "स्यूडोमोनास फ्लोरोसेंस (5g/L) चे फवारणी करा" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "water_mgmt", "en": "Alternate wetting and drying irrigation", "hi": "गीला-सूखा सिंचाई करें", "mr": "ओले-कोरे सिंचन करा" }
+        ],
+        "biological": [
+          { "actionKey": "pseudomonas", "en": "Spray Pseudomonas fluorescens (5g/L)", "hi": "स्यूडोमोनास फ्लोरोसेंस (5g/L) का छिड़काव करें", "mr": "स्यूडोमोनास फ्लोरोसेंस (5g/L) चे फवारणी करा" }
+        ],
+        "chemical": {
+          "productClass": "Fungicide (Tricyclazole)",
+          "dosage": "0.6 g/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 10 days",
+          "applicationTiming": "Foliar spray at early symptom stage",
+          "preHarvestIntervalDays": 14
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "water_mgmt", "en": "Drain field immediately, stop irrigation", "hi": "तुरंत खेत का पानी निकालें, सिंचन बंद करें", "mr": "लगेच शेतातून पाणी काढा, सिंचन थांबवा" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Tricyclazole + Isoprothiolane)",
+          "dosage": "1 g/L",
+          "unit": "water",
+          "frequency": "Twice at 7-day interval",
+          "applicationTiming": "Thorough foliar spray",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "rice_bacterial_leaf_blight": {
+      "low": {
+        "cultural": [
+          { "actionKey": "water_mgmt", "en": "Avoid water stagnation, maintain proper drainage", "hi": "जल जमाव से बचें, उचित जल निकासी बनाए रखें", "mr": "पाण्याचा साठा टाळा, योग्य जलनिकास ठेवा" },
+          { "actionKey": "monitor", "en": "Watch for yellowish leaf streaks with wavy margins", "hi": "लहरील किनारों वाली पीली पत्ती धारियों की निगरानी करें", "mr": "लहरी किनाऱ्यांसह पिवळ्या पान रेषा पहा" }
+        ],
+        "biological": [],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Remove and destroy infected leaves", "hi": "संक्रमित पत्तियों को हटाएं", "mr": "संसर्गित पाने काढून टाका" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Bactericide (Copper-based)",
+          "dosage": "2 g/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 10 days",
+          "applicationTiming": "Foliar spray in morning",
+          "preHarvestIntervalDays": 10
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Remove severely infected plants", "hi": "गंभीर संक्रमित पौधों को हटाएं", "mr": "गंभीर संसर्गित रोपे काढून टाका" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Bactericide (Copper hydroxide)",
+          "dosage": "2.5 g/L",
+          "unit": "water",
+          "frequency": "Twice at 7-day interval",
+          "applicationTiming": "Full spray, cover all leaf surfaces",
+          "preHarvestIntervalDays": 10
+        }
+      }
+    },
+
+    "maize_fall_armyworm": {
+      "low": {
+        "cultural": [
+          { "actionKey": "monitor", "en": "Install pheromone traps (5/ha)", "hi": "फेरोमोन ट्रैप लगाएं (5/हेक्टेयर)", "mr": "फेरोमोन ट्रॅप लावा (5/हेक्टेयर)" },
+          { "actionKey": "destroy_egg", "en": "Handpick egg masses from leaf undersides", "hi": "पत्तियों के नीचे से अंडे निकालें", "mr": "पानांखालून अंडी हाताने काढा" }
+        ],
+        "biological": [
+          { "actionKey": "trichogramma", "en": "Release Trichogramma card (1.5 lakh/ha)", "hi": "ट्राइकोग्रामा कार्ड छोड़ें (1.5 लाख/हेक्टेयर)", "mr": "ट्राइकोग्रामा कार्ड सोडा (1.5 लाख/हेक्टेयर)" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "pick_larvae", "en": "Handpick larvae from whorl", "hi": "बुट्टी से लार्वा निकालें", "mr": "बुट्टीतून लार्वा हाताने काढा" }
+        ],
+        "biological": [
+          { "actionKey": "bt_spray", "en": "Apply Bt spray (1ml/L)", "hi": "Bt स्प्रे करें (1ml/L)", "mr": "Bt स्प्रे करा (1ml/L)" }
+        ],
+        "chemical": {
+          "productClass": "Insecticide (Diamide)",
+          "dosage": "0.4 ml/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 10 days",
+          "applicationTiming": "Evening spray into whorl",
+          "preHarvestIntervalDays": 10
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "pick_larvae", "en": "Remove all visible larvae", "hi": "सभी दिखने वाले लार्वा हटाएं", "mr": "सर्व दिसणाऱ्या लार्वा काढा" }
+        ],
+        "biological": [
+          { "actionKey": "npv", "en": "Apply HaNPV spray", "hi": "HaNPV स्प्रे करें", "mr": "HaNPV स्प्रे करा" }
+        ],
+        "chemical": {
+          "productClass": "Insecticide (Emamectin benzoate)",
+          "dosage": "0.4 g/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 7 days",
+          "applicationTiming": "Evening spray into whorl, thorough coverage",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "potato_late_blight": {
+      "low": {
+        "cultural": [
+          { "actionKey": "monitor", "en": "Scout for water-soaked lesions on leaf tips", "hi": "पत्ती की नोकों पर पानी से भरे घावों की जांच करें", "mr": "पानांच्या टोकांवर पाण्याने भरलेले जखम तपासा" },
+          { "actionKey": "debris", "en": "Remove volunteer potato plants", "hi": "स्वैच्छिक आलू के पौधों को हटाएं", "mr": "स्वैच्छिक बटाटा रोपे काढून टाका" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma", "en": "Spray Trichoderma viride (4g/L)", "hi": "ट्राइकोडर्मा विरिडे (4g/L) का छिड़काव करें", "mr": "ट्राइकोडर्मा व्हिरिडे (4g/L) चे फवारणी करा" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "debris", "en": "Remove infected plant parts", "hi": "संक्रमित पौध भागों को हटाएं", "mr": "संसर्गित रोप भाग काढून टाका" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma", "en": "Spray Trichoderma viride (4g/L)", "hi": "ट्राइकोडर्मा विरिडे (4g/L) का छिड़काव करें", "mr": "ट्राइकोडर्मा व्हिरिडे (4g/L) चे फवारणी करा" }
+        ],
+        "chemical": {
+          "productClass": "Fungicide (Metalaxyl + Mancozeb)",
+          "dosage": "2.5 g/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 10 days",
+          "applicationTiming": "Foliar spray, thorough coverage",
+          "preHarvestIntervalDays": 14
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Remove and destroy all severely infected plants", "hi": "सभी गंभीर संक्रमित पौधों को हटाएं और नष्ट करें", "mr": "सर्व गंभीर संसर्गित रोपे काढून नष्ट करा" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Metalaxyl + Mancozeb)",
+          "dosage": "2.5 g/L",
+          "unit": "water",
+          "frequency": "Twice at 7-day interval",
+          "applicationTiming": "Full canopy spray, both surfaces",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "sugarcane_red_rot": {
+      "low": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Remove and destroy infected cane", "hi": "संक्रमित गन्ने को हटाएं और नष्ट करें", "mr": "संसर्गित ऊस काढून नष्ट करा" },
+          { "actionKey": "monitor", "en": "Check for red patches inside split stems", "hi": "फटे तनों के अंदर लाल धब्बों की जांच करें", "mr": "फुटलेल्या खड्यांच्या आत मेरे डोळे तपासा" }
+        ],
+        "biological": [],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Remove all infected clumps", "hi": "सभी संक्रमित गट्ठों को हटाएं", "mr": "सर्व संसर्गित गट्ठे काढून टाका" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Carbendazim)",
+          "dosage": "2 g/L soil drench at base",
+          "unit": "water",
+          "frequency": "Once",
+          "applicationTiming": "Drench at base of infected clumps",
+          "preHarvestIntervalDays": 14
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_plants", "en": "Uproot and destroy all infected clumps", "hi": "सभी संक्रमित गट्ठों को उखाड़कर नष्ट करें", "mr": "सर्व संसर्गित गट्ठे उपटून नष्ट करा" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Carbendazim)",
+          "dosage": "2 g/L soil drench",
+          "unit": "water",
+          "frequency": "Twice at 15-day interval",
+          "applicationTiming": "Drench root zone",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    },
+
+    "grapes_downy_mildew": {
+      "low": {
+        "cultural": [
+          { "actionKey": "canopy", "en": "Maintain open canopy, remove excess shoots", "hi": "खुली छतरी बनाए रखें, अतिरिक्त प्रर्थनाएं हटाएं", "mr": "उघडा छत्री ठेवा, अतिरिक्त व्हिन्स काढून टाका" },
+          { "actionKey": "monitor", "en": "Scout for yellow oily patches on upper leaf surface", "hi": "पत्तियों की ऊपरी सतह पर पीले तैलीय धब्बों की जांच करें", "mr": "पानांच्या वरच्या भागावर पिवळे तेलकट डोळे पहा" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma", "en": "Spray Trichoderma (4g/L)", "hi": "ट्राइकोडर्मा (4g/L) का छिड़काव करें", "mr": "ट्राइकोडर्मा (4g/L) चे फवारणी करा" }
+        ],
+        "chemical": null
+      },
+      "medium": {
+        "cultural": [
+          { "actionKey": "canopy", "en": "Open canopy for air circulation", "hi": "हवा के संचार के लिए छतरी खोलें", "mr": "हवा वाहून येण्यासाठी छत्री उघडा" }
+        ],
+        "biological": [
+          { "actionKey": "trichoderma", "en": "Spray Trichoderma (4g/L)", "hi": "ट्राइकोडर्मा (4g/L) का छिड़काव करें", "mr": "ट्राइकोडर्मा (4g/L) चे फवारणी करा" }
+        ],
+        "chemical": {
+          "productClass": "Fungicide (Metalaxyl + Mancozeb)",
+          "dosage": "2.5 g/L",
+          "unit": "water",
+          "frequency": "Once, repeat after 10 days",
+          "applicationTiming": "Foliar spray, cover both surfaces",
+          "preHarvestIntervalDays": 14
+        }
+      },
+      "high": {
+        "cultural": [
+          { "actionKey": "remove_leaves", "en": "Remove all infected leaves and shoots", "hi": "सभी संक्रमित पत्तियों और प्रर्थनाओं को हटाएं", "mr": "सर्व संसर्गित पाने आणि व्हिन्स काढून टाका" }
+        ],
+        "biological": [],
+        "chemical": {
+          "productClass": "Fungicide (Metalaxyl + Mancozeb)",
+          "dosage": "2.5 g/L",
+          "unit": "water",
+          "frequency": "Twice at 7-day interval",
+          "applicationTiming": "Full spray, thorough coverage",
+          "preHarvestIntervalDays": 14
+        }
+      }
+    }
+  }
+}

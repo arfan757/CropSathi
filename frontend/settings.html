@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropSathi - Settings</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <!-- Google Fonts: Be Vietnam Pro & Noto Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="config.js"></script>
+  <script src="preferences.js"></script>
+
+  <style>
+    body {
+      font-family: 'Noto Sans', sans-serif;
+      background-color: #fbf9f8;
+      color: #1b1c1c;
+    }
+    h1, h2, h3, h4, .font-headline {
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .tactile-card {
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex">
+
+  <!-- Sidebar Navigation -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-[#ffffff] font-bold shadow-md">
+          <i data-lucide="sprout" class="w-6 h-6"></i>
+        </div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+
+      <nav class="space-y-2">
+        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="layout-grid" class="w-5 h-5"></i>
+          <span data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="map-pin" class="w-5 h-5"></i>
+          <span data-i18n="nav_my_fields">My Fields</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="camera" class="w-5 h-5"></i>
+          <span data-i18n="nav_diagnose">Diagnose</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="lightbulb" class="w-5 h-5"></i>
+          <span data-i18n="nav_advisory">Advisory</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="pt-6 border-t border-[#e4e2e1]">
+      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 bg-[#eae8e7] text-[#006038] rounded-xl font-semibold transition shadow-sm">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span data-i18n="nav_settings">Settings</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 p-6 md:p-10 max-w-7xl mx-auto md:ml-64 w-full">
+
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-[#1b1c1c]" data-i18n="settings_title">Settings</h1>
+        <p class="text-[#3f4941] text-sm flex items-center gap-1.5 mt-1">
+          <i data-lucide="settings" class="w-4 h-4 text-[#933302]"></i> <span data-i18n="settings_subtitle">Account & Preferences</span>
+        </p>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="relative hidden sm:block">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
+          <input type="text" placeholder="Search settings..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-60 text-[#1b1c1c]">
+        </div>
+        <button class="w-11 h-11 bg-[#f0eded] hover:bg-[#eae8e7] rounded-full flex items-center justify-center relative transition" aria-label="Notifications">
+          <i data-lucide="bell" class="w-5 h-5 text-[#1b1c1c]"></i>
+          <span class="w-2.5 h-2.5 bg-[#933302] rounded-full absolute top-2 right-2 border-2 border-[#fbf9f8]"></span>
+        </button>
+        <div id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
+          <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]">R</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="space-y-8">
+
+      <!-- Profile Section -->
+      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
+        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_profile">Profile</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+          
+          <!-- Profile Image Avatar with Initial Hook & Aligned Edit Button -->
+          <div class="flex flex-col items-center justify-center p-4 border-r-0 md:border-r border-[#e4e2e1] h-full">
+            <div id="headerProfilePhoto" class="w-24 h-24 rounded-full bg-[#eae8e7] flex items-center justify-center border-2 border-[#006038]/20 shadow-sm overflow-hidden">
+              <span id="userAvatarInitial" class="font-headline text-2xl font-bold text-[#006038]">R</span>
+            </div>
+            
+            <button onclick="pendingPhotoBase64 = null; removePhotoFlag = false; document.getElementById('profilePhotoInput').value = ''; document.getElementById('edit-profile-modal').classList.remove('hidden')"
+                    class="mt-4 w-full max-w-[180px] flex items-center justify-center gap-2 px-4 py-2 bg-[#006038] text-[#ffffff] text-sm font-semibold rounded-xl transition hover:bg-[#1a7a4c] shadow-sm">
+              <i data-lucide="user-cog" class="w-4 h-4"></i>
+              <span data-i18n="settings_edit_profile">Edit Profile</span>
+            </button>
+          </div>
+
+          <!-- Profile Details Grid -->
+          <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+              <i data-lucide="user" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div>
+                <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_full_name">Full Name</p>
+                <p id="profileFullName" class="text-base font-bold text-[#1b1c1c]">Rajesh Kumar</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+              <i data-lucide="phone" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div>
+                <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_mobile">Mobile Number</p>
+                <p id="profilePhone" class="text-base font-bold text-[#1b1c1c]">+91 98765 43210</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+              <i data-lucide="map-pin" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div>
+                <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_district">District</p>
+                <p id="profileLocation" class="text-base font-bold text-[#1b1c1c]">Nashik</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+              <i data-lucide="badge-check" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div>
+                <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_account_status">Account Status</p>
+                <p id="profileStatus" class="text-base font-bold text-[#006038]" data-i18n="settings_verified">Verified Farmer</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preferences Section -->
+      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
+        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_preferences">Preferences</h2>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="languages" class="w-5 h-5 text-[#006038]"></i>
+              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_language">App Language</span>
+            </div>
+            <select id="languageSelect" onchange="CropSathiPrefs.applyLanguage(this.value)" class="border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
+              <option value="en">English</option>
+              <option value="hi">Hindi (हिंदी)</option>
+              <option value="mr">Marathi (मराठी)</option>
+              <option value="bn">Bengali (বাংলা)</option>
+              <option value="te">Telugu (తెలుగు)</option>
+              <option value="ta">Tamil (தமிழ்)</option>
+              <option value="gu">Gujarati (ગુજરાતી)</option>
+              <option value="kn">Kannada (ಕನ್ನಡ)</option>
+              <option value="ml">Malayalam (മലയാളം)</option>
+              <option value="or">Odia (ଓଡ଼ିଆ)</option>
+              <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+              <option value="as">Assamese (অসমীয়া)</option>
+              <option value="ur">Urdu (اردو)</option>
+            </select>
+          </div>
+
+          <!-- Preferred Units System -->
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="ruler" class="w-5 h-5 text-[#006038]"></i>
+              <div>
+                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_units">Preferred Units System</span>
+                <span class="text-xs text-[#3f4941]" data-i18n="settings_units_desc">Area, weight, and temperature measurements</span>
+              </div>
+            </div>
+            <select id="unitsSelect" onchange="CropSathiPrefs.setPrefs({units: this.value})" class="border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
+              <option value="metric_ha">Hectare / Kg / °C</option>
+              <option value="imperial_ac">Acre / Quintal / °C</option>
+              <option value="indian_bg">Bigha / Guntha / °C</option>
+            </select>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="bell" class="w-5 h-5 text-[#006038]"></i>
+              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_push_notifications">Push Notifications</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
+            </label>
+          </div>
+
+          <!-- Theme Preference -->
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="palette" class="w-5 h-5 text-[#006038]"></i>
+              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_theme">Theme Preference</span>
+            </div>
+            <select id="themeSelect" onchange="CropSathiPrefs.applyTheme(this.value)" class="border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
+              <option value="light">Light Mode</option>
+              <option value="dark">Dark Mode</option>
+              <option value="system">System Default</option>
+            </select>
+          </div>
+
+          <!-- Severe Weather & Pest Alerts -->
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="alert-triangle" class="w-5 h-5 text-[#006038]"></i>
+              <div>
+                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_severe_alerts">Severe Weather & Pest Alerts</span>
+                <span class="text-xs text-[#3f4941]" data-i18n="settings_severe_alerts_desc">Priority warnings for frost, unseasonal rain & pest outbreaks</span>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="navigation" class="w-5 h-5 text-[#006038]"></i>
+              <div>
+                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_location">Location</span>
+                <span id="preferenceLocationDisplay" class="text-xs text-[#3f4941]">20.0059° N, 73.7898° E (Panchavati, Nashik - 422003)</span>
+              </div>
+            </div>
+            <button onclick="updateGPS()" class="flex items-center gap-1 text-xs font-semibold text-[#006038] hover:underline bg-[#f0eded] px-3 py-1.5 rounded-lg border border-[#e4e2e1]">
+              <i data-lucide="locate-fixed" class="w-3.5 h-3.5"></i> <span data-i18n="settings_update_gps">Update GPS</span>
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="git-branch" class="w-5 h-5 text-[#006038]"></i>
+              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_app_version">App Version</span>
+            </div>
+            <span class="text-xs font-semibold text-[#3f4941] bg-[#f0eded] px-2.5 py-1 rounded-md">v1.2.0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data & Management Section -->
+      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
+        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_data_mgmt">Data Management</h2>
+        <div class="space-y-3">
+          <!-- Data Export -->
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="download" class="w-5 h-5 text-[#006038]"></i>
+              <div>
+                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_data_export">Data Export</span>
+                <span class="text-xs text-[#3f4941]" data-i18n="settings_data_export_desc">Download field records, diagnostic history & advisory logs</span>
+              </div>
+            </div>
+            <button onclick="alert('Exporting field records to PDF/CSV...')" class="flex items-center gap-1.5 text-xs font-semibold text-[#006038] hover:bg-[#f0eded] px-3 py-1.5 rounded-lg border border-[#e4e2e1]">
+              <i data-lucide="file-text" class="w-3.5 h-3.5"></i> <span data-i18n="settings_export_btn">Export Records</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Support & Feedback Section -->
+      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
+        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_support">Support & Feedback</h2>
+        <div class="space-y-3">
+          <!-- Voice-Guided Support / Helpline Access -->
+          <a href="tel:18001801551" class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+            <div class="flex items-center gap-3">
+              <i data-lucide="phone-call" class="w-5 h-5 text-[#006038]"></i>
+              <div>
+                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_helpline">Voice-Guided Support / Helpline</span>
+                <span class="text-xs text-[#3f4941]" data-i18n="settings_helpline_desc">Call Kisan Extension Support (1800-180-1551)</span>
+              </div>
+            </div>
+            <i data-lucide="external-link" class="w-4 h-4 text-[#3f4941]"></i>
+          </a>
+
+          <!-- Report an Issue / Feedback -->
+          <button onclick="document.getElementById('feedback-modal').classList.remove('hidden')" class="w-full flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+            <div class="flex items-center gap-3">
+              <i data-lucide="message-square-plus" class="w-5 h-5 text-[#006038]"></i>
+              <div>
+                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_feedback">Report an Issue / Feedback</span>
+                <span class="text-xs text-[#3f4941]" data-i18n="settings_feedback_desc">Share suggestions or report bugs directly to our team</span>
+              </div>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-[#3f4941]"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Security Section -->
+      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
+        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_security">Security</h2>
+        <div class="space-y-3">
+          <button onclick="document.getElementById('change-password-modal').classList.remove('hidden')"
+                  class="w-full flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+            <div class="flex items-center gap-3">
+              <i data-lucide="lock" class="w-5 h-5 text-[#006038]"></i>
+              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_change_pw">Change Password</span>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-[#3f4941]"></i>
+          </button>
+
+          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3">
+              <i data-lucide="shield-check" class="w-5 h-5 text-[#006038]"></i>
+              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_2fa">Two-Factor Authentication</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer">
+              <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
+            </label>
+          </div>
+
+          <div class="mt-6">
+            <button onclick="localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href='login.html';" class="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-[#ba1a1a] text-[#ffffff] font-semibold rounded-xl transition hover:bg-[#93000a] shadow-sm">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+              <span data-i18n="settings_logout">Log Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Edit Profile Modal -->
+  <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-6">
+      <div class="flex items-center justify-between">
+        <h2 class="font-headline text-lg font-bold text-[#1b1c1c]" data-i18n="settings_edit_profile">Edit Profile</h2>
+        <button onclick="document.getElementById('edit-profile-modal').classList.add('hidden')"
+                class="p-1 rounded-full text-[#6f7a71] hover:text-[#1b1c1c] hover:bg-[#f0eded]">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="editProfileForm" class="flex flex-col gap-4" onsubmit="event.preventDefault(); saveProfile();">
+        <div class="flex flex-col items-center gap-2">
+          <div id="modalProfilePhoto" class="w-20 h-20 rounded-full bg-[#eae8e7] flex items-center justify-center border border-[#e4e2e1] overflow-hidden">
+            <span id="modalAvatarInitial" class="font-headline text-2xl font-bold text-[#006038]">R</span>
+          </div>
+          <div class="flex items-center gap-4 mt-1">
+            <label class="cursor-pointer text-sm font-semibold text-[#006038] hover:underline flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-4 h-4"></i>
+              <span data-i18n="settings_upload_photo">Upload</span>
+              <input id="profilePhotoInput" type="file" class="hidden" accept="image/*" onchange="previewPhoto(this)" />
+            </label>
+            <button type="button" onclick="deleteProfilePhoto()" class="text-sm font-semibold text-[#ba1a1a] hover:underline flex items-center gap-1.5">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              <span>Delete</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#6f7a71]" data-i18n="settings_full_name">Full Name</label>
+          <input id="modalInputName" type="text" value="Rajesh Kumar" class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#fbf9f8] text-[#1b1c1c] focus:ring-2 focus:ring-[#006038] outline-none text-sm" required />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <div class="flex justify-between items-center">
+            <label class="text-xs font-semibold text-[#6f7a71]" data-i18n="settings_mobile">Mobile Number</label>
+            <span class="text-[11px] text-[#933302] font-medium flex items-center gap-1">
+              <i data-lucide="lock" class="w-3 h-3"></i> <span data-i18n="settings_locked">Locked</span>
+            </span>
+          </div>
+          <input id="modalInputPhone" type="text" value="+91 98765 43210" disabled class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#eae8e7] text-[#6f7a71] opacity-80 cursor-not-allowed text-sm" />
+        </div>
+
+        <div class="flex items-center justify-end gap-3 mt-4">
+          <button type="button" onclick="document.getElementById('edit-profile-modal').classList.add('hidden')"
+                  class="px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
+            <span data-i18n="btn_cancel">Cancel</span>
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c]">
+            <span data-i18n="settings_save_changes">Save Changes</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Feedback / Issue Modal -->
+  <div id="feedback-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-6">
+      <div class="flex items-center justify-between">
+        <h2 class="font-headline text-lg font-bold text-[#1b1c1c]" data-i18n="fb_title">Report an Issue / Feedback</h2>
+        <button onclick="document.getElementById('feedback-modal').classList.add('hidden')"
+                class="p-1 rounded-full text-[#6f7a71] hover:text-[#1b1c1c] hover:bg-[#f0eded]">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form class="flex flex-col gap-4" onsubmit="event.preventDefault(); alert('Feedback submitted!'); document.getElementById('feedback-modal').classList.add('hidden');">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#6f7a71]" data-i18n="fb_category">Category</label>
+          <select class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#fbf9f8] text-[#1b1c1c] focus:ring-2 focus:ring-[#006038] outline-none text-sm">
+            <option value="bug" data-i18n="fb_cat_bug">Report a Bug / Issue</option>
+            <option value="crop" data-i18n="fb_cat_feature">Missing Crop/Feature Request</option>
+            <option value="other" data-i18n="fb_cat_other">General Feedback</option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#6f7a71]" data-i18n="fb_details">Details</label>
+          <textarea rows="4" placeholder="Describe the issue or feedback..." data-i18n-placeholder="fb_details_placeholder" class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#fbf9f8] text-[#1b1c1c] focus:ring-2 focus:ring-[#006038] outline-none text-sm" required></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 mt-2">
+          <button type="button" onclick="document.getElementById('feedback-modal').classList.add('hidden')"
+                  class="px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
+            <span data-i18n="btn_cancel">Cancel</span>
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c]">
+            <span data-i18n="fb_submit">Submit</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div id="change-password-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-[#006038]/10 flex items-center justify-center">
+            <i data-lucide="lock" class="w-5 h-5 text-[#006038]"></i>
+          </div>
+          <h2 class="font-headline text-lg font-bold text-[#1b1c1c]" data-i18n="cp_title">Change Password</h2>
+        </div>
+        <button onclick="document.getElementById('change-password-modal').classList.add('hidden'); resetPasswordForm();"
+                class="p-1 rounded-full text-[#6f7a71] hover:text-[#1b1c1c] hover:bg-[#f0eded]">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="pw-error-banner" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700"></div>
+      <div id="pw-success-banner" class="hidden p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700"></div>
+
+      <form id="changePasswordForm" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#6f7a71]" data-i18n="cp_current">Current Password</label>
+          <input id="currentPassword" type="password" placeholder="Enter current password" data-i18n-placeholder="cp_current_placeholder"
+                 class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#fbf9f8] text-[#1b1c1c] focus:ring-2 focus:ring-[#006038] outline-none text-sm" required />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#6f7a71]" data-i18n="cp_new">New Password</label>
+          <input id="newPassword" type="password" placeholder="Min 6 characters" data-i18n-placeholder="cp_new_placeholder"
+                 class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#fbf9f8] text-[#1b1c1c] focus:ring-2 focus:ring-[#006038] outline-none text-sm" required minlength="6" />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#6f7a71]" data-i18n="cp_confirm">Confirm New Password</label>
+          <input id="confirmPassword" type="password" placeholder="Re-enter new password" data-i18n-placeholder="cp_confirm_placeholder"
+                 class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#fbf9f8] text-[#1b1c1c] focus:ring-2 focus:ring-[#006038] outline-none text-sm" required minlength="6" />
+        </div>
+
+        <p class="text-[11px] text-[#3f4941]" data-i18n="cp_hint">Must be at least 6 characters long.</p>
+
+        <div class="flex items-center justify-end gap-3 mt-2">
+          <button type="button" onclick="document.getElementById('change-password-modal').classList.add('hidden'); resetPasswordForm();"
+                  class="px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
+            <span data-i18n="cp_cancel">Cancel</span>
+          </button>
+          <button type="submit" id="savePasswordBtn"
+                  class="px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c] transition shadow-sm">
+            <span data-i18n="settings_save_changes">Save Changes</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
+    lucide.createIcons();
+
+    // Fetch and sync user data from backend
+    async function syncSettingsProfile() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.success && data.user) {
+          const { name, phoneNumber, farmDetails, profilePhoto } = data.user;
+
+          // Cache profile photo for other pages
+          if (profilePhoto) {
+            localStorage.setItem('cropsathi_profile_photo', profilePhoto);
+          } else {
+            localStorage.removeItem('cropsathi_profile_photo');
+          }
+
+          // Update Name and initial
+          if (name) {
+            const nameElem = document.getElementById('profileFullName');
+            const avatarElem = document.getElementById('userAvatarInitial');
+            const modalAvatar = document.getElementById('modalAvatarInitial');
+            const modalInput = document.getElementById('modalInputName');
+            const navAvatar = document.getElementById('navAvatarInitial');
+
+            if (nameElem) nameElem.textContent = name;
+            if (avatarElem) avatarElem.textContent = name.trim().charAt(0).toUpperCase();
+            if (modalAvatar) modalAvatar.textContent = name.trim().charAt(0).toUpperCase();
+            if (modalInput) modalInput.value = name;
+            if (navAvatar) navAvatar.textContent = name.trim().charAt(0).toUpperCase();
+          }
+
+          // Update profile photos
+          applyProfilePhoto(profilePhoto);
+
+          // Update District
+          if (farmDetails && farmDetails.district) {
+            const locElem = document.getElementById('profileLocation');
+            if (locElem) locElem.textContent = farmDetails.district;
+          }
+
+          // Update Phone
+          if (phoneNumber) {
+            const phoneElem = document.getElementById('profilePhone');
+            const modalPhone = document.getElementById('modalInputPhone');
+            const formatted = phoneNumber.startsWith('+91') ? phoneNumber : '+91 ' + phoneNumber;
+            if (phoneElem) phoneElem.textContent = formatted;
+            if (modalPhone) modalPhone.value = formatted;
+          }
+
+          // Update precise location in preferences
+          if (farmDetails && farmDetails.latitude != null && farmDetails.longitude != null) {
+            const latDir = farmDetails.latitude >= 0 ? 'N' : 'S';
+            const lngDir = farmDetails.longitude >= 0 ? 'E' : 'W';
+            const lat = Math.abs(farmDetails.latitude).toFixed(4);
+            const lng = Math.abs(farmDetails.longitude).toFixed(4);
+            const parts = [];
+            if (farmDetails.village) parts.push(farmDetails.village);
+            if (farmDetails.district) parts.push(farmDetails.district);
+            if (farmDetails.state) parts.push(farmDetails.state);
+            if (farmDetails.country) parts.push(farmDetails.country);
+            const locationLabel = parts.length > 0 ? `(${parts.join(', ')})` : '';
+            const prefLoc = document.getElementById('preferenceLocationDisplay');
+            if (prefLoc) prefLoc.textContent = `${lat}\u00B0 ${latDir}, ${lng}\u00B0 ${lngDir} ${locationLabel}`;
+          }
+        }
+      } catch (error) {
+        console.error('Settings sync failed:', error);
+      }
+    }
+
+  async function updateGPS() {
+  if (!navigator.geolocation) return alert("Geolocation not supported.");
+
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const { latitude, longitude } = position.coords;
+
+    const addrReq = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+    const addr = await addrReq.json();
+
+    const ac = addr.address || {};
+    const addressComponents = {
+      village: ac.village || ac.city || ac.town || ac.hamlet || ac.suburb || '',
+      district: ac.district || ac.county || '',
+      state: ac.state || '',
+      country: ac.country || ''
+    };
+
+    const response = await fetch(`${CropSathiPrefs.api}/api/auth/update-location`, {
+      method: 'PUT',
+      headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+          latitude,
+          longitude,
+          fullAddress: addr.display_name,
+          addressComponents
+      })
+    });
+
+    if (response.ok) {
+      alert("Location updated!");
+      syncSettingsProfile();
+    } else {
+      alert("Failed to update location.");
+    }
+  }, () => {
+    alert("Could not get your location. Please allow location access.");
+  });
+}
+
+    function resetPasswordForm() {
+      document.getElementById('changePasswordForm').reset();
+      document.getElementById('pw-error-banner').classList.add('hidden');
+      document.getElementById('pw-success-banner').classList.add('hidden');
+    }
+
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errBanner = document.getElementById('pw-error-banner');
+      const successBanner = document.getElementById('pw-success-banner');
+      const saveBtn = document.getElementById('savePasswordBtn');
+
+      errBanner.classList.add('hidden');
+      successBanner.classList.add('hidden');
+
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (newPassword !== confirmPassword) {
+        errBanner.textContent = CropSathiPrefs.t('cp_new') + ' ' + CropSathiPrefs.t('cp_confirm_placeholder');
+        errBanner.classList.remove('hidden');
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        errBanner.textContent = CropSathiPrefs.t('cp_hint');
+        errBanner.classList.remove('hidden');
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span>' + CropSathiPrefs.t('settings_save_changes') + '...</span>';
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${CropSathiPrefs.api}/api/auth/change-password`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          successBanner.textContent = CropSathiPrefs.t('cp_save') + '!';
+          successBanner.classList.remove('hidden');
+          document.getElementById('changePasswordForm').reset();
+          setTimeout(() => {
+            document.getElementById('change-password-modal').classList.add('hidden');
+            successBanner.classList.add('hidden');
+          }, 2000);
+        } else {
+          errBanner.textContent = data.message || 'Failed to update password.';
+          errBanner.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBanner.textContent = 'Cannot reach server. Please try again.';
+        errBanner.classList.remove('hidden');
+      }
+
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<span data-i18n="settings_save_changes">' + CropSathiPrefs.t('settings_save_changes') + '</span>';
+    });
+
+    // Apply profile photo to all avatar elements on the page
+    function applyProfilePhoto(photoData) {
+      const applyTo = (containerId, initialId) => {
+        const container = document.getElementById(containerId);
+        const initial = document.getElementById(initialId);
+        if (!container) return;
+        if (photoData) {
+          // Remove existing img if any, add new one
+          const existingImg = container.querySelector('img');
+          if (existingImg) existingImg.remove();
+          if (initial) initial.style.display = 'none';
+          const img = document.createElement('img');
+          img.src = photoData;
+          img.alt = 'Profile';
+          img.className = 'w-full h-full object-cover';
+          container.appendChild(img);
+        } else {
+          const existingImg = container.querySelector('img');
+          if (existingImg) existingImg.remove();
+          if (initial) initial.style.display = '';
+        }
+      };
+      applyTo('headerProfilePhoto', 'userAvatarInitial');
+      applyTo('modalProfilePhoto', 'modalAvatarInitial');
+      applyTo('navProfilePhoto', 'navAvatarInitial');
+    }
+
+    let pendingPhotoBase64 = null;
+    let removePhotoFlag = false;
+
+    function deleteProfilePhoto() {
+      pendingPhotoBase64 = null;
+      removePhotoFlag = true;
+      document.getElementById('profilePhotoInput').value = '';
+      const container = document.getElementById('modalProfilePhoto');
+      const initial = document.getElementById('modalAvatarInitial');
+      const existingImg = container.querySelector('img');
+      if (existingImg) existingImg.remove();
+      if (initial) initial.style.display = '';
+    }
+
+    function previewPhoto(input) {
+      if (!input.files || !input.files[0]) return;
+      const file = input.files[0];
+      if (file.size > 500000) {
+        alert('Image too large. Max 500KB.');
+        input.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        pendingPhotoBase64 = e.target.result;
+        removePhotoFlag = false;
+        const container = document.getElementById('modalProfilePhoto');
+        const initial = document.getElementById('modalAvatarInitial');
+        const existingImg = container.querySelector('img');
+        if (existingImg) existingImg.remove();
+        if (initial) initial.style.display = 'none';
+        const img = document.createElement('img');
+        img.src = pendingPhotoBase64;
+        img.alt = 'Preview';
+        img.className = 'w-full h-full object-cover';
+        container.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function showToast(message) {
+      const existing = document.getElementById('cropsathi-toast');
+      if (existing) existing.remove();
+      const toast = document.createElement('div');
+      toast.id = 'cropsathi-toast';
+      toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-xl shadow-lg border border-[#006038]/20 flex items-center gap-2.5 transition-all duration-300 opacity-0 -translate-y-2';
+      toast.style.cssText = 'background-color: #006038; color: #ffffff; font-family: Be Vietnam Pro, sans-serif;';
+      toast.innerHTML = '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span class="font-semibold text-sm">' + message + '</span>';
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translate(-50%, 0)';
+      });
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translate(-50%, -8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    async function saveProfile() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const name = document.getElementById('modalInputName').value.trim();
+      if (!name) { alert('Name is required'); return; }
+
+      const saveBtn = document.querySelector('#editProfileForm button[type="submit"]');
+      const origHTML = saveBtn.innerHTML;
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span>Saving...</span>';
+
+      try {
+        const payload = { name };
+        if (pendingPhotoBase64) payload.profilePhoto = pendingPhotoBase64;
+        if (removePhotoFlag) payload.profilePhoto = '';
+
+        const res = await fetch(`${CropSathiPrefs.api}/api/auth/update-profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.success) {
+          alert(data.message || 'Failed to update profile');
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = origHTML;
+          return;
+        }
+
+        const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        cachedUser.name = name;
+        if (pendingPhotoBase64) {
+          cachedUser.profilePhoto = pendingPhotoBase64;
+          localStorage.setItem('cropsathi_profile_photo', pendingPhotoBase64);
+        } else if (removePhotoFlag) {
+          delete cachedUser.profilePhoto;
+          localStorage.removeItem('cropsathi_profile_photo');
+        }
+        localStorage.setItem('user', JSON.stringify(cachedUser));
+
+        finishSave(name, pendingPhotoBase64, removePhotoFlag);
+      } catch (err) {
+        console.error('Save profile error:', err);
+        alert('Cannot reach server.');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = origHTML;
+      }
+    }
+
+    function finishSave(name, photoBase64, isRemoved) {
+      if (isRemoved) {
+        applyProfilePhoto(null);
+      } else if (photoBase64) {
+        applyProfilePhoto(photoBase64);
+      }
+      pendingPhotoBase64 = null;
+      removePhotoFlag = false;
+      document.getElementById('edit-profile-modal').classList.add('hidden');
+      const saveBtn = document.querySelector('#editProfileForm button[type="submit"]');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span>Save Changes</span>';
+      }
+      showToast('Changes Saved!');
+      syncSettingsProfile();
+    }
+
+    // Load cached profile photo immediately to prevent flickering
+    const cachedPhoto = localStorage.getItem('cropsathi_profile_photo');
+    if (cachedPhoto) {
+      applyProfilePhoto(cachedPhoto);
+    }
+
+    document.addEventListener('DOMContentLoaded', syncSettingsProfile);
+  </script>
+</body>
+</html>

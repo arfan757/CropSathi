@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropSathi - Add New Field</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/dist/leaflet.geometryutil.min.js"></script>
+<script src="config.js"></script>
+  <script src="preferences.js"></script>
+
+  <style>
+    body { font-family: 'Noto Sans', sans-serif; background-color: #fbf9f8; color: #1b1c1c; }
+    h1, h2, h3, h4, .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
+    .tactile-card { box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05); }
+    #map { width: 100%; height: 100%; min-height: 380px; border-radius: 12px; }
+    .drawing-active { cursor: crosshair !important; }
+    .leaflet-control-zoom a { background-color: #006038 !important; color: white !important; }
+    .leaflet-control-zoom a:hover { background-color: #1a7a4c !important; }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-[#e4e2e1] px-6 py-4 flex-shrink-0">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <a href="my-fields.html" class="flex items-center gap-2 text-[#3f4941] hover:text-[#006038] transition">
+        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        <span class="font-medium text-sm" data-i18n="af_back">Back to My Fields</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto p-4 md:p-6 w-full flex-1 flex flex-col">
+    <div class="flex flex-col lg:flex-row gap-6 items-stretch">
+
+      <!-- Left: Map Section -->
+      <div class="w-full lg:w-3/5 flex flex-col justify-between">
+        <div class="flex-1 rounded-xl overflow-hidden border border-[#e4e2e1] tactile-card relative min-h-[380px]">
+          <div id="map"></div>
+        </div>
+
+        <!-- Map Toolbar -->
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+          <button onclick="toggleDrawing()" id="drawBtn"
+            class="bg-[#006038] hover:bg-[#1a7a4c] text-white px-4 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 text-sm shadow-sm">
+            <i data-lucide="pentagon" class="w-4.5 h-4.5"></i>
+            <span id="drawBtnText" data-i18n="af_start_drawing">Start Drawing Boundary</span>
+          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="getCurrentLocation()" id="locateBtn"
+              class="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-white text-[#006038] hover:bg-gray-100 rounded-xl transition border border-[#e4e2e1]">
+              <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> <span data-i18n="af_use_location">Use My Location</span>
+            </button>
+            <button onclick="undoLastPoint()"
+              class="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-white text-[#3f4941] hover:bg-gray-100 rounded-xl transition border border-[#e4e2e1]">
+              <i data-lucide="undo-2" class="w-3.5 h-3.5"></i> <span data-i18n="af_undo">Undo</span>
+            </button>
+            <button onclick="clearPolygon()"
+              class="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-white text-[#933302] hover:bg-red-50 rounded-xl transition border border-[#e4e2e1]">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> <span data-i18n="af_clear">Clear</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-4 bg-[#006038]/10 border border-[#006038]/20 rounded-xl p-3.5 flex-shrink-0">
+          <div class="flex items-start gap-3">
+            <i data-lucide="info" class="w-5 h-5 text-[#006038] mt-0.5 flex-shrink-0"></i>
+            <div class="text-xs text-[#006038]">
+              <p class="font-semibold text-xs mb-1" data-i18n="af_how_to">How to mark your field:</p>
+              <ol class="list-decimal list-inside space-y-0.5 text-xs text-[#006038]/90">
+                <li data-i18n="af_step1">Click "Use My Location" or navigate to your field</li>
+                <li data-i18n="af_step2">Click "Start Drawing" to enter drawing mode</li>
+                <li data-i18n="af_step3">Click on the map to mark corners of your field</li>
+                <li data-i18n="af_step4">Click the first point again to complete the polygon</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Form Section -->
+      <div class="w-full lg:w-2/5 flex flex-col">
+        <div class="bg-white border border-[#e4e2e1] rounded-xl p-6 tactile-card flex flex-col justify-between h-full">
+          <div>
+            <h2 id="headerTitle" class="font-headline font-bold text-xl text-[#1b1c1c] mb-5" data-i18n="af_field_details">Field Details</h2>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-[#3f4941] uppercase tracking-wider mb-1.5"><span data-i18n="af_field_name">Field Name</span> *</label>
+                <input type="text" id="fieldName" placeholder="e.g. North Terrace Vineyard"
+                  class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition bg-white">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#3f4941] uppercase tracking-wider mb-1.5"><span data-i18n="af_crop_type">Crop Type</span> *</label>
+                <div class="relative">
+                  <select id="cropType"
+                    class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition appearance-none bg-white">
+                    <option value="" disabled selected>Select crop type</option>
+                    <option value="Wheat">Wheat</option>
+                    <option value="Rice">Rice</option>
+                    <option value="Maize">Maize</option>
+                    <option value="Cotton">☁️ Cotton</option>
+                    <option value="Sugarcane">🎋 Sugarcane</option>
+                    <option value="Potato">Potato</option>
+                    <option value="Grapes">Grapes</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#6f7a71] pointer-events-none"></i>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#3f4941] uppercase tracking-wider mb-1.5"><span data-i18n="af_sowing_date">Sowing Date</span> *</label>
+                <input type="date" id="sowingDate"
+                  class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition bg-white">
+              </div>
+              <div class="bg-[#f6f3f2] rounded-xl p-3.5 border border-[#e4e2e1]">
+                <p class="text-[11px] font-semibold text-[#3f4941] uppercase tracking-wider mb-2.5" data-i18n="af_polygon_summary">Polygon Summary</p>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="bg-white p-3 rounded-lg border border-[#e4e2e1]">
+                    <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider" data-i18n="af_points">Points</p>
+                    <p class="text-base font-bold text-[#1b1c1c]" id="pointCount">0</p>
+                  </div>
+                  <div class="bg-white p-3 rounded-lg border border-[#e4e2e1]">
+                    <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider" data-i18n="af_area">Area</p>
+                    <p class="text-base font-bold text-[#006038]" id="areaHectares">0 ha</p>
+                  </div>
+                </div>
+                <div class="mt-2.5 bg-white p-3 rounded-lg border border-[#e4e2e1]">
+                  <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Area in Acres</p>
+                  <p class="text-base font-bold text-[#1b1c1c]" id="areaAcres">0 acres</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pt-5 border-t border-[#e4e2e1] mt-6 flex gap-3">
+            <a href="my-fields.html" class="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-[#3f4941] bg-[#f0eded] hover:bg-[#eae8e7] rounded-full transition"><span data-i18n="af_cancel">Cancel</span></a>
+            <button onclick="saveField()" id="saveBtn" disabled
+              class="flex-1 px-4 py-2.5 text-sm font-semibold bg-[#006038] text-white rounded-full transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#1a7a4c]"><span data-i18n="af_save">Save Field</span></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // Global variables
+    let map;
+    let drawnItems;
+    let currentPolygon = null;
+    let isDrawing = false;
+    let tempMarkers = [];
+    let polygonPoints = [];
+    let centerLat = 20.5937;
+    let centerLng = 78.9629;
+    let editMode = false;
+    let editFieldId = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async function() {
+      await loadUserLocation();
+      initMap();
+      loadEditMode();
+      lucide.createIcons();
+    });
+
+    // Edit mode
+    function loadEditMode() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('edit') === 'true') {
+        const editData = localStorage.getItem('editField');
+        if (editData) {
+          const field = JSON.parse(editData);
+          editMode = true;
+          editFieldId = field._id;
+          document.title = 'CropSathi - Edit Field';
+          document.getElementById('headerTitle').textContent = 'Edit Field';
+          document.getElementById('fieldName').value = field.name || '';
+          document.getElementById('cropType').value = field.cropType || '';
+          document.getElementById('sowingDate').value = field.sowingDate
+            ? new Date(field.sowingDate).toISOString().split('T')[0] : '';
+          if (field.polygon && field.polygon.length >= 3) {
+            setTimeout(() => loadPolygonOnMap(field.polygon, field), 300);
+          }
+          localStorage.removeItem('editField');
+          document.getElementById('drawBtnText').textContent = CropSathiPrefs.t('af_start_drawing');
+          validateForm();
+        }
+      }
+    }
+
+    function loadPolygonOnMap(polygonData, field) {
+      if (field.centerLat && field.centerLng) {
+        map.setView([field.centerLat, field.centerLng], 16);
+      } else if (polygonData.length > 0) {
+        map.setView([polygonData[0].lat, polygonData[0].lng], 16);
+      }
+      polygonPoints = polygonData.map(p => L.latLng(p.lat, p.lng));
+      polygonPoints.forEach(latlng => {
+        const marker = L.circleMarker(latlng, {
+          radius: 6, fillColor: '#006038', color: '#ffffff', weight: 2, fillOpacity: 1
+        }).addTo(map);
+        tempMarkers.push(marker);
+      });
+      currentPolygon = L.polygon(polygonPoints, {
+        color: '#006038', weight: 2, fillColor: '#006038', fillOpacity: 0.2
+      }).addTo(map);
+      map.fitBounds(currentPolygon.getBounds(), { padding: [30, 30] });
+      updateAreaDisplay();
+      updatePointCount();
+      validateForm();
+    }
+
+    // Load user location
+    async function loadUserLocation() {
+      const token = localStorage.getItem('token');
+      if (!token) { window.location.href = 'login.html'; return; }
+      try {
+        const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await response.json();
+        if (data.success && data.user.farmDetails.latitude && data.user.farmDetails.longitude) {
+          centerLat = data.user.farmDetails.latitude;
+          centerLng = data.user.farmDetails.longitude;
+        }
+      } catch (e) { console.error('Error loading location:', e); }
+    }
+
+    // Init map
+    function initMap() {
+      map = L.map('map').setView([centerLat, centerLng], 15);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri, Maxar, Earthstar Geographics', maxZoom: 19
+      }).addTo(map);
+      const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors', maxZoom: 19
+      });
+      L.control.layers({ 'Satellite': map, 'Street Map': osmLayer }, null, { position: 'topright' }).addTo(map);
+      drawnItems = new L.FeatureGroup();
+      map.addLayer(drawnItems);
+    }
+
+    // Location
+    function getCurrentLocation() {
+      const btn = document.getElementById('locateBtn');
+      btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> ' + CropSathiPrefs.t('af_locating');
+      btn.disabled = true;
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+            L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map).bindPopup('Your Location').openPopup();
+            btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> ' + CropSathiPrefs.t('af_location_found');
+            btn.disabled = false;
+            lucide.createIcons();
+            setTimeout(() => { btn.innerHTML = '<i data-lucide="crosshair" class="w-3.5 h-3.5"></i> ' + CropSathiPrefs.t('af_use_location'); lucide.createIcons(); }, 2000);
+          },
+          () => { alert('Unable to get location.'); btn.innerHTML = '<i data-lucide="crosshair" class="w-3.5 h-3.5"></i> ' + CropSathiPrefs.t('af_use_location'); btn.disabled = false; lucide.createIcons(); }
+        );
+      }
+    }
+
+    // Drawing
+    function toggleDrawing() { isDrawing ? stopDrawing() : startDrawing(); }
+
+    function startDrawing() {
+      isDrawing = true;
+      const drawBtn = document.getElementById('drawBtn');
+      document.getElementById('drawBtnText').textContent = CropSathiPrefs.t('af_drawing_active');
+      drawBtn.classList.add('bg-[#933302]');
+      drawBtn.classList.remove('bg-[#006038]');
+      map.getContainer().classList.add('drawing-active');
+      if (currentPolygon) { map.removeLayer(currentPolygon); currentPolygon = null; }
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+      polygonPoints = [];
+      updatePointCount();
+      updateAreaDisplay();
+      validateForm();
+      map.on('click', addPoint);
+    }
+
+    function stopDrawing() {
+      isDrawing = false;
+      const drawBtn = document.getElementById('drawBtn');
+      drawBtn.classList.remove('bg-[#933302]');
+      drawBtn.classList.add('bg-[#006038]');
+      if (currentPolygon && polygonPoints.length >= 3) {
+        document.getElementById('drawBtnText').textContent = CropSathiPrefs.t('af_polygon_drawn');
+      } else {
+        document.getElementById('drawBtnText').textContent = CropSathiPrefs.t('af_start_drawing');
+      }
+      map.getContainer().classList.remove('drawing-active');
+      map.off('click', addPoint);
+    }
+
+    function addPoint(e) {
+      const latlng = e.latlng;
+      if (polygonPoints.length >= 3) {
+        if (latlng.distanceTo(polygonPoints[0]) < 20) { completePolygon(); return; }
+      }
+      const marker = L.circleMarker(latlng, {
+        radius: 6, fillColor: '#006038', color: '#ffffff', weight: 2, fillOpacity: 1
+      }).addTo(map);
+      tempMarkers.push(marker);
+      polygonPoints.push(latlng);
+      if (polygonPoints.length >= 2) {
+        if (currentPolygon) map.removeLayer(currentPolygon);
+        currentPolygon = L.polygon(polygonPoints, {
+          color: '#006038', weight: 2, fillColor: '#006038', fillOpacity: 0.2
+        }).addTo(map);
+      }
+      updateAreaDisplay();
+      updatePointCount();
+      validateForm();
+    }
+
+    function completePolygon() {
+      stopDrawing();
+      updateAreaDisplay();
+      if (currentPolygon) {
+        const area = calculateArea();
+        if (area > 0) currentPolygon.bindPopup('Area: ' + area.toFixed(2) + ' hectares').openPopup();
+      }
+    }
+
+    function calculateArea() {
+      if (!currentPolygon || polygonPoints.length < 3) return 0;
+      let areaSqMeters = 0;
+      if (typeof L.GeometryUtil !== 'undefined' && L.GeometryUtil.geodesicArea) {
+        areaSqMeters = L.GeometryUtil.geodesicArea(currentPolygon.getLatLngs()[0]);
+      } else {
+        let area = 0;
+        const n = polygonPoints.length;
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n;
+          area += polygonPoints[i].lng * polygonPoints[j].lat;
+          area -= polygonPoints[j].lng * polygonPoints[i].lat;
+        }
+        area = Math.abs(area) / 2;
+        const avgLat = polygonPoints.reduce((s, p) => s + p.lat, 0) / n;
+        areaSqMeters = area * 111320 * (111320 * Math.cos(avgLat * Math.PI / 180));
+      }
+      return areaSqMeters / 10000;
+    }
+
+    function undoLastPoint() {
+      if (polygonPoints.length === 0) return;
+      polygonPoints.pop();
+      const m = tempMarkers.pop();
+      if (m) map.removeLayer(m);
+      if (currentPolygon) { map.removeLayer(currentPolygon); currentPolygon = null; }
+      if (polygonPoints.length >= 2) {
+        currentPolygon = L.polygon(polygonPoints, {
+          color: '#006038', weight: 2, fillColor: '#006038', fillOpacity: 0.2
+        }).addTo(map);
+      }
+      updateAreaDisplay();
+      updatePointCount();
+      validateForm();
+    }
+
+    function clearPolygon() {
+      polygonPoints = [];
+      if (currentPolygon) { map.removeLayer(currentPolygon); currentPolygon = null; }
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+      document.getElementById('drawBtnText').textContent = CropSathiPrefs.t('af_start_drawing');
+      updateAreaDisplay();
+      updatePointCount();
+      validateForm();
+    }
+
+    function updateAreaDisplay() {
+      if (polygonPoints.length < 3 || !currentPolygon) {
+        document.getElementById('areaHectares').textContent = '0 ha';
+        document.getElementById('areaAcres').textContent = '0 acres';
+        return;
+      }
+      const ha = calculateArea();
+      document.getElementById('areaHectares').textContent = ha.toFixed(2) + ' ha';
+      document.getElementById('areaAcres').textContent = (ha * 2.47105).toFixed(2) + ' acres';
+    }
+
+    function updatePointCount() {
+      document.getElementById('pointCount').textContent = polygonPoints.length;
+    }
+
+    function validateForm() {
+      const valid = document.getElementById('fieldName').value.trim()
+        && document.getElementById('cropType').value
+        && document.getElementById('sowingDate').value
+        && polygonPoints.length >= 3 && currentPolygon !== null;
+      document.getElementById('saveBtn').disabled = !valid;
+    }
+
+    // Save
+    async function saveField() {
+      const token = localStorage.getItem('token');
+      if (!token) { window.location.href = 'login.html'; return; }
+      const name = document.getElementById('fieldName').value.trim();
+      const cropType = document.getElementById('cropType').value;
+      const sowingDate = document.getElementById('sowingDate').value;
+      if (!name || !cropType || !sowingDate || polygonPoints.length < 3) {
+        alert('Please fill all fields and draw a polygon with at least 3 points');
+        return;
+      }
+      const areaInHectares = calculateArea();
+      const polygon = polygonPoints.map(p => ({ lat: p.lat, lng: p.lng }));
+      const url = editMode ? `${CropSathiPrefs.api}/api/fields/${editFieldId}` : `${CropSathiPrefs.api}/api/fields`;
+      const method = editMode ? 'PUT' : 'POST';
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ name, cropType, sowingDate, polygon, areaInHectares, areaInAcres: areaInHectares * 2.47105 })
+        });
+        const data = await res.json();
+        if (data.success) { localStorage.setItem('newFieldCreated', 'true'); window.location.href = 'dashboard.html'; }
+        else { alert(data.message || 'Error saving field'); }
+      } catch (e) { console.error('Error saving field:', e); alert('Error saving field. Please try again.'); }
+    }
+
+    document.getElementById('fieldName').addEventListener('input', validateForm);
+    document.getElementById('cropType').addEventListener('change', validateForm);
+    document.getElementById('sowingDate').addEventListener('change', validateForm);
+  </script>
+</body>
+</html>

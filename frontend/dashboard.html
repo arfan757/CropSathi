@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropSathi - Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <!-- Google Fonts: Be Vietnam Pro & Noto Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script><script src="config.js"></script>
+  <script src="preferences.js"></script>
+<script src="nav-profile.js"></script>
+
+
+  <script>
+    async function syncUserProfile() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          const user = result.user;
+          const nameElem = document.getElementById('userName');
+          const locationElem = document.getElementById('userLocation');
+
+          if (nameElem) nameElem.textContent = user.name || 'Farmer';
+
+          // Update profile photo and avatar initial
+          const navAvatar = document.getElementById('navAvatarInitial');
+          if (navAvatar && user.name) {
+            navAvatar.textContent = user.name.trim().charAt(0).toUpperCase();
+          }
+          applyProfilePhoto(user.profilePhoto);
+
+          if (locationElem && user.farmDetails) {
+            const village = user.farmDetails.village || '';
+            const district = user.farmDetails.district || '';
+            locationElem.textContent = village || district || 'Location not set';
+          }
+
+          // Fetch real weather data if GPS coordinates exist
+          if (user.farmDetails && user.farmDetails.latitude && user.farmDetails.longitude) {
+            fetchWeatherData(user.farmDetails.latitude, user.farmDetails.longitude);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync user data:', error);
+      }
+    }
+
+    async function fetchWeatherData(lat, lng) {
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,rain,soil_temperature_6cm,wind_speed_10m&timezone=auto`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data && data.current) {
+          const current = data.current;
+
+          // Update temperature card
+          const temp = Math.round(current.temperature_2m);
+          updateWeatherVisual(temp);
+
+          // Update metric cards
+          const soilTemp = document.getElementById('soilTempValue');
+          const humidity = document.getElementById('humidityValue');
+          const wind = document.getElementById('windValue');
+          const precip = document.getElementById('precipValue');
+
+          if (soilTemp) soilTemp.textContent = (current.soil_temperature_6cm != null ? Math.round(current.soil_temperature_6cm) : 23) + '°C';
+          if (humidity) humidity.textContent = (current.relative_humidity_2m != null ? Math.round(current.relative_humidity_2m) : 78) + '%';
+          if (wind) wind.textContent = (current.wind_speed_10m != null ? Math.round(current.wind_speed_10m) : 7) + ' m/s';
+          if (precip) precip.textContent = (current.rain != null ? current.rain.toFixed(1) : 0) + ' mm';
+        }
+      } catch (error) {
+        console.error('Weather fetch failed, using defaults:', error);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', syncUserProfile);
+  </script>
+  <style>
+    body {
+      font-family: 'Noto Sans', sans-serif;
+      background-color: #fbf9f8;
+      color: #1b1c1c;
+    }
+    h1, h2, h3, h4, .font-headline {
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .tactile-card {
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex">
+
+  <!-- Sidebar Navigation -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-[#ffffff] font-bold shadow-md">
+          <i data-lucide="sprout" class="w-6 h-6"></i>
+        </div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+
+      <nav class="space-y-2">
+        <a href="#" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-[#ffffff] rounded-xl font-semibold transition shadow-sm">
+          <i data-lucide="layout-grid" class="w-5 h-5"></i>
+          <span data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="map-pin" class="w-5 h-5"></i>
+          <span data-i18n="nav_my_fields">My Fields</span>
+        </a>
+        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="camera" class="w-5 h-5"></i>
+          <span data-i18n="nav_diagnose">Diagnose</span>
+        </a>
+        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="lightbulb" class="w-5 h-5"></i>
+          <span data-i18n="nav_advisory">Advisory</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="pt-6 border-t border-[#e4e2e1]">
+      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span data-i18n="nav_settings">Settings</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 p-6 md:p-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
+    
+    <!-- Top Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-[#1b1c1c]"><span id="dashHelloText" data-i18n="dash_hello">Hello</span>, <span id="userName">Harris</span></h1>
+        <p class="text-[#3f4941] text-sm flex items-center gap-1 mt-1">
+          <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> <span id="userLocation">Central Valley</span>
+        </p>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="relative hidden sm:block">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
+          <input type="text" placeholder="Search crops, tasks..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-60 text-[#1b1c1c]">
+        </div>
+        <button class="w-11 h-11 bg-[#f0eded] hover:bg-[#eae8e7] rounded-full flex items-center justify-center relative transition">
+          <i data-lucide="bell" class="w-5 h-5 text-[#1b1c1c]"></i>
+          <span class="w-2.5 h-2.5 bg-[#933302] rounded-full absolute top-2 right-2 border-2 border-[#fbf9f8]"></span>
+        </button>
+        <div id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
+          <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Weather & Field Health Section -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-stretch">
+      
+      <!-- LEFT COLUMN: Weather Card & Metrics -->
+      <div class="lg:col-span-5 flex flex-col justify-between h-full gap-3 font-sans">
+        <!-- Main Weather Card -->
+        <div id="weatherCardBg" class="bg-[#f7f5f4] border border-[#e4e2e1] p-6 rounded-2xl relative overflow-hidden tactile-card flex justify-between min-h-[170px] flex-1">
+          <!-- Left Info Content -->
+          <div class="relative z-10 flex flex-col justify-between items-start">
+            <div>
+              <span class="text-[#3f4941] font-medium text-sm tracking-wide" data-i18n="dash_current_temp">Current Temperature</span>
+              <div class="flex items-baseline gap-1 mt-1">
+                <span id="tempValue" class="text-5xl font-extrabold text-[#1b1c1c] font-headline tracking-tight">32°</span>
+                <span class="text-xl font-semibold text-[#3f4941]">C</span>
+              </div>
+            </div>
+            <div id="weatherBadge" class="inline-flex items-center gap-2 bg-[#e8efe5] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm">
+              <i data-lucide="cloud-sun" class="w-4 h-4" aria-hidden="true"></i>
+              <span id="weatherBadgeText">Warm / Growth Active</span>
+            </div>
+          </div>
+
+          <!-- Vector Graphic Floating Bottom Right -->
+          <div id="weatherVectorContainer" class="absolute bottom-0 right-0 w-48 h-full pointer-events-none flex items-end justify-end"></div>
+        </div>
+
+        <!-- 2x2 Secondary Metrics Grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Soil Temp -->
+          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
+            <div>
+              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_soil_temp">Soil temp</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="soilTempValue">+23°C</p>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#933302] border border-[#e4e2e1] shadow-sm">
+              <i data-lucide="thermometer" class="w-4 h-4"></i>
+            </div>
+          </div>
+
+          <!-- Humidity -->
+          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
+            <div>
+              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_humidity">Humidity</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="humidityValue">78%</p>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#006038] border border-[#e4e2e1] shadow-sm">
+              <i data-lucide="droplets" class="w-4 h-4"></i>
+            </div>
+          </div>
+
+          <!-- Wind -->
+          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
+            <div>
+              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_wind">Wind</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="windValue">7 m/s</p>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#006038] border border-[#e4e2e1] shadow-sm">
+              <i data-lucide="wind" class="w-4 h-4"></i>
+            </div>
+          </div>
+
+          <!-- Precipitation -->
+          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
+            <div>
+              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_precipitation">Precipitation</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="precipValue">0 mm</p>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#933302] border border-[#e4e2e1] shadow-sm">
+              <i data-lucide="cloud-rain" class="w-4 h-4"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Dial Gauge Cards -->
+      <div class="lg:col-span-7 bg-[#f6f3f2] border border-[#e4e2e1] p-6 rounded-xl flex flex-col justify-between tactile-card h-full">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-[#1b1c1c] font-headline" data-i18n="dash_field_health">Field Health Score</h2>
+            <p class="text-xs text-[#3f4941]" data-i18n="dash_field_health_sub">Real-time composite telemetry gauge score</p>
+          </div>
+          <span class="text-xs font-bold px-3 py-1 bg-[#006038] text-[#ffffff] rounded-full flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#abffc9] animate-pulse"></span>            <span data-i18n="dash_sentinel_sync">Sentinel Sync</span>
+          </span>
+        </div>
+
+        <!-- Scrollable Cards Container (dynamically populated) -->
+        <div id="cropScrollContainer" class="flex gap-4 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none py-1">
+          <!-- Loading skeleton -->
+          <div id="healthLoading" class="flex gap-4">
+            <div class="min-w-[220px] bg-white p-5 rounded-xl border border-[#e4e2e1] flex flex-col items-center shrink-0 animate-pulse">
+              <div class="w-full h-8 bg-[#f0eded] rounded mb-3"></div>
+              <div class="w-36 h-36 bg-[#f0eded] rounded-full mb-3"></div>
+              <div class="w-full h-4 bg-[#f0eded] rounded"></div>
+            </div>
+            <div class="min-w-[220px] bg-white p-5 rounded-xl border border-[#e4e2e1] flex flex-col items-center shrink-0 animate-pulse">
+              <div class="w-full h-8 bg-[#f0eded] rounded mb-3"></div>
+              <div class="w-36 h-36 bg-[#f0eded] rounded-full mb-3"></div>
+              <div class="w-full h-4 bg-[#f0eded] rounded"></div>
+            </div>
+          </div>
+          <!-- Empty state (hidden by default) -->
+          <div id="healthEmpty" class="hidden text-center py-8 w-full">
+            <i data-lucide="sprout" class="w-10 h-10 text-[#6f7a71] mx-auto mb-2"></i>
+            <p class="text-sm text-[#6f7a71]">Add fields to see health scores</p>
+            <a href="add-field.html" class="text-xs text-[#006038] font-semibold hover:underline mt-1 inline-block">Add Field</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Commodities & Food Selector -->
+    <section class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline" data-i18n="dash_commodities">Commodities & Food</h2>
+        <a href="#" class="text-xs font-semibold text-[#006038] hover:underline"><span data-i18n="dash_view_all">View All</span></a>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+        <div class="bg-[#006038]/10 border-2 border-[#006038] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition tactile-card">
+          <div class="w-12 h-12 rounded-full bg-[#ffffff] flex items-center justify-center mb-2 shadow-sm"><i data-lucide="wheat" class="w-6 h-6 text-[#006038]"></i></div>
+          <span class="text-sm font-semibold text-[#006038]">Rice</span>
+        </div>
+
+        <div class="bg-[#f0eded] hover:bg-[#eae8e7] border border-[#e4e2e1] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-[#ffffff] flex items-center justify-center mb-2 shadow-sm"><i data-lucide="wheat" class="w-6 h-6 text-[#006038]"></i></div>
+          <span class="text-sm font-semibold text-[#1b1c1c]">Corn</span>
+        </div>
+
+        <div class="bg-[#f0eded] hover:bg-[#eae8e7] border border-[#e4e2e1] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-[#ffffff] flex items-center justify-center mb-2 shadow-sm"><i data-lucide="grape" class="w-6 h-6 text-[#006038]"></i></div>
+          <span class="text-sm font-semibold text-[#1b1c1c]">Grapes</span>
+        </div>
+
+        <div class="bg-[#f0eded] hover:bg-[#eae8e7] border border-[#e4e2e1] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-[#ffffff] flex items-center justify-center mb-2 shadow-sm"><i data-lucide="apple" class="w-6 h-6 text-[#006038]"></i></div>
+          <span class="text-sm font-semibold text-[#1b1c1c]">Potato</span>
+        </div>
+
+        <div class="bg-[#f0eded] hover:bg-[#eae8e7] border border-[#e4e2e1] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-[#ffffff] flex items-center justify-center mb-2 text-2xl shadow-sm">🫒</div>
+          <span class="text-sm font-semibold text-[#1b1c1c]">Olive</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- My Fields Overview Card -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline" data-i18n="dash_my_fields">My Fields</h2>
+        <span class="text-xs font-semibold px-3 py-1 bg-[#f0eded] text-[#3f4941] rounded-full">
+          Central Valley
+        </span>
+      </div>
+
+      <div class="relative rounded-xl overflow-hidden h-72 shadow-md group">
+        <img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=1200" alt="Wheat Field" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20"></div>
+
+        <div class="absolute top-4 right-4 bg-[#ffffff]/90 backdrop-blur-md border border-[#ffffff]/40 px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm">
+          <i data-lucide="sprout" class="w-4 h-4 text-[#006038]"></i>
+          <span class="text-xs font-bold text-[#1b1c1c]">7200 kg/ha</span>
+        </div>
+
+        <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-[#ffffff]/95 backdrop-blur-md p-4 rounded-xl border border-[#ffffff]/50 shadow-md">
+          <div>
+            <h3 class="font-bold text-[#1b1c1c] font-headline">Golden Valley Field #4</h3>
+            <p class="text-xs text-[#3f4941]">Stage: Optimal Harvest Readiness</p>
+          </div>
+          <a href="analytics.html" class="bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] text-xs font-semibold px-5 py-2.5 rounded-full transition shadow-sm inline-block">
+            <span data-i18n="dash_view_analytics">View Analytics</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
+    lucide.createIcons();
+
+    const scrollContainer = document.getElementById('cropScrollContainer');
+    scrollContainer.addEventListener('wheel', (evt) => {
+      evt.preventDefault();
+      scrollContainer.scrollLeft += evt.deltaY;
+    });
+
+    // Initialize weather visual with default temperature
+    updateWeatherVisual(32);
+
+    function updateWeatherVisual(temp) {
+      const container = document.getElementById('weatherVectorContainer');
+      const cardBg = document.getElementById('weatherCardBg');
+      const badge = document.getElementById('weatherBadge');
+      const badgeText = document.getElementById('weatherBadgeText');
+      const tempValElem = document.getElementById('tempValue');
+
+      if (tempValElem) tempValElem.textContent = temp + '°';
+
+      let svgHTML = '';
+
+      if (temp < 18) {
+        // COLD / MISTY
+        if (cardBg) cardBg.style.backgroundColor = '#f5f7f9';
+        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e8f0f7] px-3.5 py-1.5 rounded-full border border-[#2b6cb0]/10 text-xs font-semibold text-[#2b6cb0] mt-4 shadow-sm';
+        if (badgeText) badgeText.textContent = 'Cool / Frost Risk Weather';
+
+        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<circle cx="150" cy="35" r="14" fill="#A0AEC0" fill-opacity="0.5"/>'
+          + '<path d="M40 120C90 85 150 90 200 120H40Z" fill="#CBD5E0" fill-opacity="0.6"/>'
+          + '<path d="M0 120C60 75 130 80 200 120H0Z" fill="#BEE3F8" fill-opacity="0.5"/>'
+          + '<ellipse cx="140" cy="30" rx="20" ry="10" fill="#EDF2F7"/>'
+          + '<ellipse cx="125" cy="35" rx="14" ry="7" fill="#EDF2F7"/>'
+          + '</svg>';
+
+      } else if (temp <= 28) {
+        // MILD / OPTIMAL
+        if (cardBg) cardBg.style.backgroundColor = '#f7f5f4';
+        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e2efe7] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm';
+        if (badgeText) badgeText.textContent = 'Optimal Growth Weather';
+
+        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<circle cx="150" cy="35" r="16" fill="#F6AD55"/>'
+          + '<path d="M50 120C90 85 140 90 200 120H50Z" fill="#C5E3D2" fill-opacity="0.7"/>'
+          + '<path d="M0 120C60 75 120 80 200 120H0Z" fill="#A4D4B8" fill-opacity="0.6"/>'
+          + '<path d="M150 120C150 98 142 80 132 68C144 74 156 86 158 120" fill="#006038"/>'
+          + '<path d="M150 120C150 102 160 88 173 82C165 92 158 106 150 120" fill="#208353"/>'
+          + '</svg>';
+
+      } else if (temp <= 35) {
+        // WARM / ACTIVE
+        if (cardBg) cardBg.style.backgroundColor = '#f7f6f4';
+        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e8efe5] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm';
+        if (badgeText) badgeText.textContent = 'Warm / Growth Active';
+
+        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<circle cx="150" cy="30" r="18" fill="#F8C055"/>'
+          + '<path d="M40 120C80 80 130 85 200 120H40Z" fill="#C5E3D2" fill-opacity="0.7"/>'
+          + '<path d="M0 120C50 70 110 75 200 120H0Z" fill="#A4D4B8" fill-opacity="0.6"/>'
+          + '<path d="M145 120C145 98 137 80 127 68C139 74 151 86 153 120" fill="#006038"/>'
+          + '<path d="M145 120C145 102 155 88 168 82C160 92 153 106 145 120" fill="#208353"/>'
+          + '</svg>';
+
+      } else {
+        // HOT
+        if (cardBg) cardBg.style.backgroundColor = '#f9f5f2';
+        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#fae8d5] px-3.5 py-1.5 rounded-full border border-[#c05621]/10 text-xs font-semibold text-[#c05621] mt-4 shadow-sm';
+        if (badgeText) badgeText.textContent = 'High Heat / Irrigation Advised';
+
+        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<circle cx="150" cy="30" r="22" fill="#DD6B20" fill-opacity="0.2"/>'
+          + '<circle cx="150" cy="30" r="15" fill="#ED8936"/>'
+          + '<path d="M40 120C85 85 135 90 200 120H40Z" fill="#FBD38D" fill-opacity="0.5"/>'
+          + '<path d="M0 120C50 75 115 80 200 120H0Z" fill="#FEEBC8" fill-opacity="0.7"/>'
+          + '<path d="M145 120C145 106 132 93 120 86C132 88 142 97 145 120" fill="#C05621"/>'
+          + '</svg>';
+      }
+
+      if (container) container.innerHTML = svgHTML;
+    }
+
+    // ─── Field Health Scores (real data from backend) ──────────────────────
+    const cropEmojis = {
+      'Rice': 'wheat', 'Wheat': 'wheat', 'Maize': 'wheat', 'Cotton': 'cloud',
+      'Sugarcane': 'sprout', 'Potato': 'apple', 'Grapes': 'grape', 'Soybean': 'sprout',
+      'Tur': 'sprout', 'Other': 'sprout',
+    };
+
+    function getScoreColor(score) {
+      if (score >= 70) return '#006038';
+      if (score >= 40) return '#1a7a4c';
+      return '#933302';
+    }
+
+    function getScoreLabel(severity, triggeredAlert) {
+      if (triggeredAlert) return { text: 'Alert', bg: 'bg-[#933302]/10', color: 'text-[#933302]' };
+      if (severity === 'low') return { text: 'Optimal', bg: 'bg-[#006038]/10', color: 'text-[#006038]' };
+      if (severity === 'medium') return { text: 'Watch', bg: 'bg-[#1a7a4c]/10', color: 'text-[#1a7a4c]' };
+      return { text: 'New', bg: 'bg-[#f0eded]', color: 'text-[#6f7a71]' };
+    }
+
+    function getActionText(field) {
+      if (field.triggeredAlert) return field.diseaseHypothesis?.replace(/_/g, ' ') || 'Risk detected';
+      if (field.severity === 'medium') return 'Monitor closely';
+      if (field.severity === 'low') return 'No action needed';
+      return 'Awaiting data';
+    }
+
+    function getTrendArrow(trend, score, prev) {
+      if (trend === 'up') return '<span class="text-[#006038]">▲</span>';
+      if (trend === 'down') return '<span class="text-[#933302]">▼</span>';
+      return '<span class="text-[#6f7a71]">–</span>';
+    }
+
+    function renderHealthCard(field) {
+      const hasData = field.compositeScore != null;
+      const score = hasData ? field.compositeScore : 0;
+      const color = getScoreColor(score);
+      const label = getScoreLabel(field.severity, field.triggeredAlert);
+      const iconName = cropEmojis[field.cropType] || 'sprout';
+      const arcLength = 169.6;
+      const offset = hasData && score > 0 ? arcLength * (1 - score / 100) : arcLength;
+      const actionText = getActionText(field);
+      const trend = getTrendArrow(field.trend, score, field.previousScore);
+      const borderColor = field.triggeredAlert ? 'border-[#ffb599]' : 'border-[#e4e2e1]';
+
+      return `
+        <div class="min-w-[220px] bg-white p-5 rounded-xl border ${borderColor} flex flex-col items-center tactile-card shrink-0">
+          <div class="flex items-start justify-between w-full mb-1">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-[${color}]/10 flex items-center justify-center shrink-0">
+                <span class="text-base"><i data-lucide="${iconName}" class="w-5 h-5 text-[#006038]"></i></span>
+              </div>
+              <div>
+                <h3 class="font-bold text-sm text-[#1b1c1c] font-headline leading-tight">${field.farmName}</h3>
+                <p class="text-[11px] text-[#3f4941]">${field.areaHectares?.toFixed(1) || '?'} Ha · ${field.cropType}</p>
+              </div>
+            </div>
+            <span class="text-[10px] font-bold ${label.color} ${label.bg} px-2 py-0.5 rounded whitespace-nowrap ml-1">${label.text}</span>
+          </div>
+
+          <div class="relative w-36 h-36 my-1 flex items-center justify-center">
+            <svg class="w-full h-full transform rotate-[135deg]" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="36" stroke="#e4e2e1" stroke-width="8" stroke-linecap="round" fill="none" stroke-dasharray="${arcLength} 226.2"/>
+              <circle cx="50" cy="50" r="36" stroke="${color}" stroke-width="8" stroke-linecap="round" fill="none" stroke-dasharray="${arcLength} 226.2" stroke-dashoffset="${offset}"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span class="text-3xl font-extrabold text-[#1b1c1c] font-headline leading-none">${hasData ? score : '--'}</span>
+              <span class="text-[9px] font-bold text-[#3f4941] uppercase tracking-wider mt-1">Score ${trend}</span>
+            </div>
+          </div>
+
+          <div class="w-full pt-3 border-t border-[#e4e2e1] flex items-center justify-between text-xs">
+            <span class="text-[#3f4941]">Action:</span>
+            <span class="font-semibold ${field.triggeredAlert ? 'text-[#933302]' : 'text-[#006038]'} capitalize">${actionText}</span>
+          </div>
+        </div>`;
+    }
+
+    async function loadHealthScores() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const loadingEl = document.getElementById('healthLoading');
+      const emptyEl = document.getElementById('healthEmpty');
+      const container = document.getElementById('cropScrollContainer');
+
+      try {
+        const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        if (!data.success || !data.data?.fields?.length) {
+          loadingEl?.classList.add('hidden');
+          emptyEl?.classList.remove('hidden');
+          return;
+        }
+
+        const fields = data.data.fields;
+        const html = fields.map(renderHealthCard).join('');
+
+        // Replace container content (keep the container itself)
+        container.innerHTML = html;
+        lucide.createIcons();
+
+      } catch (err) {
+        console.error('Failed to load health scores:', err);
+        loadingEl?.classList.add('hidden');
+      }
+    }
+
+    // Load health scores on page load
+    loadHealthScores();
+
+    // If a field was just created, poll until the risk score appears
+    if (localStorage.getItem('newFieldCreated')) {
+      localStorage.removeItem('newFieldCreated');
+      let attempts = 0;
+      const poller = setInterval(() => {
+        loadHealthScores();
+        attempts++;
+        if (attempts >= 5) clearInterval(poller);
+      }, 3000);
+    }
+
+  </script>
+</body>
+</html>

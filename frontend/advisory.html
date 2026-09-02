@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advisory - CropSathi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="preferences.css">
+  <style>
+    body { font-family: 'Noto Sans', sans-serif; }
+    .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-white font-bold shadow-md"><i data-lucide="sprout" class="w-6 h-6"></i></div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+      <nav class="space-y-2">
+        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="layout-grid" class="w-5 h-5"></i><span>Dashboard</span></a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="map-pin" class="w-5 h-5"></i><span>My Fields</span></a>
+        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="camera" class="w-5 h-5"></i><span>Diagnose</span></a>
+        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-white rounded-xl font-semibold transition shadow-sm"><i data-lucide="lightbulb" class="w-5 h-5"></i><span>Advisory</span></a>
+      </nav>
+    </div>
+    <div class="pt-6 border-t border-[#e4e2e1]"><a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="settings" class="w-5 h-5"></i><span>Settings</span></a></div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6 md:p-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
+    <header class="mb-8 flex items-start justify-between">
+      <div>
+        <h1 class="text-3xl font-bold font-headline">Advisory</h1>
+        <p class="text-[#3f4941] text-sm mt-1">Treatment plans for your diagnosed crops</p>
+      </div>
+      <!-- Language Toggle -->
+      <div id="lang-toggle" class="flex bg-[#eae8e7] rounded-xl p-1 flex-shrink-0 mt-1">
+        <button data-lang="en" class="lang-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#006038] text-white transition">EN</button>
+        <button data-lang="hi" class="lang-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-[#3f4941] hover:text-[#1b1c1c] transition">हि</button>
+        <button data-lang="mr" class="lang-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-[#3f4941] hover:text-[#1b1c1c] transition">मर</button>
+      </div>
+    </header>
+
+    <!-- Loading State -->
+    <div id="loading" class="text-center py-16">
+      <div class="inline-block w-8 h-8 border-3 border-[#006038] border-t-transparent rounded-full animate-spin mb-3" style="border-width:3px"></div>
+      <p class="text-[#3f4941] text-sm">Loading advisories...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden text-center py-16 bg-white rounded-2xl shadow-sm border border-[#e4e2e1]">
+      <div class="w-16 h-16 rounded-full bg-[#eae8e7] flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="clipboard-list" class="w-8 h-8 text-[#6f7a71]"></i>
+      </div>
+      <h3 class="text-lg font-headline font-semibold text-[#1b1c1c]">No Advisories Yet</h3>
+      <p class="text-[#3f4941] text-sm mt-1">Advisories will appear after a diagnosis is confirmed.</p>
+      <a href="diagnose.html" class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 bg-[#006038] text-white font-semibold rounded-full hover:bg-[#1a7a4c] transition shadow-sm text-sm">
+        <i data-lucide="camera" class="w-4 h-4"></i><span>Start Diagnosis</span>
+      </a>
+    </div>
+
+    <!-- Advisories List -->
+    <div id="advisories-container" class="hidden space-y-6"></div>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="advisory.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

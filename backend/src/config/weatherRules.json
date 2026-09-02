@@ -1,0 +1,245 @@
+{
+  "version": "2.0",
+  "description": "Weather-based disease risk rules v2 — adds wind speed, soil temp, severity bands, crop stage awareness.",
+  "rules": {
+    "cotton": [
+      {
+        "diseaseCode": "cotton_bollworm",
+        "diseaseName": "Cotton Bollworm",
+        "humidityMin": 70,
+        "tempMin": 22,
+        "tempMax": 32,
+        "rainfallMin": 5,
+        "windSpeedMin": 0,
+        "soilTempMin": 20,
+        "soilTempMax": 35,
+        "cropStages": ["flowering", "fruiting"],
+        "riskWeight": 0.8,
+        "severityBands": { "low": 0.3, "medium": 0.6, "high": 0.85 },
+        "notes": "Warm, humid conditions favor bollworm activity; highest risk during flowering and boll formation"
+      },
+      {
+        "diseaseCode": "cotton_wilt",
+        "diseaseName": "Cotton Wilt",
+        "humidityMin": 60,
+        "tempMin": 25,
+        "tempMax": 35,
+        "rainfallMin": 0,
+        "windSpeedMin": 0,
+        "soilTempMin": 25,
+        "soilTempMax": 40,
+        "cropStages": ["vegetative", "flowering"],
+        "riskWeight": 0.6,
+        "severityBands": { "low": 0.25, "medium": 0.5, "high": 0.7 },
+        "notes": "Wilt thrives in warm soil with moisture stress cycles"
+      }
+    ],
+    "soybean": [
+      {
+        "diseaseCode": "soybean_rust",
+        "diseaseName": "Soybean Rust",
+        "humidityMin": 80,
+        "tempMin": 18,
+        "tempMax": 28,
+        "rainfallMin": 10,
+        "windSpeedMin": 2,
+        "soilTempMin": 15,
+        "soilTempMax": 30,
+        "cropStages": ["vegetative", "flowering", "fruiting"],
+        "riskWeight": 0.9,
+        "severityBands": { "low": 0.35, "medium": 0.65, "high": 0.9 },
+        "notes": "Puccinia requires leaf wetness + high humidity; wind spreads spores between plants"
+      },
+      {
+        "diseaseCode": "soybean_leaf_spot",
+        "diseaseName": "Soybean Leaf Spot",
+        "humidityMin": 75,
+        "tempMin": 20,
+        "tempMax": 30,
+        "rainfallMin": 5,
+        "windSpeedMin": 0,
+        "soilTempMin": 18,
+        "soilTempMax": 32,
+        "cropStages": ["vegetative", "flowering"],
+        "riskWeight": 0.65,
+        "severityBands": { "low": 0.25, "medium": 0.5, "high": 0.7 },
+        "notes": "Cercospora leaf spot favored by warm wet conditions"
+      }
+    ],
+    "tur": [
+      {
+        "diseaseCode": "tur_wilt",
+        "diseaseName": "Tur Wilt",
+        "humidityMin": 55,
+        "tempMin": 25,
+        "tempMax": 35,
+        "rainfallMin": 0,
+        "windSpeedMin": 0,
+        "soilTempMin": 25,
+        "soilTempMax": 38,
+        "cropStages": ["vegetative", "flowering"],
+        "riskWeight": 0.7,
+        "severityBands": { "low": 0.25, "medium": 0.5, "high": 0.7 },
+        "notes": "Fusarium wilt favors warm, poorly drained soils"
+      },
+      {
+        "diseaseCode": "tur_pod_borer",
+        "diseaseName": "Tur Pod Borer",
+        "humidityMin": 65,
+        "tempMin": 20,
+        "tempMax": 30,
+        "rainfallMin": 5,
+        "windSpeedMin": 0,
+        "soilTempMin": 18,
+        "soilTempMax": 30,
+        "cropStages": ["flowering", "fruiting"],
+        "riskWeight": 0.75,
+        "severityBands": { "low": 0.3, "medium": 0.55, "high": 0.8 },
+        "notes": "Helicoverpa activity peaks in warm humid monsoon"
+      }
+    ],
+    "wheat": [
+      {
+        "diseaseCode": "wheat_rust",
+        "diseaseName": "Wheat Rust",
+        "humidityMin": 65,
+        "tempMin": 12,
+        "tempMax": 22,
+        "rainfallMin": 2,
+        "windSpeedMin": 3,
+        "soilTempMin": 10,
+        "soilTempMax": 25,
+        "cropStages": ["vegetative", "flowering"],
+        "riskWeight": 0.85,
+        "severityBands": { "low": 0.3, "medium": 0.6, "high": 0.85 },
+        "notes": "Stripe/leaf rust requires cool moist conditions; wind carries urediniospores long distances"
+      },
+      {
+        "diseaseCode": "wheat_powdery_mildew",
+        "diseaseName": "Wheat Powdery Mildew",
+        "humidityMin": 60,
+        "tempMin": 15,
+        "tempMax": 25,
+        "rainfallMin": 0,
+        "windSpeedMin": 0,
+        "soilTempMin": 12,
+        "soilTempMax": 28,
+        "cropStages": ["vegetative", "flowering"],
+        "riskWeight": 0.6,
+        "severityBands": { "low": 0.2, "medium": 0.45, "high": 0.65 },
+        "notes": "High humidity without free water; moderate temps"
+      }
+    ],
+    "rice": [
+      {
+        "diseaseCode": "rice_blast",
+        "diseaseName": "Rice Blast",
+        "humidityMin": 85,
+        "tempMin": 25,
+        "tempMax": 30,
+        "rainfallMin": 15,
+        "windSpeedMin": 0,
+        "soilTempMin": 22,
+        "soilTempMax": 32,
+        "cropStages": ["vegetative", "flowering", "fruiting"],
+        "riskWeight": 0.95,
+        "severityBands": { "low": 0.4, "medium": 0.7, "high": 0.95 },
+        "notes": "Magnaporthe oryzae thrives in warm, saturated conditions"
+      },
+      {
+        "diseaseCode": "rice_bacterial_leaf_blight",
+        "diseaseName": "Bacterial Leaf Blight",
+        "humidityMin": 80,
+        "tempMin": 28,
+        "tempMax": 35,
+        "rainfallMin": 10,
+        "windSpeedMin": 0,
+        "soilTempMin": 25,
+        "soilTempMax": 38,
+        "cropStages": ["flowering", "fruiting"],
+        "riskWeight": 0.8,
+        "severityBands": { "low": 0.3, "medium": 0.6, "high": 0.8 },
+        "notes": "Xanthomonas favored by high temp + flooding"
+      }
+    ],
+    "maize": [
+      {
+        "diseaseCode": "maize_fall_armyworm",
+        "diseaseName": "Fall Armyworm",
+        "humidityMin": 60,
+        "tempMin": 22,
+        "tempMax": 32,
+        "rainfallMin": 5,
+        "windSpeedMin": 0,
+        "soilTempMin": 20,
+        "soilTempMax": 35,
+        "cropStages": ["vegetative", "flowering"],
+        "riskWeight": 0.8,
+        "severityBands": { "low": 0.3, "medium": 0.6, "high": 0.85 },
+        "notes": "Spodoptera frugiperda favors warm humid conditions"
+      }
+    ],
+    "potato": [
+      {
+        "diseaseCode": "potato_late_blight",
+        "diseaseName": "Potato Late Blight",
+        "humidityMin": 80,
+        "tempMin": 15,
+        "tempMax": 22,
+        "rainfallMin": 5,
+        "windSpeedMin": 2,
+        "soilTempMin": 12,
+        "soilTempMax": 25,
+        "cropStages": ["vegetative", "flowering", "fruiting"],
+        "riskWeight": 0.95,
+        "severityBands": { "low": 0.35, "medium": 0.65, "high": 0.95 },
+        "notes": "Phytophthora infestans — cool, wet conditions ideal; wind spreads sporangia"
+      }
+    ],
+    "sugarcane": [
+      {
+        "diseaseCode": "sugarcane_red_rot",
+        "diseaseName": "Sugarcane Red Rot",
+        "humidityMin": 75,
+        "tempMin": 25,
+        "tempMax": 35,
+        "rainfallMin": 5,
+        "windSpeedMin": 0,
+        "soilTempMin": 22,
+        "soilTempMax": 38,
+        "cropStages": ["vegetative", "flowering", "fruiting"],
+        "riskWeight": 0.7,
+        "severityBands": { "low": 0.25, "medium": 0.5, "high": 0.7 },
+        "notes": "Colletotrichum favored by warm, humid conditions"
+      }
+    ],
+    "grapes": [
+      {
+        "diseaseCode": "grapes_downy_mildew",
+        "diseaseName": "Grapes Downy Mildew",
+        "humidityMin": 75,
+        "tempMin": 20,
+        "tempMax": 28,
+        "rainfallMin": 5,
+        "windSpeedMin": 0,
+        "soilTempMin": 18,
+        "soilTempMax": 30,
+        "cropStages": ["vegetative", "flowering", "fruiting"],
+        "riskWeight": 0.8,
+        "severityBands": { "low": 0.3, "medium": 0.55, "high": 0.8 },
+        "notes": "Plasmopara viticola requires warm, wet conditions"
+      }
+    ]
+  },
+  "defaultThresholds": {
+    "humidityMin": 70,
+    "tempMin": 18,
+    "tempMax": 30,
+    "rainfallMin": 5,
+    "windSpeedMin": 0,
+    "soilTempMin": 15,
+    "soilTempMax": 35,
+    "riskWeight": 0.5,
+    "severityBands": { "low": 0.2, "medium": 0.45, "high": 0.65 }
+  }
+}

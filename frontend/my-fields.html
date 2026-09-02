@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropSathi - My Fields</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <!-- Google Fonts: Be Vietnam Pro & Noto Sans as specified in design.md -->
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="config.js"></script>
+  <script src="preferences.js"></script>
+  <script src="nav-profile.js"></script>
+
+  <style>
+    /* Typography Rules from design.md */
+    body {
+      font-family: 'Noto Sans', sans-serif;
+      background-color: #fbf9f8;
+      color: #1b1c1c;
+    }
+    h1, h2, h3, h4, .font-headline {
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+    /* Modern Tactile Card Shadow from design.md */
+    .tactile-card {
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    /* Modal backdrop */
+    .modal-backdrop {
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+    }
+    /* Detail map */
+    #detailMap {
+      height: 100%;
+      min-height: 300px;
+      border-radius: 12px;
+    }
+    .leaflet-control-zoom a {
+      background-color: #006038 !important;
+      color: white !important;
+    }
+    .leaflet-control-zoom a:hover {
+      background-color: #1a7a4c !important;
+    }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex">
+
+  <!-- Sidebar Navigation -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <!-- Brand Logo (Forest Green primary theme) -->
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-[#ffffff] font-bold shadow-md">
+          <i data-lucide="sprout" class="w-6 h-6"></i>
+        </div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="space-y-2">
+        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="layout-grid" class="w-5 h-5"></i>
+          <span data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-[#ffffff] rounded-xl font-semibold transition shadow-sm">
+          <i data-lucide="map-pin" class="w-5 h-5"></i>
+          <span data-i18n="nav_my_fields">My Fields</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="camera" class="w-5 h-5"></i>
+          <span data-i18n="nav_diagnose">Diagnose</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="lightbulb" class="w-5 h-5"></i>
+          <span data-i18n="nav_advisory">Advisory</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Bottom Settings / Profile -->
+    <div class="pt-6 border-t border-[#e4e2e1]">
+      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span data-i18n="nav_settings">Settings</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 p-6 md:p-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
+
+    <!-- Top Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-[#1b1c1c]" data-i18n="mf_title">My Fields</h1>
+        <p class="text-[#3f4941] text-sm flex items-center gap-1 mt-1" id="locationDisplay">
+          <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> Loading location...
+        </p>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="relative hidden sm:block">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
+          <input type="text" placeholder="Search fields..." id="searchInput" data-i18n-placeholder="mf_search_fields"
+            class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-60 text-[#1b1c1c]">
+        </div>
+        <button class="w-11 h-11 bg-[#f0eded] hover:bg-[#eae8e7] rounded-full flex items-center justify-center relative transition">
+          <i data-lucide="bell" class="w-5 h-5 text-[#1b1c1c]"></i>
+          <span class="w-2.5 h-2.5 bg-[#933302] rounded-full absolute top-2 right-2 border-2 border-[#fbf9f8]"></span>
+        </button>
+        <div id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
+          <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Action Buttons -->
+    <div class="mb-6 flex flex-wrap gap-3">
+      <a href="add-field.html"
+        class="inline-flex items-center gap-2 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] font-semibold px-6 py-3 rounded-full transition shadow-sm">
+        <i data-lucide="plus" class="w-5 h-5"></i>
+        <span data-i18n="mf_add_field">Add New Field</span>
+      </a>
+      <a href="analytics.html"
+        class="inline-flex items-center gap-2 bg-white border border-[#e4e2e1] hover:bg-[#f0eded] text-[#1b1c1c] font-semibold px-6 py-3 rounded-full transition">
+        <i data-lucide="bar-chart-2" class="w-5 h-5 text-[#006038]"></i>
+        <span data-i18n="mf_view_analytics">View Analytics</span>
+      </a>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="text-center py-12">
+      <div class="inline-block w-8 h-8 border-4 border-[#006038] border-t-transparent rounded-full animate-spin"></div>
+      <p class="mt-4 text-[#3f4941]" data-i18n="mf_loading">Loading your fields...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-16">
+      <div class="w-20 h-20 bg-[#f0eded] rounded-full flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="map-pin" class="w-10 h-10 text-[#6f7a71]"></i>
+      </div>
+      <h3 class="font-headline font-bold text-xl text-[#1b1c1c] mb-2" data-i18n="mf_no_fields">No fields yet</h3>
+      <p class="text-[#3f4941] mb-6" data-i18n="mf_no_fields_desc">Add your first field to start tracking crop health and yield.</p>
+      <a href="add-field.html"
+        class="inline-flex items-center gap-2 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] font-semibold px-6 py-3 rounded-full transition shadow-sm">
+        <i data-lucide="plus" class="w-5 h-5"></i>
+        <span data-i18n="mf_add_first">Add Your First Field</span>
+      </a>
+    </div>
+
+    <!-- Fields Grid -->
+    <section id="fieldsGrid" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Field cards will be rendered here dynamically -->
+    </section>
+
+  </main>
+
+  <!-- Field Detail Modal -->
+  <div id="fieldDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop" onclick="closeDetailModal(event)">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-[#e4e2e1] flex items-center justify-between">
+        <div>
+          <h2 id="detailTitle" class="text-xl font-bold text-[#1b1c1c] font-headline">Field Name</h2>
+          <p id="detailCrop" class="text-sm text-[#3f4941] capitalize">Crop Type</p>
+        </div>
+        <button onclick="closeDetailModal()" class="w-10 h-10 rounded-full hover:bg-[#f0eded] flex items-center justify-center transition" aria-label="Close">
+          <i data-lucide="x" class="w-5 h-5 text-[#3f4941]" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="flex-1 overflow-y-auto p-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- Left: Map -->
+          <div>
+            <div id="detailMap" class="border-2 border-[#e4e2e1] rounded-xl"></div>
+            <p class="text-xs text-[#3f4941] mt-2 text-center">Field boundary on satellite view</p>
+          </div>
+
+          <!-- Right: Details -->
+          <div class="space-y-4">
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
+                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Area</p>
+                <p id="detailAreaHa" class="text-xl font-bold text-[#006038] mt-0.5">0 ha</p>
+              </div>
+              <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
+                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Area (Acres)</p>
+                <p id="detailAreaAc" class="text-xl font-bold text-[#1b1c1c] mt-0.5">0 ac</p>
+              </div>
+            </div>
+
+            <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
+              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Sowing Date</p>
+              <p id="detailSowing" class="text-sm font-semibold text-[#1b1c1c] mt-0.5">—</p>
+            </div>
+
+            <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
+              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Polygon Points</p>
+              <p id="detailPoints" class="text-sm font-semibold text-[#1b1c1c] mt-0.5">0 points</p>
+            </div>
+
+            <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
+              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Status</p>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#006038] animate-pulse"></span>
+                <p class="text-sm font-semibold text-[#006038]">Active</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-5 border-t border-[#e4e2e1] flex justify-end gap-3">
+        <button onclick="closeDetailModal()" class="px-5 py-2.5 text-sm font-semibold text-[#3f4941] bg-[#f0eded] hover:bg-[#eae8e7] rounded-full transition">
+          <span data-i18n="fd_close">Close</span>
+        </button>
+        <button onclick="editField()" class="px-5 py-2.5 text-sm font-semibold text-white bg-[#006038] hover:bg-[#1a7a4c] rounded-full transition shadow-sm flex items-center gap-2">
+          <i data-lucide="pencil" class="w-4 h-4"></i>
+          <span data-i18n="fd_edit">Edit Field</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check authentication
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = 'login.html';
+    }
+
+    // Global state
+    let allFields = [];
+
+    // Crop type emoji mapping
+    const cropEmojis = {
+      'Wheat': 'wheat',
+      'Rice': 'wheat',
+      'Maize': 'wheat',
+      'Cotton': '☁️',
+      'Sugarcane': '🎋',
+      'Potato': 'apple',
+      'Grapes': 'grape',
+      'Other': 'sprout',
+    };
+
+    // Random field images for demo
+    const fieldImages = [
+      'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=1200',
+      'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&q=80&w=1200',
+      'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&q=80&w=1200',
+      'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&q=80&w=1200',
+      'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&q=80&w=1200',
+    ];
+
+    // Load user profile and fields
+    async function loadData() {
+      try {
+        // Load user profile for location
+        const profileResponse = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const profileData = await profileResponse.json();
+
+        if (profileData.success) {
+          // Update profile photo and avatar initial
+          const navAvatar = document.getElementById('navAvatarInitial');
+          if (navAvatar && profileData.user.name) {
+            navAvatar.textContent = profileData.user.name.trim().charAt(0).toUpperCase();
+          }
+          applyProfilePhoto(profileData.user.profilePhoto);
+
+          if (profileData.user.farmDetails) {
+            const { village, district } = profileData.user.farmDetails;
+            const locationText = village || district || 'Location not set';
+            document.getElementById('locationDisplay').innerHTML = `
+              <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> ${locationText}
+            `;
+            lucide.createIcons();
+          }
+        }
+
+        // Load fields
+        const fieldsResponse = await fetch(`${CropSathiPrefs.api}/api/fields`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const fieldsData = await fieldsResponse.json();
+
+        if (fieldsData.success) {
+          allFields = fieldsData.data;
+          renderFields(allFields);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        showEmptyState();
+      }
+    }
+
+    // Render field cards
+    function renderFields(fields) {
+      const grid = document.getElementById('fieldsGrid');
+      const loading = document.getElementById('loadingState');
+      const empty = document.getElementById('emptyState');
+
+      loading.classList.add('hidden');
+
+      if (fields.length === 0) {
+        showEmptyState();
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.classList.remove('hidden');
+
+      grid.innerHTML = fields.map((field, index) => `
+        <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl overflow-hidden tactile-card">
+          <!-- Field Image -->
+          <div class="relative h-48 overflow-hidden group">
+            <img src="${fieldImages[index % fieldImages.length]}" alt="${field.name}"
+              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+
+            <!-- Status Badge -->
+            <div class="absolute top-3 right-3 bg-[#006038] text-[#ffffff] px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[#abffc9] animate-pulse"></span>
+              Active
+            </div>
+
+            <!-- Crop Info Overlay -->
+            <div class="absolute bottom-3 left-3 right-3">
+              <h3 class="font-bold text-[#ffffff] font-headline text-lg">${CropSathiPrefs.escapeHtml(field.name)}</h3>
+              <p class="text-xs text-[#ffffff]/90 flex items-center gap-1 mt-0.5">
+                <span class="text-base"><i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-4 h-4 text-[#006038]"></i></span> ${CropSathiPrefs.escapeHtml(field.cropType)} · ${field.areaInHectares.toFixed(1)} hectares
+              </p>
+            </div>
+          </div>
+
+          <!-- Field Details -->
+          <div class="p-5">
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
+                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Area</p>
+                <p class="text-lg font-bold text-[#006038] mt-0.5">${field.areaInHectares.toFixed(1)} ha</p>
+              </div>
+              <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
+                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Area (Acres)</p>
+                <p class="text-lg font-bold text-[#1b1c1c] mt-0.5">${field.areaInAcres.toFixed(1)} ac</p>
+              </div>
+              <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
+                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Crop Type</p>
+                <p class="text-sm font-semibold text-[#1b1c1c] mt-0.5">${CropSathiPrefs.escapeHtml(field.cropType)}</p>
+              </div>
+              <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
+                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Sowing Date</p>
+                <p class="text-sm font-semibold text-[#1b1c1c] mt-0.5">${new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2">
+              <button onclick="viewField('${field._id}')" class="flex-1 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] text-sm font-semibold px-4 py-2.5 rounded-full transition">
+                ${CropSathiPrefs.t('mf_view_details')}
+              </button>
+              <button onclick="deleteField('${field._id}', '${field.name}')" class="w-10 h-10 bg-[#f0eded] hover:bg-red-50 rounded-full flex items-center justify-center transition" title="Delete field">
+                <i data-lucide="trash-2" class="w-4 h-4 text-[#933302]"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    // Show empty state
+    function showEmptyState() {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('fieldsGrid').classList.add('hidden');
+      document.getElementById('emptyState').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    // View field details - open modal with map
+    let detailMap = null;
+    let currentDetailField = null;
+
+    // Edit field - navigate to add-field page with data
+    function editField() {
+      if (!currentDetailField) return;
+      localStorage.setItem('editField', JSON.stringify(currentDetailField));
+      window.location.href = 'add-field.html?edit=true';
+    }
+
+    function viewField(fieldId) {
+      const field = allFields.find(f => f._id === fieldId);
+      if (!field) return;
+      currentDetailField = field;
+
+      // Populate modal data
+      document.getElementById('detailTitle').textContent = field.name;
+      document.getElementById('detailCrop').innerHTML = `<i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-4 h-4 text-[#006038]"></i> ${field.cropType}`;
+      document.getElementById('detailAreaHa').textContent = `${field.areaInHectares.toFixed(2)} ha`;
+      document.getElementById('detailAreaAc').textContent = `${field.areaInAcres.toFixed(2)} ac`;
+      document.getElementById('detailSowing').textContent = field.sowingDate
+        ? new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '—';
+      document.getElementById('detailPoints').textContent = field.polygon ? `${field.polygon.length} points` : '0 points';
+
+      // Show modal
+      document.getElementById('fieldDetailModal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      // Initialize map after modal is visible
+      setTimeout(() => {
+        initDetailMap(field);
+      }, 150);
+    }
+
+    // Initialize detail map with polygon
+    function initDetailMap(field) {
+      // Destroy previous map if exists
+      if (detailMap) {
+        detailMap.remove();
+        detailMap = null;
+      }
+
+      // Calculate center from polygon or use defaults
+      let centerLat = 20.5937;
+      let centerLng = 78.9629;
+      let zoom = 15;
+
+      if (field.polygon && field.polygon.length > 0) {
+        centerLat = field.centerLat || field.polygon[0].lat;
+        centerLng = field.centerLng || field.polygon[0].lng;
+      }
+
+      detailMap = L.map('detailMap').setView([centerLat, centerLng], zoom);
+
+      // Satellite tiles
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri, Maxar, Earthstar Geographics',
+        maxZoom: 19
+      }).addTo(detailMap);
+
+      // Draw polygon if exists
+      if (field.polygon && field.polygon.length >= 3) {
+        const latlngs = field.polygon.map(p => [p.lat, p.lng]);
+
+        const polygon = L.polygon(latlngs, {
+          color: '#006038',
+          weight: 3,
+          fillColor: '#006038',
+          fillOpacity: 0.25
+        }).addTo(detailMap);
+
+        // Fit map to polygon bounds
+        detailMap.fitBounds(polygon.getBounds(), { padding: [30, 30] });
+
+        // Add popup
+        polygon.bindPopup(`Area: ${field.areaInHectares.toFixed(2)} hectares`).openPopup();
+
+        // Add corner markers
+        field.polygon.forEach((p, i) => {
+          L.circleMarker([p.lat, p.lng], {
+            radius: 5,
+            fillColor: '#006038',
+            color: '#ffffff',
+            weight: 2,
+            fillOpacity: 1
+          }).addTo(detailMap).bindPopup(`Point ${i + 1}`);
+        });
+      }
+    }
+
+    // Close detail modal
+    function closeDetailModal(event) {
+      // Only close when clicking the backdrop itself (not child elements)
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('fieldDetailModal').classList.add('hidden');
+      document.body.style.overflow = 'auto';
+      if (detailMap) {
+        detailMap.remove();
+        detailMap = null;
+      }
+    }
+
+    // Delete field
+    async function deleteField(fieldId, fieldName) {
+      if (!confirm(`Are you sure you want to delete "${fieldName}"? This cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${CropSathiPrefs.api}/api/fields/${fieldId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Remove from local array
+          allFields = allFields.filter(f => f._id !== fieldId);
+          renderFields(allFields);
+        } else {
+          alert(data.message || 'Error deleting field');
+        }
+      } catch (error) {
+        console.error('Error deleting field:', error);
+        alert('Error deleting field. Please try again.');
+      }
+    }
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function (e) {
+      const query = e.target.value.toLowerCase();
+      const filtered = allFields.filter(field =>
+        field.name.toLowerCase().includes(query) ||
+        field.cropType.toLowerCase().includes(query)
+      );
+      renderFields(filtered);
+    });
+
+    // Load data on page load
+    loadData();
+    lucide.createIcons();
+  </script>
+
+</body>
+</html>

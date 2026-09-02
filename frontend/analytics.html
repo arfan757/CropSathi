@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropSathi - Field Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: 'Noto Sans', sans-serif; background: #fbf9f8; color: #1b1c1c; }
+    h1, h2, h3, h4, .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
+    .tactile-card { box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05); }
+    .leaflet-control-zoom a { background-color: #006038 !important; color: white !important; border-radius: 8px !important; }
+    .leaflet-control-zoom a:hover { background-color: #1a7a4c !important; }
+    .heatmap-cell { transition: opacity 0.3s; }
+    .heatmap-cell:hover { opacity: 0.9 !important; stroke: #fff; stroke-width: 2; }
+    .info-card { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .layer-btn { transition: all 0.2s; }
+    .layer-btn.active { background: #006038; color: white; border-color: #006038; }
+    .layer-btn:not(.active) { background: white; color: #6f7a71; border-color: #e4e2e1; }
+    .legend-gradient { height: 14px; border-radius: 7px; }
+    .viridis .legend-gradient { background: linear-gradient(to right, #440154, #31688e, #35b779, #fde725); }
+    .rdylgn .legend-gradient { background: linear-gradient(to right, #d32f2f, #f57c00, #fbc02d, #7cb342, #2e7d32); }
+    .thermal .legend-gradient { background: linear-gradient(to right, #1565c0, #42a5f5, #a5d6a7, #fff176, #ffb74d, #ef5350); }
+    .loading-overlay { background: rgba(251, 249, 248, 0.85); }
+    .dark body, .dark { background-color: #0f1712; color: #e4e2e1; }
+    .dark .bg-\[\#fbf9f8\] { background-color: #161f18; }
+    .dark .bg-white { background-color: #1a261d; }
+    .dark .bg-\[\#f6f3f2\] { background-color: #131a15; }
+    .dark .info-card { background: rgba(26, 38, 29, 0.95); border-color: #2a3a2d; }
+    /* Mobile sidebar toggle */
+    @media (max-width: 767px) {
+      .mobile-sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+      .mobile-sidebar.open { transform: translateX(0); }
+    }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] min-h-screen flex">
+
+  <!-- Sidebar Navigation -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-white font-bold shadow-md">
+          <i data-lucide="sprout" class="w-6 h-6"></i>
+        </div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+      <nav class="space-y-2">
+        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="layout-grid" class="w-5 h-5"></i>
+          <span data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-white rounded-xl font-medium transition shadow-md">
+          <i data-lucide="map-pin" class="w-5 h-5"></i>
+          <span data-i18n="nav_my_fields">My Fields</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="camera" class="w-5 h-5"></i>
+          <span data-i18n="nav_diagnose">Diagnose</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="lightbulb" class="w-5 h-5"></i>
+          <span data-i18n="nav_advisory">Advisory</span>
+        </a>
+      </nav>
+    </div>
+    <div class="pt-6 border-t border-[#e4e2e1]">
+      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span data-i18n="nav_settings">Settings</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 p-6 md:p-8 md:ml-64 overflow-y-auto">
+
+    <!-- Top Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-[#1b1c1c]" data-i18n="an_title">Field Analytics</h1>
+        <p class="text-[#6f7a71] text-sm flex items-center gap-1.5 mt-1">
+          <a href="dashboard.html" class="hover:text-[#006038] transition">Dashboard</a>
+          <span class="text-[#b0b0b0]">&rsaquo;</span>
+          <span class="text-[#3f4941]">Field Analytics</span>
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative hidden sm:block">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
+          <input type="text" placeholder="Search crops, tasks..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-56 text-[#1b1c1c]">
+        </div>
+        <button class="w-10 h-10 bg-[#f0eded] hover:bg-[#eae8e7] rounded-full flex items-center justify-center relative transition">
+          <i data-lucide="bell" class="w-5 h-5 text-[#1b1c1c]"></i>
+          <span class="w-2.5 h-2.5 bg-[#933302] rounded-full absolute top-2 right-2 border-2 border-[#fbf9f8]"></span>
+        </button>
+        <div id="navProfilePhoto" class="w-10 h-10 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
+          <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Field Selector -->
+    <div class="mb-4">
+      <div class="relative inline-block w-full sm:w-auto">
+        <div class="flex items-center gap-2 bg-white border border-[#e4e2e1] rounded-xl px-4 py-3 cursor-pointer" onclick="document.getElementById('farmSelector').focus(); document.getElementById('farmSelector').click();">
+          <i data-lucide="sprout" class="w-5 h-5 text-[#006038]"></i>
+          <select id="farmSelector" class="appearance-none bg-transparent text-[#1b1c1c] font-semibold text-base focus:outline-none cursor-pointer pr-8 w-full">
+            <option value="">Loading fields...</option>
+          </select>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-[#6f7a71] absolute right-3 pointer-events-none"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer Tabs -->
+    <div class="flex gap-3 mb-4">
+      <button id="btnNdvi" class="layer-btn active flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('ndvi')">
+        <i data-lucide="leaf" class="w-5 h-5"></i>
+        <span>NDVI</span>
+      </button>
+      <button id="btnNdre" class="layer-btn flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('ndre')">
+        <i data-lucide="trees" class="w-5 h-5"></i>
+        <span>NDRE</span>
+      </button>
+      <button id="btnThermal" class="layer-btn flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('thermal')">
+        <i data-lucide="thermometer" class="w-5 h-5"></i>
+        <span>Thermal</span>
+      </button>
+    </div>
+
+    <!-- Two Column Layout: Map + Insights -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+      <!-- Map Column -->
+      <div class="lg:col-span-8">
+        <div class="bg-white rounded-2xl border border-[#e4e2e1] overflow-hidden tactile-card">
+          <div id="map" class="relative" style="height: 52vh; min-height: 380px;">
+            <div id="loadingOverlay" class="loading-overlay absolute inset-0 z-[1000] flex flex-col items-center justify-center">
+              <div class="animate-spin rounded-full h-10 w-10 border-4 border-[#006038] border-t-transparent mb-3"></div>
+              <p class="text-[#6f7a71] text-sm" data-i18n="an_loading">Analysing satellite data...</p>
+            </div>
+          </div>
+          <!-- Legend Bar -->
+          <div class="px-5 py-4 border-t border-[#e4e2e1]" id="legendContainer">
+            <div class="rdylgn" id="legendBox">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-bold text-[#1b1c1c] uppercase tracking-wide" id="legendTitle">NDVI Scale</span>
+                <button id="colorBlindToggle" class="text-xs text-[#6f7a71] font-medium bg-[#f0eded] px-3 py-1 rounded-full hover:bg-[#e4e2e1] transition" onclick="toggleColorBlind()">
+                  Standard
+                </button>
+              </div>
+              <div class="legend-gradient w-full"></div>
+              <div class="flex justify-between mt-1.5">
+                <span class="text-xs text-[#6f7a71] font-medium" id="legendMin">0.0</span>
+                <span class="text-xs text-[#6f7a71] font-medium">0.5</span>
+                <span class="text-xs text-[#6f7a71] font-medium" id="legendMax">1.0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Field Insights Panel -->
+      <div class="lg:col-span-4">
+        <div class="bg-white rounded-2xl border border-[#e4e2e1] p-5 tactile-card">
+          <h3 class="text-xs font-bold text-[#6f7a71] uppercase tracking-widest mb-4">Field Insights</h3>
+
+          <!-- Average Score -->
+          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4 mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-[#e8f5e9] flex items-center justify-center">
+                <i data-lucide="bar-chart-2" class="w-5 h-5 text-[#006038]"></i>
+              </div>
+              <div>
+                <p class="text-xs text-[#6f7a71] font-medium">Average</p>
+                <p id="statAvg" class="font-headline font-bold text-xl text-[#1b1c1c]">--</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Anomaly Score -->
+          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4 mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-[#fff3e0] flex items-center justify-center">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-[#f57c00]"></i>
+              </div>
+              <div>
+                <p class="text-xs text-[#6f7a71] font-medium">Anomaly</p>
+                <p id="statAnomaly" class="font-headline font-bold text-xl text-[#1b1c1c]">--</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Source -->
+          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-[#e3f2fd] flex items-center justify-center">
+                <i data-lucide="link" class="w-5 h-5 text-[#1565c0]"></i>
+              </div>
+              <div>
+                <p class="text-xs text-[#6f7a71] font-medium">Source</p>
+                <p id="statSource" class="font-headline font-bold text-lg text-[#1b1c1c]">--</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Force Re-analyse Button -->
+          <button id="pollBtn" onclick="forceReanalyse()" class="w-full mt-4 bg-[#006038] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#004d2b] transition-colors flex items-center justify-center gap-2">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            <span>Force Re-analyse</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Card (tap-to-inspect) — overlaid on map -->
+    <div id="infoCard" class="hidden mt-4">
+      <div class="info-card bg-white/95 rounded-2xl p-4 border border-[#e4e2e1] shadow-lg">
+        <div class="flex items-start gap-3">
+          <div id="infoIcon" class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0" style="background: #7CB342;">✓</div>
+          <div class="flex-1 min-w-0">
+            <h3 id="infoLabel" class="font-headline font-bold text-[#1b1c1c] text-base">Healthy Canopy</h3>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span id="infoValue" class="text-2xl font-bold text-[#006038]">0.78</span>
+              <span id="infoUnit" class="text-sm text-[#6f7a71]">NDVI</span>
+            </div>
+            <div id="infoDelta" class="flex items-center gap-1 mt-1 text-sm">
+              <span class="text-green-600">▲ 0.04</span>
+              <span class="text-[#6f7a71]">vs last reading</span>
+            </div>
+          </div>
+          <button onclick="closeInfoCard()" class="text-[#6f7a71] hover:text-[#1b1c1c] p-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="config.js"></script>
+  <script src="preferences.js"></script>
+  <script src="nav-profile.js"></script>
+  <script>
+    // ─── State ────────────────────────────────────────────────────────────
+    let map = null;
+    let currentFarmId = null;
+    let currentLayer = 'ndvi';
+    let colorBlindMode = false;
+    let heatmapLayer = null;
+    let boundaryLayer = null;
+    let currentGridData = null;
+
+    // ─── Color Palettes ──────────────────────────────────────────────────
+    const PALETTES = {
+      ndvi: {
+        stops: [
+          [-0.1, '#1565C0'], [0.1, '#D32F2F'], [0.2, '#E64A19'],
+          [0.3, '#F57C00'], [0.4, '#FBC02D'], [0.5, '#C0CA33'],
+          [0.6, '#7CB342'], [0.7, '#43A047'], [0.8, '#2E7D32'], [1.0, '#1B5E20']
+        ],
+        unit: 'NDVI', min: -0.1, max: 1.0,
+      },
+      ndviViridis: {
+        stops: [
+          [-0.1, '#440154'], [0.1, '#482878'], [0.2, '#3e4989'],
+          [0.3, '#31688e'], [0.4, '#26828e'], [0.5, '#1f9e89'],
+          [0.6, '#35b779'], [0.7, '#6ece58'], [0.8, '#b5de2b'], [1.0, '#fde725']
+        ],
+        unit: 'NDVI', min: -0.1, max: 1.0,
+      },
+      ndre: {
+        stops: [
+          [-0.1, '#1565C0'], [0.1, '#8D6E63'], [0.2, '#A1887F'],
+          [0.3, '#FDD835'], [0.4, '#C0CA33'], [0.5, '#8BC34A'],
+          [0.6, '#558B2F'], [0.7, '#1B5E20'], [1.0, '#0D3311']
+        ],
+        unit: 'NDRE', min: -0.1, max: 1.0,
+      },
+      ndreViridis: {
+        stops: [
+          [-0.1, '#440154'], [0.1, '#482878'], [0.2, '#3e4989'],
+          [0.3, '#31688e'], [0.4, '#26828e'], [0.5, '#1f9e89'],
+          [0.6, '#35b779'], [0.7, '#6ece58'], [0.8, '#b5de2b'], [1.0, '#fde725']
+        ],
+        unit: 'NDRE', min: -0.1, max: 1.0,
+      },
+      thermal: {
+        stops: [
+          [10, '#1565C0'], [20, '#42A5F5'], [25, '#A5D6A7'],
+          [30, '#FFF176'], [35, '#FFB74D'], [40, '#EF5350'], [50, '#B71C1C']
+        ],
+        unit: '°C', min: 10, max: 50,
+      },
+      thermalViridis: {
+        stops: [
+          [10, '#440154'], [20, '#31688e'], [25, '#35b779'],
+          [30, '#b5de2b'], [35, '#fde725'], [40, '#fde725'], [50, '#fde725']
+        ],
+        unit: '°C', min: 10, max: 50,
+      },
+    };
+
+    // ─── Initialization ──────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+      CropSathiPrefs.applyLanguage();
+      lucide.createIcons();
+      initMap();
+      await loadFarms();
+    });
+
+    function initMap() {
+      map = L.map('map', { zoomControl: true, attributionControl: false }).setView([19.75, 75.71], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+    }
+
+    // ─── Farm Loading ────────────────────────────────────────────────────
+    async function loadFarms() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${CropSathiPrefs.api}/api/fields`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const selector = document.getElementById('farmSelector');
+
+        if (!data.success || !data.data?.length) {
+          selector.innerHTML = '<option value="">No fields found</option>';
+          return;
+        }
+
+        const farms = data.data;
+        selector.innerHTML = '<option value="">Select a field...</option>' +
+          farms.map(f => `<option value="${f._id}">${f.name || f.cropType || 'Unnamed Field'}</option>`).join('');
+
+        selector.addEventListener('change', (e) => {
+          if (e.target.value) {
+            currentFarmId = e.target.value;
+            loadAnalyticsData(currentFarmId);
+          }
+        });
+
+        if (farms.length === 1) {
+          selector.value = farms[0]._id;
+          currentFarmId = farms[0]._id;
+          loadAnalyticsData(currentFarmId);
+        }
+      } catch (err) {
+        console.error('Failed to load farms:', err);
+      }
+    }
+
+    // ─── Load Analytics Data ─────────────────────────────────────────────
+    async function loadAnalyticsData(farmId, force = false) {
+      showLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        const forceParam = force ? '?force=true' : '';
+
+        const [ndviRes, ndreRes, thermalRes] = await Promise.all([
+          fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/ndvi-grid${forceParam}`, { headers }),
+          fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/ndre-grid${forceParam}`, { headers }),
+          fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/thermal-grid${forceParam}`, { headers }),
+        ]);
+
+        const ndviData = await ndviRes.json();
+        const ndreData = await ndreRes.json();
+        const thermalData = await thermalRes.json();
+
+        const hasData = ndviData.data || ndreData.data || thermalData.data;
+        if (!hasData) { showLoading(false); return; }
+
+        const farmRes = await fetch(`${CropSathiPrefs.api}/api/fields/${farmId}`, { headers });
+        const farmData = await farmRes.json();
+        if (farmData.success && farmData.data) drawFieldBoundary(farmData.data);
+
+        currentGridData = { ndvi: ndviData.data, ndre: ndreData.data, thermal: thermalData.data };
+        renderActiveLayer();
+        updateStats();
+      } catch (err) {
+        console.error('Failed to load analytics:', err);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // ─── Field Boundary ──────────────────────────────────────────────────
+    function drawFieldBoundary(farm) {
+      if (boundaryLayer) map.removeLayer(boundaryLayer);
+      let coords = null;
+      if (farm.boundary?.coordinates?.length > 0) {
+        coords = farm.boundary.coordinates[0].map(c => [c[1], c[0]]);
+      } else if (farm.polygon?.length) {
+        coords = farm.polygon.map(p => [p.lat, p.lng]);
+      }
+      if (!coords) return;
+      boundaryLayer = L.polygon(coords, { color: '#006038', weight: 3, fillColor: '#006038', fillOpacity: 0.05 }).addTo(map);
+      map.fitBounds(boundaryLayer.getBounds(), { padding: [40, 40] });
+    }
+
+    // ─── Heatmap Rendering ───────────────────────────────────────────────
+    function renderActiveLayer() {
+      if (heatmapLayer) map.removeLayer(heatmapLayer);
+      closeInfoCard();
+      const layerData = currentGridData?.[currentLayer];
+      if (!layerData?.grid) return;
+      const paletteKey = colorBlindMode ? `${currentLayer}Viridis` : currentLayer;
+      const palette = PALETTES[paletteKey];
+      if (!boundaryLayer) return;
+
+      const bounds = boundaryLayer.getBounds();
+      const { south, north, west, east } = { south: bounds.getSouth(), north: bounds.getNorth(), west: bounds.getWest(), east: bounds.getEast() };
+      const grid = layerData.grid;
+      const rows = grid.length, cols = grid[0]?.length || rows;
+      const cellH = (north - south) / rows, cellW = (east - west) / cols;
+      const group = L.layerGroup();
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = grid[r][c];
+          const value = cell.value ?? cell;
+          const color = interpolateColor(value, palette.stops);
+          const rect = L.rectangle(
+            [[south + r * cellH, west + c * cellW], [south + (r + 1) * cellH, west + (c + 1) * cellW]],
+            { fillColor: color, fillOpacity: 0.55, stroke: false, className: 'heatmap-cell' }
+          );
+          rect._cellData = { value, label: cell.label || '', color: cell.color || color, severity: cell.severity || '', delta: layerData.delta?.[r]?.[c] ?? null };
+          rect.on('click', () => showInfoCard(rect._cellData));
+          group.addLayer(rect);
+        }
+      }
+      heatmapLayer = group.addTo(map);
+      updateLegend(palette);
+    }
+
+    // ─── Color Interpolation ─────────────────────────────────────────────
+    function interpolateColor(value, stops) {
+      if (value <= stops[0][0]) return stops[0][1];
+      if (value >= stops[stops.length - 1][0]) return stops[stops.length - 1][1];
+      for (let i = 0; i < stops.length - 1; i++) {
+        const [v0, c0] = stops[i], [v1, c1] = stops[i + 1];
+        if (value >= v0 && value <= v1) return lerpColor(c0, c1, (value - v0) / (v1 - v0));
+      }
+      return stops[stops.length - 1][1];
+    }
+
+    function lerpColor(hex1, hex2, t) {
+      const parse = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+      const r = Math.round(parse(hex1, 0) + (parse(hex2, 0) - parse(hex1, 0)) * t);
+      const g = Math.round(parse(hex1, 1) + (parse(hex2, 1) - parse(hex1, 1)) * t);
+      const b = Math.round(parse(hex1, 2) + (parse(hex2, 2) - parse(hex1, 2)) * t);
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+
+    // ─── Layer Switching ─────────────────────────────────────────────────
+    function switchLayer(layer) {
+      currentLayer = layer;
+      document.querySelectorAll('.layer-btn').forEach(btn => { btn.classList.remove('active'); });
+      document.getElementById(`btn${layer.charAt(0).toUpperCase() + layer.slice(1)}`).classList.add('active');
+      renderActiveLayer();
+    }
+
+    // ─── Legend ───────────────────────────────────────────────────────────
+    function updateLegend(palette) {
+      const legendBox = document.getElementById('legendBox');
+      legendBox.className = '';
+      legendBox.classList.add(colorBlindMode ? 'viridis' : currentLayer === 'thermal' ? 'thermal' : 'rdylgn');
+      document.getElementById('legendTitle').textContent = `${palette.unit} Scale`;
+      document.getElementById('legendMin').textContent = palette.min;
+      document.getElementById('legendMax').textContent = palette.max;
+      document.getElementById('colorBlindToggle').textContent = colorBlindMode ? 'Color-blind' : 'Standard';
+    }
+
+    function toggleColorBlind() {
+      colorBlindMode = !colorBlindMode;
+      renderActiveLayer();
+    }
+
+    // ─── Info Card ───────────────────────────────────────────────────────
+    function showInfoCard(cellData) {
+      document.getElementById('infoLabel').textContent = cellData.label || 'No Data';
+      document.getElementById('infoValue').textContent = cellData.value?.toFixed?.(2) ?? cellData.value ?? '--';
+      document.getElementById('infoUnit').textContent = PALETTES[colorBlindMode ? `${currentLayer}Viridis` : currentLayer]?.unit || '';
+      const icon = document.getElementById('infoIcon');
+      icon.style.background = cellData.color || '#7CB342';
+      icon.textContent = { none: '✓', low: '!', medium: '⚠', high: '⚠' }[cellData.severity] || '✓';
+      const delta = document.getElementById('infoDelta');
+      if (cellData.delta != null) {
+        const pos = cellData.delta > 0;
+        delta.innerHTML = `<span class="${pos ? 'text-green-600' : cellData.delta < 0 ? 'text-red-500' : 'text-[#6f7a71]'}">${pos ? '▲' : cellData.delta < 0 ? '▼' : '–'} ${Math.abs(cellData.delta).toFixed(3)}</span> <span class="text-[#6f7a71]">vs last reading</span>`;
+        delta.classList.remove('hidden');
+      } else { delta.classList.add('hidden'); }
+      document.getElementById('infoCard').classList.remove('hidden');
+    }
+    function closeInfoCard() { document.getElementById('infoCard').classList.add('hidden'); }
+
+    // ─── Stats ───────────────────────────────────────────────────────────
+    function updateStats() {
+      const data = currentGridData?.[currentLayer];
+      if (!data) return;
+      const avg = data.average ?? data.grid?.flat?.().reduce((s, c) => s + (c.value ?? c), 0) / (data.grid?.flat?.().length || 1);
+      document.getElementById('statAvg').textContent = avg != null ? avg.toFixed(2) : '--';
+      const anomaly = data.anomalyScore ?? data.anomalyC ?? '--';
+      document.getElementById('statAnomaly').textContent = typeof anomaly === 'number' ? anomaly.toFixed(2) : anomaly;
+      const sourceMap = { 'sentinel-2': 'Sentinel-2', 'landsat-8-9': 'Landsat 8/9', 'simulated': 'Simulated', 'formula': 'Formula' };
+      document.getElementById('statSource').textContent = sourceMap[data.sceneSource] || data.sceneSource || '--';
+    }
+
+    // ─── Force Re-analyse ─────────────────────────────────────────────────
+    async function forceReanalyse() {
+      if (!currentFarmId) return;
+      const btn = document.getElementById('pollBtn');
+      btn.disabled = true; btn.querySelector('span').textContent = 'Re-analysing...';
+      showLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${CropSathiPrefs.api}/api/analytics/farms/${currentFarmId}/poll-satellite`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` },
+        });
+        await loadAnalyticsData(currentFarmId, true);
+      } catch (err) { alert('Network error: ' + err.message); }
+      finally { btn.disabled = false; btn.querySelector('span').textContent = 'Force Re-analyse'; showLoading(false); }
+    }
+
+    // ─── UI Helpers ──────────────────────────────────────────────────────
+    function showLoading(show) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; }
+  </script>
+</body>
+</html>
