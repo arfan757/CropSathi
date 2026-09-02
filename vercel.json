@@ -1,17 +1,7 @@
 {
-  "version": 2,
-  "name": "cropsathi",
-  "builds": [
-    {
-      "src": "frontend/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
-    }
+  "rewrites": [
+    { "source": "/", "destination": "/frontend/login.html" },
+    { "source": "/((?!frontend/).*)", "destination": "/frontend/$1" }
   ],
   "headers": [
     {
