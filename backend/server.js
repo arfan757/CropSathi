@@ -27,10 +27,21 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : [];
 
+// Warn once at startup if production has no whitelist configured, so the
+// permissive fallback below is discoverable instead of surprising.
+if (!isDev && !process.env.CORS_ORIGIN) {
+  console.warn('⚠️  CORS_ORIGIN not set — the API will accept requests from any origin. Set CORS_ORIGIN in the Render env to restrict it (comma-separate multiple origins).');
+}
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, server-to-server, same-origin)
     if (!origin) return callback(null, true);
+    // Allow file:// pages — browsers send Origin: "null" for pages opened
+    // directly from disk, which is the documented local-dev flow
+    // ("open frontend/index.html in browser"). The frontend routes those
+    // requests to the production API, so they must not be rejected.
+    if (origin === 'null') return callback(null, true);
     // In development, allow all localhost/127.0.0.1 origins
     if (isDev && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
       return callback(null, true);
@@ -40,6 +51,13 @@ app.use(cors({
     }
     // In production, check against the whitelist
     if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    // No explicit CORS_ORIGIN configured: fall back to allowing all origins
+    // so the deployed frontend works out of the box. The API is
+    // token-authenticated, so CORS only gates what browsers may *read* — a
+    // valid token is still required. Set CORS_ORIGIN to re-enable strict mode.
+    if (allowedOrigins.length === 0) {
       return callback(null, true);
     }
     callback(new Error('Not allowed by CORS'));

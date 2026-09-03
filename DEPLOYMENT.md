@@ -150,6 +150,8 @@ npm run dev
 - Ensure `CORS_ORIGIN` in Render matches your Vercel URL exactly
 - Include `https://` prefix
 - For multiple origins, comma-separate them
+- If `CORS_ORIGIN` is **not set**, the API falls back to accepting any origin (a warning is logged at startup) so the app works out of the box — set it to re-enable the strict whitelist
+- Pages opened directly from disk (`file://`) send `Origin: null` and are always allowed, so the "open frontend/index.html in browser" local-dev flow works against the production API
 
 ### Backend Sleeping (Free Tier)
 - First request after idle takes ~30s to wake up
