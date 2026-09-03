@@ -20,8 +20,5 @@
         { "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }
       ]
     }
-  ],
-  "rewrites": [
-    { "source": "/:path*", "destination": "/index.html" }
   ]
 }
