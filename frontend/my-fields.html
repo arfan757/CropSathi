@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Google Fonts: Be Vietnam Pro & Noto Sans as specified in design.md -->
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://images.unsplash.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="app.css">
 
@@ -330,7 +331,7 @@
         <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl overflow-hidden tactile-card">
           <!-- Field Image -->
           <div class="relative h-48 overflow-hidden group">
-            <img src="${fieldImages[index % fieldImages.length]}" alt="${field.name}"
+            <img src="${fieldImages[index % fieldImages.length]}" alt="${field.name}" loading="lazy" decoding="async"
               class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
 
