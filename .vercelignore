@@ -3,3 +3,5 @@ node_modules/
 .git/
 *.md
 render.yaml
+tailwind.config.js
+tailwind.input.css

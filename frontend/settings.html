@@ -4,14 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CropSathi - Settings</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { darkMode: 'class' };</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Google Fonts: Be Vietnam Pro & Noto Sans -->
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="config.js"></script>
-  <script src="preferences.js"></script>
+  <link rel="stylesheet" href="app.css">
 
   <style>
     body {
@@ -497,6 +494,9 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="config.js"></script>
+  <script src="preferences.js"></script>
   <script>
     if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
     lucide.createIcons();

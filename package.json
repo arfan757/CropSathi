@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "cp -r frontend/* . && cp frontend/login.html index.html"
+    "build:css": "tailwindcss -c tailwind.config.js -i tailwind.input.css -o frontend/app.css --minify",
+    "build": "npm run build:css && cp -r frontend/* . && cp frontend/login.html index.html"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
   }
 }
