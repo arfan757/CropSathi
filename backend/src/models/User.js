@@ -80,5 +80,9 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
+// Queried by the thermal baseline and pest-history lookups to find all
+// farms in a district (spec: district-level signals).
+userSchema.index({ 'farmDetails.district': 1 });
+
 const User = mongoose.model('User', userSchema);
 export default User;

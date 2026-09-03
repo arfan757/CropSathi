@@ -36,22 +36,35 @@ export async function getDashboardHealth(req, res) {
       });
     }
 
-    // Fetch latest risk score for each farm
+    // Fetch each farm's latest risk score (and the one before it) with two
+    // aggregate queries instead of two sequential queries per farm (N+1).
+    const farmIds = farms.map(f => f._id);
+
+    const latestRows = await RiskScore.aggregate([
+      { $match: { farmId: { $in: farmIds } } },
+      { $sort: { computedAt: -1 } },
+      { $group: { _id: '$farmId', doc: { $first: '$$ROOT' } } },
+    ]);
+    const latestById = new Map(latestRows.map(r => [String(r._id), r.doc]));
+
+    let prevById = new Map();
+    if (latestRows.length > 0) {
+      const latestIds = latestRows.map(r => r.doc._id);
+      const prevRows = await RiskScore.aggregate([
+        { $match: { farmId: { $in: farmIds }, _id: { $nin: latestIds } } },
+        { $sort: { computedAt: -1 } },
+        { $group: { _id: '$farmId', doc: { $first: '$$ROOT' } } },
+      ]);
+      prevById = new Map(prevRows.map(r => [String(r._id), r.doc]));
+    }
+
     const fields = [];
     let totalScore = 0;
     let alertCount = 0;
 
     for (const farm of farms) {
-      const latest = await RiskScore.findOne({ farmId: farm._id })
-        .sort({ computedAt: -1 })
-        .lean();
-
-      // Get previous score for trend calculation
-      const previous = latest
-        ? await RiskScore.findOne({ farmId: farm._id, computedAt: { $lt: latest.computedAt } })
-            .sort({ computedAt: -1 })
-            .lean()
-        : null;
+      const latest = latestById.get(String(farm._id)) || null;
+      const previous = latest ? (prevById.get(String(farm._id)) || null) : null;
 
       if (latest) {
         // compositeScore should be 0-100 health score from riskService.

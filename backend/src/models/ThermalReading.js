@@ -51,5 +51,8 @@ const thermalReadingSchema = new mongoose.Schema({
 
 thermalReadingSchema.index({ farmId: 1, observedAt: -1 });
 
+// Auto-expire old readings after a year (see NdviReading retention note).
+thermalReadingSchema.index({ observedAt: 1 }, { expireAfterSeconds: 365 * 24 * 60 * 60 });
+
 const ThermalReading = mongoose.model('ThermalReading', thermalReadingSchema);
 export default ThermalReading;

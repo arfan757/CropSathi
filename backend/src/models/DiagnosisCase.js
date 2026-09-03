@@ -64,6 +64,7 @@ const diagnosisCaseSchema = new mongoose.Schema({
 
 diagnosisCaseSchema.index({ farmId: 1, status: 1 });
 diagnosisCaseSchema.index({ status: 1, requiresExpertReview: 1 });
+diagnosisCaseSchema.index({ farmId: 1, createdAt: -1 }); // case history listing + pest-history window query
 
 const DiagnosisCase = mongoose.model('DiagnosisCase', diagnosisCaseSchema);
 export default DiagnosisCase;
