@@ -1,8 +1,9 @@
 import RiskScore from '../models/RiskScore.js';
 import Field from '../models/Field.js';
+import DiagnosisCase from '../models/DiagnosisCase.js';
 import { evaluateWeatherForFarm } from './weatherService.js';
 import { fetchNdviForFarm, computeNdviComponent } from './ndviService.js';
-import { computeThermalReading, computeThermalComponent } from './thermalService.js';
+import { computeThermalReading, computeThermalComponent, resolveDistrictFarmIds } from './thermalService.js';
 
 // ─── Health Levels (from risk_fusion.py) ────────────────────────────────────
 // score >= 80  → healthy  (no action)
@@ -160,18 +161,47 @@ function getStageRelevance(signalName, cropStage) {
 
 // ─── Pest History Component ─────────────────────────────────────────────────
 
+// Confirmed district cases in the trailing 90 days that saturate the
+// component (1.0 stress). Spec §7.4 normalizes against a district
+// baseline rate; with small pilot volumes a fixed band is the practical
+// stand-in — tune this constant as real CROPSAP data accumulates.
+const PEST_HISTORY_BAND = 5;
+
 /**
- * Compute pest history component.
- * Fraction of confirmed (non-false-alarm) cases for same crop in trailing 90 days,
- * normalized against a district baseline rate.
+ * Compute pest history component (spec §7.4).
+ * Fraction of confirmed (non-false-alarm) cases for the same crop in
+ * the farm's district over the trailing 90 days, normalized against a
+ * district baseline band.
  *
- * Currently returns 0 — will be wired when DiagnosisCase model is added.
+ * District is resolved from the farm owner's profile; returns 0 (the
+ * historical floor) when no district is set or no cases exist yet.
  */
-async function computePestHistoryComponent(farmId, cropType) {
+async function computePestHistoryComponent(farm) {
+  const cropType = farm?.cropType;
+  if (!cropType) return 0;
+
   try {
-    // Placeholder: will query DiagnosisCase when model exists
-    return 0;
-  } catch {
+    const info = await resolveDistrictFarmIds(farm);
+    if (!info || info.farmIds.length === 0) return 0;
+
+    const sameCropFields = await Field.find({
+      _id: { $in: info.farmIds },
+      cropType,
+      deletedAt: null,
+    }).select('_id').lean();
+    if (sameCropFields.length === 0) return 0;
+
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const confirmed = await DiagnosisCase.countDocuments({
+      farmId: { $in: sameCropFields.map(f => f._id) },
+      createdAt: { $gte: since },
+      status: { $ne: 'deleted' },
+      outcome: { $in: ['confirmed', 'expert_review'] },
+    });
+
+    return Math.min(1, confirmed / PEST_HISTORY_BAND);
+  } catch (err) {
+    console.warn('Pest history component failed:', err.message);
     return 0;
   }
 }
@@ -285,7 +315,7 @@ export async function computeRiskScore(farmId) {
   const weatherStress = weatherEval.score;
   const ndviStress = await computeNdviComponent(farmId);
   const thermalStress = await computeThermalComponent(farmId);
-  const pestHistoryStress = await computePestHistoryComponent(farmId, farm.cropType);
+  const pestHistoryStress = await computePestHistoryComponent(farm);
 
   // ── 4. Staleness-aware weighted fusion → health score (0-100) ──
   const stressComponents = {

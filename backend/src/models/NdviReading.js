@@ -75,5 +75,9 @@ const ndviReadingSchema = new mongoose.Schema({
 
 ndviReadingSchema.index({ farmId: 1, observedAt: -1 });
 
+// Auto-expire old scenes after a year — satellite history beyond that is
+// not used by the fusion engine or the analytics time series.
+ndviReadingSchema.index({ observedAt: 1 }, { expireAfterSeconds: 365 * 24 * 60 * 60 });
+
 const NdviReading = mongoose.model('NdviReading', ndviReadingSchema);
 export default NdviReading;

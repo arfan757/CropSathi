@@ -25,5 +25,9 @@ const weatherReadingSchema = new mongoose.Schema({
 
 weatherReadingSchema.index({ farmId: 1, observedAt: -1 });
 
+// Readings accumulate on every 2-hour poll with no retention — auto-expire
+// them after 45 days to keep the collection bounded.
+weatherReadingSchema.index({ observedAt: 1 }, { expireAfterSeconds: 45 * 24 * 60 * 60 });
+
 const WeatherReading = mongoose.model('WeatherReading', weatherReadingSchema);
 export default WeatherReading;

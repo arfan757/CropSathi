@@ -1,5 +1,6 @@
 import ThermalReading from '../models/ThermalReading.js';
 import Field from '../models/Field.js';
+import User from '../models/User.js';
 import { fetchLandsatLst } from './landsatService.js';
 
 // ─── Per-crop thermal constants (spec §7.3) ───────────────────────────────
@@ -39,28 +40,53 @@ function estimateCanopyTemp(airTempC, humidityPct, cropType) {
 // ─── District Baseline ─────────────────────────────────────────────────────
 
 /**
+ * Resolve the active field ids belonging to the farm owner's district.
+ *
+ * District is stored on the owning User (farmDetails.district), NOT on
+ * the Field model — earlier code queried Field by farmDetails.district,
+ * which never matched anything, silently degrading the "district-level"
+ * baseline to a per-farm one.
+ *
+ * @returns {Promise<{district: string, farmIds: Array}|null>} null when no district is known
+ */
+export async function resolveDistrictFarmIds(farm) {
+  if (!farm) return null;
+
+  const owner = farm.userId
+    ? await User.findById(farm.userId).select('farmDetails.district').lean()
+    : null;
+  const district = farm.farmDetails?.district || owner?.farmDetails?.district;
+  if (!district) return null;
+
+  const districtUsers = await User.find({ 'farmDetails.district': district })
+    .select('_id')
+    .lean();
+  const userIds = districtUsers.map(u => u._id);
+  if (userIds.length === 0) return null;
+
+  const districtFields = await Field.find({
+    userId: { $in: userIds },
+    status: 'active',
+    deletedAt: null,
+  }).select('_id').lean();
+
+  return { district, farmIds: districtFields.map(f => f._id) };
+}
+
+/**
  * Compute rolling 14-day district baseline of estimated canopy temperature.
  * Average across all farms in the same district (spec §7.3: "district-level, not farm-level").
  *
  * If no district data exists, falls back to the farm's own trailing average.
  */
-async function getDistrictBaseline(district, trailingDays = 14) {
-  if (!district) return null;
+async function getDistrictBaseline(farm, trailingDays = 14) {
+  const info = await resolveDistrictFarmIds(farm);
+  if (!info || info.farmIds.length === 0) return null;
 
   const cutoff = new Date(Date.now() - trailingDays * 24 * 60 * 60 * 1000);
 
-  // Find all farms in this district
-  const farmsInDistrict = await Field.find({
-    'farmDetails.district': district,
-    status: 'active',
-  }).select('_id').lean();
-
-  if (farmsInDistrict.length === 0) return null;
-
-  const farmIds = farmsInDistrict.map(f => f._id);
-
   const readings = await ThermalReading.find({
-    farmId: { $in: farmIds },
+    farmId: { $in: info.farmIds },
     observedAt: { $gte: cutoff },
   }).select('estimatedCanopyTempC').lean();
 
@@ -104,9 +130,8 @@ export async function computeThermalReading(farm, weatherReading) {
       // Average the grid for the scalar value
       const avgLst = averageGrid(landsat.thermalGrid);
 
-      // Compute baseline
-      const district = farm.farmDetails?.district;
-      let baseline = await getDistrictBaseline(district);
+      // Compute baseline (district-level, falls back to farm trailing avg)
+      let baseline = await getDistrictBaseline(farm);
       if (baseline === null) {
         baseline = await getFarmTrailingBaseline(farm._id);
       }
@@ -144,8 +169,8 @@ export async function computeThermalReading(farm, weatherReading) {
     farm.cropType,
   );
 
-  const district = farm.farmDetails?.district;
-  let baseline = await getDistrictBaseline(district);
+  // Baseline is district-level (spec §7.3); falls back to farm's own history
+  let baseline = await getDistrictBaseline(farm);
   if (baseline === null) {
     baseline = await getFarmTrailingBaseline(farm._id);
   }

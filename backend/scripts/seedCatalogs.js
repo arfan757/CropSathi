@@ -230,7 +230,9 @@ const diseases = [
 
 async function seed() {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
+    // Accept both MONGODB_URI (documented) and legacy MONGO_URI
+    const connUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    await mongoose.connect(connUri, {
       serverSelectionTimeoutMS: 5000,
     });
     console.log('Connected to MongoDB');

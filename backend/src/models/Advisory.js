@@ -5,7 +5,6 @@ const advisorySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'DiagnosisCase',
     required: true,
-    unique: true,
   },
   version: {
     type: Number,

@@ -3,8 +3,12 @@ import Advisory from '../models/Advisory.js';
 import DiagnosisCase from '../models/DiagnosisCase.js';
 import Field from '../models/Field.js';
 import { localizeAdvisory } from '../services/advisoryService.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = Router();
+
+// All advisory routes require authentication
+router.use(protect);
 
 /**
  * GET /api/advisories/latest
@@ -12,46 +16,54 @@ const router = Router();
  */
 router.get('/latest', async (req, res) => {
   try {
-    const userId = req.userId || req.user?.id;
+    const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
     // Find all fields for this user
     const fields = await Field.find({ userId }).select('_id').lean();
     const fieldIds = fields.map(f => f._id);
+    if (fieldIds.length === 0) return res.json({ advisories: [] });
 
-    // Find all diagnosis cases for these fields that have advisories
-    const cases = await DiagnosisCase.find({
-      farmId: { $in: fieldIds },
-      status: { $ne: 'deleted' },
-      outcome: { $in: ['confirmed', 'expert_review'] },
-    })
-      .populate('farmId', 'name cropType cropStage')
-      .sort({ createdAt: -1 })
-      .lean();
+    // Join cases with their farm and latest advisory in one aggregation
+    // instead of one Advisory query per case (N+1).
+    const cases = await DiagnosisCase.aggregate([
+      {
+        $match: {
+          farmId: { $in: fieldIds },
+          status: { $ne: 'deleted' },
+          outcome: { $in: ['confirmed', 'expert_review'] },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $lookup: { from: 'fields', localField: 'farmId', foreignField: '_id', as: 'farm' } },
+      { $lookup: { from: 'advisories', localField: '_id', foreignField: 'caseId', as: 'advs' } },
+      {
+        $addFields: {
+          // latest advisory version wins
+          advisory: { $arrayElemAt: [{ $sortArray: { input: '$advs', sortBy: { version: -1 } } }, 0] },
+        },
+      },
+      { $match: { advisory: { $ne: null } } },
+      { $limit: 100 },
+    ]);
 
-    // Get the latest advisory for each case
-    const advisories = [];
-    for (const dc of cases) {
-      const advisory = await Advisory.findOne({ caseId: dc._id })
-        .sort({ version: -1 })
-        .lean();
-      if (advisory) {
-        advisories.push({
-          ...advisory,
-          case: {
-            _id: dc._id,
-            fieldName: dc.farmId?.name || 'Unknown Field',
-            cropType: dc.farmId?.cropType || 'unknown',
-            cropStage: dc.farmId?.cropStage || 'vegetative',
-            outcome: dc.outcome,
-            finalDiseaseCode: dc.finalDiseaseCode,
-            confidence: dc.confidence,
-            finalSeverity: dc.finalSeverity,
-            createdAt: dc.createdAt,
-          },
-        });
-      }
-    }
+    const advisories = cases.map((dc) => {
+      const farm = dc.farm && dc.farm.length > 0 ? dc.farm[0] : null;
+      return {
+        ...dc.advisory,
+        case: {
+          _id: dc._id,
+          fieldName: farm?.name || 'Unknown Field',
+          cropType: farm?.cropType || 'unknown',
+          cropStage: farm?.cropStage || 'vegetative',
+          outcome: dc.outcome,
+          finalDiseaseCode: dc.finalDiseaseCode,
+          confidence: dc.confidence,
+          finalSeverity: dc.finalSeverity,
+          createdAt: dc.createdAt,
+        },
+      };
+    });
 
     res.json({ advisories });
   } catch (err) {

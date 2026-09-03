@@ -2,6 +2,7 @@ import DiagnosisCase from '../models/DiagnosisCase.js';
 import CasePhoto from '../models/CasePhoto.js';
 import Field from '../models/Field.js';
 import { generateAndSaveAdvisory } from './advisoryService.js';
+import { recalibrateThreshold } from './riskService.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import sharp from 'sharp';
 
@@ -44,6 +45,23 @@ function routeDiagnosis(result) {
   if ((result.detected_issue || '').trim().toLowerCase() === 'healthy') return 'false_alarm';
   if (result.confidence >= 0.75 && result.matches_risk_signal) return 'confirmed';
   return 'expert_review';
+}
+
+// Gemini reports diagnostic severity in its own vocabulary
+// (none/mild/moderate/severe). The Advisory model, advisory rules, and
+// weather rules all use low/medium/high/critical — map before persisting.
+const ADVISORY_SEVERITY = {
+  none: 'low',
+  mild: 'low',
+  moderate: 'medium',
+  severe: 'high',
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'high',
+};
+function severityForAdvisory(severity) {
+  return ADVISORY_SEVERITY[severity] || 'low';
 }
 
 export async function createCase({ farmId, userId, triggeredBy, triggeringRiskScoreId = null, gpsPoint = null }) {
@@ -223,11 +241,28 @@ async function saveGeminiResult(dc, parsed, farm) {
     dc.status = 'retry_failed'; dc.outcome = 'retry';
   } else if (route === 'false_alarm') {
     dc.status = 'report_ready'; dc.outcome = 'false_alarm'; dc.finalDiseaseCode = 'healthy';
+    // False-alarm recalibration (spec §7.4 / ARCHITECTURE.md §4): a
+    // photo-confirmed healthy result on a risk-alerted farm nudges that
+    // crop's alert threshold upward so the same noise doesn't re-alert.
+    // Only applies to risk-triggered cases — farmer-initiated scans that
+    // come back healthy don't indicate a threshold problem.
+    if (dc.triggeredBy === 'risk_alert') {
+      try {
+        recalibrateThreshold(farm?.cropType);
+      } catch (recalibErr) {
+        console.warn('Threshold recalibration failed:', recalibErr.message);
+      }
+    }
   } else if (route === 'confirmed') {
     dc.status = 'report_ready'; dc.outcome = 'confirmed';
     dc.finalDiseaseCode = dc.geminiResult.detectedIssue;
     try { 
-      await generateAndSaveAdvisory(dc._id, parsed.detected_issue, parsed.severity, farm?.cropStage || 'vegetative'); 
+      await generateAndSaveAdvisory(
+        dc._id,
+        parsed.detected_issue,
+        severityForAdvisory(parsed.severity),
+        farm?.cropStage || 'vegetative'
+      );
     } catch (advisoryErr) {
       console.warn('Advisory generation failed:', advisoryErr.message);
     }

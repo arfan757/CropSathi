@@ -27,5 +27,9 @@ const riskScoreSchema = new mongoose.Schema({
 
 riskScoreSchema.index({ farmId: 1, computedAt: -1 });
 
+// Risk scores are written every couple of hours per farm — keep roughly
+// half a year of history for trends, then auto-expire.
+riskScoreSchema.index({ computedAt: 1 }, { expireAfterSeconds: 180 * 24 * 60 * 60 });
+
 const RiskScore = mongoose.model('RiskScore', riskScoreSchema);
 export default RiskScore;
