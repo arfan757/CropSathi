@@ -146,7 +146,7 @@
   </aside>
 
   <!-- Main Content Area -->
-  <main class="flex-1 p-6 md:p-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
+  <main class="flex-1 w-full overflow-x-hidden p-4 pb-24 md:p-10 md:pb-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
     
     <!-- Top Header -->
     <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6 md:mb-8">
@@ -159,7 +159,7 @@
 
       <!-- Title — drops to its own row on mobile -->
       <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
-        <h1 class="text-3xl font-bold text-[#1b1c1c]"><span id="dashHelloText" data-i18n="dash_hello">Hello</span>, <span id="userName">Farmer</span></h1>
+        <h1 class="text-2xl md:text-3xl font-bold text-[#1b1c1c]"><span id="dashHelloText" data-i18n="dash_hello">Hello</span>, <span id="userName">Farmer</span></h1>
         <p class="text-[#3f4941] text-sm flex items-center gap-1 mt-1">
           <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> <span id="userLocation">Location not set</span>
         </p>
@@ -223,7 +223,7 @@
             <div>
               <span class="text-[#3f4941] font-medium text-sm tracking-wide" data-i18n="dash_current_temp">Current Temperature</span>
               <div class="flex items-baseline gap-1 mt-1">
-                <span id="tempValue" class="text-5xl font-extrabold text-[#1b1c1c] font-headline tracking-tight">32°</span>
+                <span id="tempValue" class="text-4xl md:text-5xl font-extrabold text-[#1b1c1c] font-headline tracking-tight">32°</span>
                 <span class="text-xl font-semibold text-[#3f4941]">C</span>
               </div>
             </div>
@@ -238,7 +238,7 @@
         </div>
 
         <!-- 2x2 Secondary Metrics Grid -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3">
           <!-- Soil Temp -->
           <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
             <div>
@@ -298,9 +298,9 @@
         </div>
 
         <!-- Scrollable Cards Container (dynamically populated) -->
-        <div id="cropScrollContainer" class="grid grid-cols-2 gap-3 md:flex md:gap-4 md:overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none py-1">
+        <div id="cropScrollContainer" class="flex overflow-x-auto gap-3 md:gap-4 no-scrollbar cursor-grab active:cursor-grabbing select-none py-1">
           <!-- Loading skeleton -->
-          <div class="health-skeleton min-w-0 md:min-w-[220px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col shrink-0 animate-pulse">
+          <div class="health-skeleton min-w-[230px] md:min-w-[220px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col shrink-0 animate-pulse">
             <div class="flex items-center gap-2.5 w-full">
               <div class="w-8 h-8 rounded-lg bg-[#f0eded]"></div>
               <div class="flex-1 space-y-2 py-1">
@@ -314,7 +314,7 @@
               <div class="h-3 w-20 bg-[#f0eded] rounded"></div>
             </div>
           </div>
-          <div class="health-skeleton min-w-0 md:min-w-[220px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col shrink-0 animate-pulse">
+          <div class="health-skeleton min-w-[230px] md:min-w-[220px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col shrink-0 animate-pulse">
             <div class="flex items-center gap-2.5 w-full">
               <div class="w-8 h-8 rounded-lg bg-[#f0eded]"></div>
               <div class="flex-1 space-y-2 py-1">
@@ -329,7 +329,7 @@
             </div>
           </div>
           <!-- Empty state (hidden by default) -->
-          <div id="healthEmpty" class="hidden text-center py-8 w-full col-span-2 md:col-span-1">
+          <div id="healthEmpty" class="hidden text-center py-8 w-full">
             <i data-lucide="sprout" class="w-10 h-10 text-[#6f7a71] mx-auto mb-2"></i>
             <p class="text-sm text-[#6f7a71]">Add fields to see health scores</p>
             <a href="add-field.html" class="text-xs text-[#006038] font-semibold hover:underline mt-1 inline-block">Add Field</a>
@@ -537,7 +537,7 @@
       const borderColor = field.triggeredAlert ? 'border-[#ffb599]' : 'border-[#e4e2e1]';
 
       return `
-        <div class="min-w-0 md:min-w-[220px] bg-white p-4 rounded-2xl border ${borderColor} flex flex-col tactile-card shrink-0">
+        <div class="min-w-[230px] md:min-w-[220px] bg-white p-4 rounded-2xl border ${borderColor} flex flex-col tactile-card shrink-0">
           <div class="flex items-start justify-between w-full gap-2 mb-1">
             <div class="flex items-center gap-2 min-w-0">
               <div class="w-8 h-8 rounded-lg bg-[${color}]/10 flex items-center justify-center shrink-0">
@@ -557,7 +557,7 @@
               <path d="M28 100 A72 72 0 0 1 172 100" fill="none" stroke="${color}" stroke-width="13" stroke-linecap="round" pathLength="100" stroke-dasharray="${hasData && score > 0 ? Math.max(score, 3) : 0} 100"/>
             </svg>
             <div class="absolute inset-x-0 bottom-0 flex items-baseline justify-center gap-1.5 pointer-events-none">
-              <span class="font-headline text-2xl font-extrabold ${hasData ? 'text-[#1b1c1c]' : 'text-[#6f7a71]'} leading-none">${hasData ? score : '--'}</span>
+              <span class="font-headline text-xl md:text-2xl font-extrabold ${hasData ? 'text-[#1b1c1c]' : 'text-[#6f7a71]'} leading-none">${hasData ? score : '--'}</span>
               <span class="text-[8.5px] font-bold text-[#3f4941] uppercase tracking-widest">Score</span>
               ${trend}
             </div>

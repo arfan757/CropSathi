@@ -1,5 +1,8 @@
 const API = window.CROPSATHI_API_URL || 'http://localhost:5000';
-let currentLang = localStorage.getItem('preferredLang') || 'en';
+// Language follows the shared app preference set in Settings (cropsathi_prefs).
+// Advisory content is authored in en/hi/mr; any other language falls back to English
+// via the `|| .en` fallbacks in the label maps below.
+let currentLang = (typeof CropSathiPrefs !== 'undefined' && CropSathiPrefs.getPrefs().language) || 'en';
 let allAdvisories = [];
 
 // Severity config
@@ -36,30 +39,8 @@ const ACTION_TYPES = {
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
-  initLanguageToggle();
   loadAdvisories();
 });
-
-// --- Language Toggle ---
-function initLanguageToggle() {
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    if (btn.dataset.lang === currentLang) {
-      btn.classList.add('bg-[#006038]', 'text-white');
-      btn.classList.remove('text-[#3f4941]');
-    }
-    btn.addEventListener('click', () => {
-      currentLang = btn.dataset.lang;
-      localStorage.setItem('preferredLang', currentLang);
-      document.querySelectorAll('.lang-btn').forEach(b => {
-        b.classList.remove('bg-[#006038]', 'text-white');
-        b.classList.add('text-[#3f4941]');
-      });
-      btn.classList.add('bg-[#006038]', 'text-white');
-      btn.classList.remove('text-[#3f4941]');
-      renderAdvisories();
-    });
-  });
-}
 
 // --- Load Advisories ---
 async function loadAdvisories() {

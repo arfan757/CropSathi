@@ -339,7 +339,7 @@ a {
   background: transparent;
   color: var(--cs-text);
   font-family: var(--cs-font-body);
-  font-size: 14px;
+  font-size: 16px; /* >=16px prevents iOS auto-zoom on focus */
   font-weight: 500;
   padding: 7px 0;
 }
@@ -469,11 +469,6 @@ a {
     padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Field-health cards: two-up grid instead of the desktop strip */
-  #cropScrollContainer {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   /* Settings preference rows: keep long labels + native controls from
      overflowing the card. Selects (which size to their longest option)
      wrap onto their own line below the label instead of getting squeezed. */
@@ -498,5 +493,16 @@ a {
   }
 }
 
-/* Health card scroll strip (>=768px) is defined via responsive
-   Tailwind utilities on the container itself (md:flex etc.). */
+/* ============================================================
+   Mobile form inputs: keep font-size >= 16px so iOS doesn't
+   auto-zoom the page when an input is focused. Accessibility-safe
+   alternative to maximum-scale=1 / user-scalable=no (which fail
+   WCAG 1.4.4 Resize Text). Desktop is untouched (media-scoped).
+   ============================================================ */
+@media (max-width: 767.98px) {
+  input:not([type='button']):not([type='submit']):not([type='checkbox']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
