@@ -61,17 +61,28 @@ async function autoUpdateLocation() {
       const locationElem = document.getElementById('userLocation');
       if (locationElem) locationElem.textContent = placeName;
 
-      // 3. Silently sync the new coordinates to your backend
+      // 3. Silently sync the new coordinates to the backend
+      //    (PUT /api/user/profile is GET-only — location lives on
+      //    /api/auth/update-location, which takes flat coordinates +
+      //    an addressComponents object, not a nested farmDetails.)
       const token = localStorage.getItem('token');
       if (token && typeof CropSathiPrefs !== 'undefined') {
-        await fetch(`${CropSathiPrefs.api}/api/user/profile`, { 
-          method: 'PUT', // Adjust based on your API requirements (PUT/PATCH/POST)
-          headers: { 
+        await fetch(`${CropSathiPrefs.api}/api/auth/update-location`, {
+          method: 'PUT',
+          headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ 
-            farmDetails: { latitude: lat, longitude: lng, village: placeName } 
+          body: JSON.stringify({
+            latitude: lat,
+            longitude: lng,
+            fullAddress: placeName,
+            addressComponents: {
+              village: address.village,
+              district: address.district || address.county,
+              state: address.state,
+              country: address.country
+            }
           })
         });
       }
