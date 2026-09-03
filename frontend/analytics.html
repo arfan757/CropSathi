@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="ui.css">
   <style>
     body { font-family: 'Noto Sans', sans-serif; background: #fbf9f8; color: #1b1c1c; }
     h1, h2, h3, h4, .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
@@ -37,8 +39,7 @@
       .mobile-sidebar.open { transform: translateX(0); }
     }
   </style>
-</head>
-<body class="bg-[#fbf9f8] min-h-screen flex">
+</head>  <body class="bg-[#fbf9f8] min-h-screen flex has-tabbar">
 
   <!-- Sidebar Navigation -->
   <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
@@ -80,8 +81,16 @@
   <main class="flex-1 p-6 md:p-8 md:ml-64 overflow-y-auto">
 
     <!-- Top Header -->
-    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-      <div>
+    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6">
+
+      <!-- Brand lockup — mobile top app bar -->
+      <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi">
+        <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
+        <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
+      </a>
+
+      <!-- Title -->
+      <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
         <h1 class="text-2xl font-bold text-[#1b1c1c]" data-i18n="an_title">Field Analytics</h1>
         <p class="text-[#6f7a71] text-sm flex items-center gap-1.5 mt-1">
           <a href="dashboard.html" class="hover:text-[#006038] transition">Dashboard</a>
@@ -89,20 +98,52 @@
           <span class="text-[#3f4941]">Field Analytics</span>
         </p>
       </div>
-      <div class="flex items-center gap-3">
-        <div class="relative hidden sm:block">
+
+      <!-- Actions -->
+      <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-3 ml-auto md:ml-0 flex-shrink-0">
+        <button type="button" class="cs-app-action cs-search-trigger md:hidden w-10 h-10" aria-label="Search" aria-expanded="false">
+          <i data-lucide="search"></i>
+        </button>
+        <div class="relative hidden md:block">
           <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
           <input type="text" placeholder="Search crops, tasks..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-56 text-[#1b1c1c]">
         </div>
-        <button class="w-10 h-10 bg-[#f0eded] hover:bg-[#eae8e7] rounded-full flex items-center justify-center relative transition">
-          <i data-lucide="bell" class="w-5 h-5 text-[#1b1c1c]"></i>
-          <span class="w-2.5 h-2.5 bg-[#933302] rounded-full absolute top-2 right-2 border-2 border-[#fbf9f8]"></span>
+        <button type="button" class="cs-app-action w-10 h-10" aria-label="Notifications">
+          <i data-lucide="bell"></i>
+          <span class="cs-dot"></span>
         </button>
-        <div id="navProfilePhoto" class="w-10 h-10 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
-          <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+        <div class="user-menu">
+          <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+            <span id="navProfilePhoto" class="w-10 h-10 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
+              <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+            </span>
+            <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
+          </button>
+          <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
+            <div class="user-menu-head">
+              <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
+              <span class="user-menu-head-meta">
+                <span class="user-menu-head-name" id="userMenuName">Farmer</span>
+                <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
+              </span>
+            </div>
+            <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
+            <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
+            <span class="user-menu-sep" role="separator"></span>
+            <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+          </div>
         </div>
       </div>
     </header>
+
+    <!-- Mobile search row -->
+    <div class="cs-searchrow md:hidden">
+      <i data-lucide="search" aria-hidden="true"></i>
+      <input type="search" placeholder="Search crops, tasks..." aria-label="Search">
+      <button type="button" class="cs-searchrow-close" data-search-close aria-label="Close search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
 
     <!-- Field Selector -->
     <div class="mb-4">
@@ -222,7 +263,7 @@
     <div id="infoCard" class="hidden mt-4">
       <div class="info-card bg-white/95 rounded-2xl p-4 border border-[#e4e2e1] shadow-lg">
         <div class="flex items-start gap-3">
-          <div id="infoIcon" class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0" style="background: #7CB342;">✓</div>
+          <div id="infoIcon" class="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background: #7CB342;"><i data-lucide="circle-check" class="w-5 h-5" aria-hidden="true"></i></div>
           <div class="flex-1 min-w-0">
             <h3 id="infoLabel" class="font-headline font-bold text-[#1b1c1c] text-base">Healthy Canopy</h3>
             <div class="flex items-baseline gap-2 mt-1">
@@ -230,7 +271,7 @@
               <span id="infoUnit" class="text-sm text-[#6f7a71]">NDVI</span>
             </div>
             <div id="infoDelta" class="flex items-center gap-1 mt-1 text-sm">
-              <span class="text-green-600">▲ 0.04</span>
+              <span class="text-[#006038]"><i data-lucide="arrow-up" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i> 0.04</span>
               <span class="text-[#6f7a71]">vs last reading</span>
             </div>
           </div>
@@ -491,14 +532,21 @@
       document.getElementById('infoUnit').textContent = PALETTES[colorBlindMode ? `${currentLayer}Viridis` : currentLayer]?.unit || '';
       const icon = document.getElementById('infoIcon');
       icon.style.background = cellData.color || '#7CB342';
-      icon.textContent = { none: '✓', low: '!', medium: '⚠', high: '⚠' }[cellData.severity] || '✓';
+      icon.innerHTML = '<i data-lucide="' + ({ none: 'circle-check', low: 'info', medium: 'triangle-alert', high: 'triangle-alert' }[cellData.severity] || 'circle-check') + '" class="w-5 h-5" aria-hidden="true"></i>';
       const delta = document.getElementById('infoDelta');
       if (cellData.delta != null) {
         const pos = cellData.delta > 0;
-        delta.innerHTML = `<span class="${pos ? 'text-green-600' : cellData.delta < 0 ? 'text-red-500' : 'text-[#6f7a71]'}">${pos ? '▲' : cellData.delta < 0 ? '▼' : '–'} ${Math.abs(cellData.delta).toFixed(3)}</span> <span class="text-[#6f7a71]">vs last reading</span>`;
+        const deltaArrow = pos
+          ? '<i data-lucide="arrow-up" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i>'
+          : cellData.delta < 0
+            ? '<i data-lucide="arrow-down" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i>'
+            : '<i data-lucide="minus" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i>';
+        const deltaColor = pos ? 'text-[#006038]' : cellData.delta < 0 ? 'text-[#ba1a1a]' : 'text-[#6f7a71]';
+        delta.innerHTML = `<span class="${deltaColor}">${deltaArrow} ${Math.abs(cellData.delta).toFixed(3)}</span> <span class="text-[#6f7a71]">vs last reading</span>`;
         delta.classList.remove('hidden');
       } else { delta.classList.add('hidden'); }
       document.getElementById('infoCard').classList.remove('hidden');
+      lucide.createIcons();
     }
     function closeInfoCard() { document.getElementById('infoCard').classList.add('hidden'); }
 
@@ -533,5 +581,31 @@
     // ─── UI Helpers ──────────────────────────────────────────────────────
     function showLoading(show) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; }
   </script>
+
+  <script src="ui.js"></script>
+
+  <!-- Bottom navigation (mobile only) -->
+  <nav class="cs-tabbar md:hidden" aria-label="Primary">
+    <a class="cs-tab" href="dashboard.html">
+      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
+    </a>
+    <a class="cs-tab is-active" href="my-fields.html" aria-current="page">
+      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
+    </a>
+    <a class="cs-tab" href="diagnose.html">
+      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
+    </a>
+    <a class="cs-tab" href="advisory.html">
+      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
+    </a>
+    <a class="cs-tab" href="settings.html">
+      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
+    </a>
+  </nav>
 </body>
 </html>

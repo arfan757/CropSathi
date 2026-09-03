@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="ui.css">
 
   <style>
     body { font-family: 'Noto Sans', sans-serif; background-color: #fbf9f8; color: #1b1c1c; }
@@ -19,16 +21,36 @@
     .leaflet-control-zoom a { background-color: #006038 !important; color: white !important; }
     .leaflet-control-zoom a:hover { background-color: #1a7a4c !important; }
   </style>
-</head>
-<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex flex-col">
+</head>  <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex flex-col has-tabbar">
 
   <!-- Header -->
   <header class="bg-white border-b border-[#e4e2e1] px-6 py-4 flex-shrink-0">
-    <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
       <a href="my-fields.html" class="flex items-center gap-2 text-[#3f4941] hover:text-[#006038] transition">
         <i data-lucide="arrow-left" class="w-5 h-5"></i>
         <span class="font-medium text-sm" data-i18n="af_back">Back to My Fields</span>
       </a>
+      <div class="user-menu">
+        <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+          <span id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
+            <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+          </span>
+          <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
+        </button>
+        <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
+          <div class="user-menu-head">
+            <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
+            <span class="user-menu-head-meta">
+              <span class="user-menu-head-name" id="userMenuName">Farmer</span>
+              <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
+            </span>
+          </div>
+          <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
+          <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
+          <span class="user-menu-sep" role="separator"></span>
+          <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -102,8 +124,8 @@
                     <option value="Wheat">Wheat</option>
                     <option value="Rice">Rice</option>
                     <option value="Maize">Maize</option>
-                    <option value="Cotton">☁️ Cotton</option>
-                    <option value="Sugarcane">🎋 Sugarcane</option>
+                    <option value="Cotton">Cotton</option>
+                    <option value="Sugarcane">Sugarcane</option>
                     <option value="Potato">Potato</option>
                     <option value="Grapes">Grapes</option>
                     <option value="Other">Other</option>
@@ -434,5 +456,32 @@
     document.getElementById('cropType').addEventListener('change', validateForm);
     document.getElementById('sowingDate').addEventListener('change', validateForm);
   </script>
+
+  <!-- Shared UI: user menu + mobile search -->
+  <script src="ui.js"></script>
+
+  <!-- Bottom navigation (mobile only) -->
+  <nav class="cs-tabbar md:hidden" aria-label="Primary">
+    <a class="cs-tab" href="dashboard.html">
+      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
+    </a>
+    <a class="cs-tab is-active" href="my-fields.html" aria-current="page">
+      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
+    </a>
+    <a class="cs-tab" href="diagnose.html">
+      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
+    </a>
+    <a class="cs-tab" href="advisory.html">
+      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
+    </a>
+    <a class="cs-tab" href="settings.html">
+      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
+    </a>
+  </nav>
 </body>
 </html>

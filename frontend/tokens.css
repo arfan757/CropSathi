@@ -1,0 +1,132 @@
+/* ============================================================
+   CropSathi — Design tokens (single source of truth)
+   Light values are locked to DESIGN.md; dark values are the
+   existing in-app dark palette (preferences.js DARK_MODE_CSS).
+   Shared by every page via tokens.css — do not hard-code colors
+   in ui.css / ui.js components; reference these variables.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Surfaces (Material-ish elevation ramp from DESIGN.md) ---- */
+  --cs-bg: #fbf9f8;            /* background / page */
+  --cs-surface: #f6f3f2;       /* surface-container-low — cards, panels */
+  --cs-surface-2: #f0eded;     /* surface-container — fields, muted fills */
+  --cs-surface-3: #eae8e7;     /* surface-container-high — hover fills */
+  --cs-surface-highest: #e4e2e1; /* surface-container-highest */
+  --cs-raised: #ffffff;        /* surface-container-lowest — on-surface cards */
+  --cs-inset: #f0eded;         /* inset wells */
+
+  /* ---- Text ---- */
+  --cs-text: #1b1c1c;          /* on-surface — headings & body */
+  --cs-text-2: #3f4941;        /* on-surface-variant — secondary */
+  --cs-text-3: #6f7a71;        /* outline — muted / captions */
+  --cs-text-on-color: #ffffff;
+
+  /* ---- Lines ---- */
+  --cs-border: #e4e2e1;        /* surface-variant hairlines */
+  --cs-border-strong: #bec9bf; /* outline-variant — stronger dividers */
+
+  /* ---- Brand: Forest Green (primary) ---- */
+  --cs-primary: #006038;
+  --cs-primary-strong: #1a7a4c;   /* primary-container — hover / medium */
+  --cs-primary-soft: rgba(0, 96, 56, 0.1);
+  --cs-primary-soft-2: rgba(0, 96, 56, 0.18);
+  --cs-primary-contrast: #abffc9; /* on-primary-container dot / pulse */
+
+  /* ---- Accent: Terracotta (tertiary, alerts) ---- */
+  --cs-accent: #933302;
+  --cs-accent-strong: #7a2a02;
+  --cs-accent-soft: rgba(147, 51, 2, 0.1);
+  --cs-accent-border: rgba(147, 51, 2, 0.3);
+  --cs-accent-fill: #ffb599;   /* tertiary-fixed-dim fills */
+
+  /* ---- Error ---- */
+  --cs-danger: #ba1a1a;
+  --cs-danger-strong: #93000a;
+  --cs-danger-soft: rgba(186, 26, 26, 0.1);
+
+  /* ---- Interaction ---- */
+  --cs-focus: #006038;         /* :focus-visible ring (≥3:1 on surfaces) */
+
+  /* ---- Elevation (warm neutral shadows) ---- */
+  --cs-shadow-sm: 0 1px 2px rgba(27, 28, 28, 0.05), 0 1px 3px rgba(27, 28, 28, 0.06);
+  --cs-shadow-md: 0 2px 4px rgba(27, 28, 28, 0.05), 0 4px 14px rgba(27, 28, 28, 0.08);
+  --cs-shadow-lg: 0 8px 12px -4px rgba(27, 28, 28, 0.10), 0 20px 44px -12px rgba(27, 28, 28, 0.18);
+  --cs-shadow-press: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 1px rgba(0, 96, 56, 0.25);
+
+  /* ---- Typography ---- */
+  --cs-font-display: 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
+  --cs-font-body: 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* ---- Spacing (4px rhythm) ---- */
+  --cs-space-1: 4px;
+  --cs-space-2: 8px;
+  --cs-space-3: 12px;
+  --cs-space-4: 16px;
+  --cs-space-5: 20px;
+  --cs-space-6: 24px;
+  --cs-space-8: 32px;
+  --cs-space-10: 40px;
+
+  /* ---- Radius (12px standard surfaces, pill actions) ---- */
+  --cs-radius-sm: 10px;
+  --cs-radius-md: 12px;
+  --cs-radius-lg: 16px;
+  --cs-radius-pill: 999px;
+
+  /* ---- Motion ---- */
+  --cs-dur-fast: 140ms;
+  --cs-dur: 180ms;
+  --cs-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* ---- Page navigation surfaces (bottom tab bar) ---- */
+  --cs-tabbar-bg: rgba(255, 255, 255, 0.92);
+}
+
+/* Dark theme — mirrors preferences.js DARK_MODE_CSS exactly */
+.dark {
+  color-scheme: dark;
+
+  --cs-bg: #0f1712;
+  --cs-surface: #161f18;
+  --cs-surface-2: #1a261d;
+  --cs-surface-3: #1e2a21;
+  --cs-surface-highest: #2a3a2d;
+  --cs-raised: #1e2a21;
+  --cs-inset: #131a15;
+
+  --cs-text: #e8ebe9;
+  --cs-text-2: #9ca89e;
+  --cs-text-3: #7a8a7c;
+  --cs-text-on-color: #ffffff;
+
+  --cs-border: #1e2a21;
+  --cs-border-strong: #2a3a2d;
+
+  --cs-primary: #34d399;
+  --cs-primary-strong: #059669;
+  --cs-primary-soft: rgba(52, 211, 153, 0.12);
+  --cs-primary-soft-2: rgba(52, 211, 153, 0.22);
+  --cs-primary-contrast: #abffc9;
+
+  --cs-accent: #f59e0b;
+  --cs-accent-strong: #d97706;
+  --cs-accent-soft: rgba(147, 51, 2, 0.14);
+  --cs-accent-border: rgba(245, 158, 11, 0.35);
+  --cs-accent-fill: #1a261d;
+
+  --cs-danger: #f87171;
+  --cs-danger-strong: #fca5a5;
+  --cs-danger-soft: rgba(248, 113, 113, 0.12);
+
+  --cs-focus: #34d399;
+
+  --cs-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --cs-shadow-md: 0 3px 6px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.3);
+  --cs-shadow-lg: 0 6px 10px -4px rgba(0, 0, 0, 0.45), 0 22px 48px -12px rgba(0, 0, 0, 0.55);
+  --cs-shadow-press: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  --cs-tabbar-bg: rgba(19, 26, 21, 0.92);
+}

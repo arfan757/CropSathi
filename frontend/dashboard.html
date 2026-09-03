@@ -10,6 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://images.unsplash.com">
   <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="ui.css">
 
 
   <script>
@@ -103,8 +105,7 @@
       box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
     }
   </style>
-</head>
-<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex">
+</head>  <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
 
   <!-- Sidebar Navigation -->
   <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
@@ -148,28 +149,67 @@
   <main class="flex-1 p-6 md:p-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
     
     <!-- Top Header -->
-    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-      <div>
+    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6 md:mb-8">
+
+      <!-- Brand lockup — mobile top app bar (desktop uses the sidebar brand) -->
+      <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi — Dashboard">
+        <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
+        <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
+      </a>
+
+      <!-- Title — drops to its own row on mobile -->
+      <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
         <h1 class="text-3xl font-bold text-[#1b1c1c]"><span id="dashHelloText" data-i18n="dash_hello">Hello</span>, <span id="userName">Farmer</span></h1>
         <p class="text-[#3f4941] text-sm flex items-center gap-1 mt-1">
           <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> <span id="userLocation">Location not set</span>
         </p>
       </div>
 
-      <div class="flex items-center gap-4">
-        <div class="relative hidden sm:block">
+      <!-- Actions — top-right on mobile; right of the title on desktop -->
+      <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
+        <button type="button" class="cs-app-action cs-search-trigger md:hidden w-11 h-11" aria-label="Search" aria-expanded="false">
+          <i data-lucide="search"></i>
+        </button>
+        <div class="relative hidden md:block">
           <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
           <input type="text" placeholder="Search crops, tasks..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-60 text-[#1b1c1c]">
         </div>
-        <button class="w-11 h-11 bg-[#f0eded] hover:bg-[#eae8e7] rounded-full flex items-center justify-center relative transition">
-          <i data-lucide="bell" class="w-5 h-5 text-[#1b1c1c]"></i>
-          <span class="w-2.5 h-2.5 bg-[#933302] rounded-full absolute top-2 right-2 border-2 border-[#fbf9f8]"></span>
+        <button type="button" class="cs-app-action w-11 h-11" aria-label="Notifications">
+          <i data-lucide="bell"></i>
+          <span class="cs-dot"></span>
         </button>
-        <div id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
-          <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+        <div class="user-menu">
+          <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+            <span id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
+              <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+            </span>
+            <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
+          </button>
+          <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
+            <div class="user-menu-head">
+              <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
+              <span class="user-menu-head-meta">
+                <span class="user-menu-head-name" id="userMenuName">Farmer</span>
+                <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
+              </span>
+            </div>
+            <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
+            <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
+            <span class="user-menu-sep" role="separator"></span>
+            <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+          </div>
         </div>
       </div>
     </header>
+
+    <!-- Mobile search row (revealed by the search icon on small screens) -->
+    <div class="cs-searchrow md:hidden">
+      <i data-lucide="search" aria-hidden="true"></i>
+      <input type="search" placeholder="Search crops, tasks..." aria-label="Search">
+      <button type="button" class="cs-searchrow-close" data-search-close aria-label="Close search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
 
     <!-- Weather & Field Health Section -->
     <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-stretch">
@@ -258,22 +298,38 @@
         </div>
 
         <!-- Scrollable Cards Container (dynamically populated) -->
-        <div id="cropScrollContainer" class="flex gap-4 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none py-1">
+        <div id="cropScrollContainer" class="grid grid-cols-2 gap-3 md:flex md:gap-4 md:overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none py-1">
           <!-- Loading skeleton -->
-          <div id="healthLoading" class="flex gap-4">
-            <div class="min-w-[220px] bg-white p-5 rounded-xl border border-[#e4e2e1] flex flex-col items-center shrink-0 animate-pulse">
-              <div class="w-full h-8 bg-[#f0eded] rounded mb-3"></div>
-              <div class="w-36 h-36 bg-[#f0eded] rounded-full mb-3"></div>
-              <div class="w-full h-4 bg-[#f0eded] rounded"></div>
+          <div class="health-skeleton min-w-0 md:min-w-[220px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col shrink-0 animate-pulse">
+            <div class="flex items-center gap-2.5 w-full">
+              <div class="w-8 h-8 rounded-lg bg-[#f0eded]"></div>
+              <div class="flex-1 space-y-2 py-1">
+                <div class="h-3 bg-[#f0eded] rounded w-3/4"></div>
+                <div class="h-2.5 bg-[#f0eded] rounded w-1/2"></div>
+              </div>
             </div>
-            <div class="min-w-[220px] bg-white p-5 rounded-xl border border-[#e4e2e1] flex flex-col items-center shrink-0 animate-pulse">
-              <div class="w-full h-8 bg-[#f0eded] rounded mb-3"></div>
-              <div class="w-36 h-36 bg-[#f0eded] rounded-full mb-3"></div>
-              <div class="w-full h-4 bg-[#f0eded] rounded"></div>
+            <div class="w-full h-20 bg-[#f0eded]/60 rounded-xl mt-4"></div>
+            <div class="flex items-center justify-between w-full pt-3 mt-3 border-t border-[#e4e2e1]">
+              <div class="h-3 w-12 bg-[#f0eded] rounded"></div>
+              <div class="h-3 w-20 bg-[#f0eded] rounded"></div>
+            </div>
+          </div>
+          <div class="health-skeleton min-w-0 md:min-w-[220px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col shrink-0 animate-pulse">
+            <div class="flex items-center gap-2.5 w-full">
+              <div class="w-8 h-8 rounded-lg bg-[#f0eded]"></div>
+              <div class="flex-1 space-y-2 py-1">
+                <div class="h-3 bg-[#f0eded] rounded w-3/4"></div>
+                <div class="h-2.5 bg-[#f0eded] rounded w-1/2"></div>
+              </div>
+            </div>
+            <div class="w-full h-20 bg-[#f0eded]/60 rounded-xl mt-4"></div>
+            <div class="flex items-center justify-between w-full pt-3 mt-3 border-t border-[#e4e2e1]">
+              <div class="h-3 w-12 bg-[#f0eded] rounded"></div>
+              <div class="h-3 w-20 bg-[#f0eded] rounded"></div>
             </div>
           </div>
           <!-- Empty state (hidden by default) -->
-          <div id="healthEmpty" class="hidden text-center py-8 w-full">
+          <div id="healthEmpty" class="hidden text-center py-8 w-full col-span-2 md:col-span-1">
             <i data-lucide="sprout" class="w-10 h-10 text-[#6f7a71] mx-auto mb-2"></i>
             <p class="text-sm text-[#6f7a71]">Add fields to see health scores</p>
             <a href="add-field.html" class="text-xs text-[#006038] font-semibold hover:underline mt-1 inline-block">Add Field</a>
@@ -311,7 +367,7 @@
         </div>
 
         <div class="bg-[#f0eded] hover:bg-[#eae8e7] border border-[#e4e2e1] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition">
-          <div class="w-12 h-12 rounded-full bg-[#ffffff] flex items-center justify-center mb-2 text-2xl shadow-sm">🫒</div>
+          <div class="w-12 h-12 rounded-full bg-[#ffffff] flex items-center justify-center mb-2 shadow-sm"><i data-lucide="leaf" class="w-6 h-6 text-[#006038]"></i></div>
           <span class="text-sm font-semibold text-[#1b1c1c]">Olive</span>
         </div>
       </div>
@@ -465,9 +521,9 @@
     }
 
     function getTrendArrow(trend, score, prev) {
-      if (trend === 'up') return '<span class="text-[#006038]">▲</span>';
-      if (trend === 'down') return '<span class="text-[#933302]">▼</span>';
-      return '<span class="text-[#6f7a71]">–</span>';
+      if (trend === 'up') return '<i data-lucide="arrow-up" class="w-3.5 h-3.5 text-[#006038] inline-block align-middle"></i>';
+      if (trend === 'down') return '<i data-lucide="arrow-down" class="w-3.5 h-3.5 text-[#933302] inline-block align-middle"></i>';
+      return '<i data-lucide="minus" class="w-3.5 h-3.5 text-[#6f7a71] inline-block align-middle"></i>';
     }
 
     function renderHealthCard(field) {
@@ -476,41 +532,40 @@
       const color = getScoreColor(score);
       const label = getScoreLabel(field.severity, field.triggeredAlert);
       const iconName = cropEmojis[field.cropType] || 'sprout';
-      const arcLength = 169.6;
-      const offset = hasData && score > 0 ? arcLength * (1 - score / 100) : arcLength;
       const actionText = getActionText(field);
       const trend = getTrendArrow(field.trend, score, field.previousScore);
       const borderColor = field.triggeredAlert ? 'border-[#ffb599]' : 'border-[#e4e2e1]';
 
       return `
-        <div class="min-w-[220px] bg-white p-5 rounded-xl border ${borderColor} flex flex-col items-center tactile-card shrink-0">
-          <div class="flex items-start justify-between w-full mb-1">
-            <div class="flex items-center gap-2.5">
+        <div class="min-w-0 md:min-w-[220px] bg-white p-4 rounded-2xl border ${borderColor} flex flex-col tactile-card shrink-0">
+          <div class="flex items-start justify-between w-full gap-2 mb-1">
+            <div class="flex items-center gap-2 min-w-0">
               <div class="w-8 h-8 rounded-lg bg-[${color}]/10 flex items-center justify-center shrink-0">
-                <span class="text-base"><i data-lucide="${iconName}" class="w-5 h-5 text-[#006038]"></i></span>
+                <i data-lucide="${iconName}" class="w-4 h-4 text-[#006038]"></i>
               </div>
-              <div>
-                <h3 class="font-bold text-sm text-[#1b1c1c] font-headline leading-tight">${field.farmName}</h3>
-                <p class="text-[11px] text-[#3f4941]">${field.areaHectares?.toFixed(1) || '?'} Ha · ${field.cropType}</p>
+              <div class="min-w-0">
+                <h3 class="font-bold text-[13px] text-[#1b1c1c] font-headline leading-tight truncate">${field.farmName}</h3>
+                <p class="text-[11px] text-[#3f4941] truncate">${field.areaHectares?.toFixed(1) || '?'} Ha · ${field.cropType}</p>
               </div>
             </div>
-            <span class="text-[10px] font-bold ${label.color} ${label.bg} px-2 py-0.5 rounded whitespace-nowrap ml-1">${label.text}</span>
+            <span class="text-[9.5px] font-bold ${label.color} ${label.bg} px-2 py-1 rounded-full whitespace-nowrap shrink-0">${label.text}</span>
           </div>
 
-          <div class="relative w-36 h-36 my-1 flex items-center justify-center">
-            <svg class="w-full h-full transform rotate-[135deg]" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="36" stroke="#e4e2e1" stroke-width="8" stroke-linecap="round" fill="none" stroke-dasharray="${arcLength} 226.2"/>
-              <circle cx="50" cy="50" r="36" stroke="${color}" stroke-width="8" stroke-linecap="round" fill="none" stroke-dasharray="${arcLength} 226.2" stroke-dashoffset="${offset}"/>
+          <div class="relative w-full max-w-[190px] mx-auto mt-1 mb-0.5">
+            <svg viewBox="0 0 200 104" class="w-full h-auto block" aria-hidden="true">
+              <path d="M28 100 A72 72 0 0 1 172 100" fill="none" stroke="#e4e2e1" stroke-width="13" stroke-linecap="round" pathLength="100"/>
+              <path d="M28 100 A72 72 0 0 1 172 100" fill="none" stroke="${color}" stroke-width="13" stroke-linecap="round" pathLength="100" stroke-dasharray="${hasData && score > 0 ? Math.max(score, 3) : 0} 100"/>
             </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span class="text-3xl font-extrabold text-[#1b1c1c] font-headline leading-none">${hasData ? score : '--'}</span>
-              <span class="text-[9px] font-bold text-[#3f4941] uppercase tracking-wider mt-1">Score ${trend}</span>
+            <div class="absolute inset-x-0 bottom-0 flex items-baseline justify-center gap-1.5 pointer-events-none">
+              <span class="font-headline text-2xl font-extrabold ${hasData ? 'text-[#1b1c1c]' : 'text-[#6f7a71]'} leading-none">${hasData ? score : '--'}</span>
+              <span class="text-[8.5px] font-bold text-[#3f4941] uppercase tracking-widest">Score</span>
+              ${trend}
             </div>
           </div>
 
-          <div class="w-full pt-3 border-t border-[#e4e2e1] flex items-center justify-between text-xs">
+          <div class="w-full pt-2.5 mt-1 border-t border-[#e4e2e1] flex items-center justify-between gap-2 text-[11px]">
             <span class="text-[#3f4941]">Action:</span>
-            <span class="font-semibold ${field.triggeredAlert ? 'text-[#933302]' : 'text-[#006038]'} capitalize">${actionText}</span>
+            <span class="font-semibold ${field.triggeredAlert ? 'text-[#933302]' : 'text-[#006038]'} capitalize truncate">${actionText}</span>
           </div>
         </div>`;
     }
@@ -519,7 +574,7 @@
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const loadingEl = document.getElementById('healthLoading');
+      const skeletonEls = document.querySelectorAll('.health-skeleton');
       const emptyEl = document.getElementById('healthEmpty');
       const container = document.getElementById('cropScrollContainer');
 
@@ -530,7 +585,7 @@
         const data = await res.json();
 
         if (!data.success || !data.data?.fields?.length) {
-          loadingEl?.classList.add('hidden');
+          skeletonEls.forEach(el => el.classList.add('hidden'));
           emptyEl?.classList.remove('hidden');
           return;
         }
@@ -544,7 +599,7 @@
 
       } catch (err) {
         console.error('Failed to load health scores:', err);
-        loadingEl?.classList.add('hidden');
+        skeletonEls.forEach(el => el.classList.add('hidden'));
       }
     }
 
@@ -563,5 +618,31 @@
     }
 
   </script>
+
+  <script src="ui.js"></script>
+
+  <!-- Bottom navigation (mobile only) -->
+  <nav class="cs-tabbar md:hidden" aria-label="Primary">
+    <a class="cs-tab is-active" href="dashboard.html" aria-current="page">
+      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
+    </a>
+    <a class="cs-tab" href="my-fields.html">
+      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
+    </a>
+    <a class="cs-tab" href="diagnose.html">
+      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
+    </a>
+    <a class="cs-tab" href="advisory.html">
+      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
+    </a>
+    <a class="cs-tab" href="settings.html">
+      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
+    </a>
+  </nav>
 </body>
 </html>

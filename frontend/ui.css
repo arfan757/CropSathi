@@ -1,0 +1,479 @@
+/* ============================================================
+   CropSathi — Shared UI layer
+   Component recipes used across pages (avatar menu, mobile top
+   bar, bottom tab navigation, expandable search row). Additive
+   by design: only elements carrying these classes are affected.
+   Colors come from tokens.css via var(--cs-*) references.
+   ============================================================ */
+
+/* ---- Depth & interaction polish (safe, global) ---- */
+
+:focus-visible {
+  outline: 2px solid var(--cs-focus);
+  outline-offset: 2px;
+}
+
+/* Form controls define their own focus styles (border/ring utilities) */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--cs-primary-soft-2);
+  color: var(--cs-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   User menu — avatar trigger + dropdown (header, top right)
+   ============================================================ */
+
+.user-menu {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.user-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--cs-radius-pill);
+  line-height: 0;
+  cursor: pointer;
+  transition: transform var(--cs-dur-fast) var(--cs-ease);
+}
+
+.user-menu-trigger:active {
+  transform: scale(0.96);
+}
+
+.user-menu-caret {
+  width: 15px;
+  height: 15px;
+  color: var(--cs-text-3);
+  display: none;
+  transition: transform var(--cs-dur-fast) var(--cs-ease);
+}
+
+.user-menu-trigger[aria-expanded="true"] .user-menu-caret {
+  transform: rotate(180deg);
+}
+
+@media (min-width: 640px) {
+  .user-menu-caret {
+    display: block;
+  }
+}
+
+/* Panel is positioned with position:fixed by ui.js (immune to
+   ancestor overflow clipping), then fades/scales in */
+.user-menu-panel {
+  position: fixed;
+  z-index: 90;
+  min-width: 240px;
+  max-width: min(86vw, 304px);
+  padding: 6px;
+  background: var(--cs-raised);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-md);
+  box-shadow: var(--cs-shadow-lg);
+  color: var(--cs-text);
+  font-family: var(--cs-font-body);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.985);
+  transform-origin: top right;
+  transition: opacity var(--cs-dur-fast) var(--cs-ease), transform var(--cs-dur-fast) var(--cs-ease);
+  pointer-events: none;
+}
+
+.user-menu-panel[data-open="true"] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.user-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 9px 11px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--cs-border);
+  min-width: 0;
+}
+
+.user-menu-head-photo {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--cs-primary-soft);
+  color: var(--cs-primary);
+  font-family: var(--cs-font-display);
+  font-weight: 700;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.user-menu-head-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-menu-head-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.user-menu-head-name {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--cs-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-head-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--cs-text-2);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 10px 11px;
+  margin: 1px 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--cs-radius-sm);
+  color: var(--cs-text-2);
+  font-family: var(--cs-font-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.1px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--cs-dur-fast) var(--cs-ease), color var(--cs-dur-fast) var(--cs-ease);
+}
+
+.user-menu-item svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
+.user-menu-item:hover {
+  background: var(--cs-surface-3);
+  color: var(--cs-text);
+}
+
+.user-menu-item:active {
+  background: var(--cs-primary-soft);
+}
+
+.user-menu-item.is-danger {
+  color: var(--cs-danger);
+}
+
+.user-menu-item.is-danger:hover {
+  background: var(--cs-danger-soft);
+  color: var(--cs-danger);
+}
+
+.user-menu-item .um-item-label {
+  flex: 1;
+}
+
+.user-menu-sep {
+  display: block;
+  height: 1px;
+  margin: 6px 5px;
+  background: var(--cs-border);
+}
+
+/* ============================================================
+   Mobile top app bar — brand + round icon actions
+   Pages carry this structure; layout comes from responsive
+   Tailwind utilities on the elements themselves.
+   ============================================================ */
+
+/* Round icon action (search / notifications) in the app bar */
+.cs-app-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cs-surface-2);
+  color: var(--cs-text);
+  cursor: pointer;
+  transition: background var(--cs-dur-fast) var(--cs-ease), transform var(--cs-dur-fast) var(--cs-ease);
+}
+
+.cs-app-action:hover {
+  background: var(--cs-surface-3);
+}
+
+.cs-app-action:active {
+  transform: scale(0.94);
+}
+
+.cs-app-action svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cs-app-action.is-active {
+  background: var(--cs-surface-3);
+}
+
+/* Notification dot */
+.cs-app-action .cs-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--cs-accent);
+  border: 1.5px solid var(--cs-bg);
+}
+
+/* Brand lockup (mobile only — element carries md:hidden) */
+.cs-brand {
+  min-width: 0;
+  text-decoration: none;
+}
+
+.cs-brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--cs-primary);
+  color: var(--cs-text-on-color);
+  box-shadow: var(--cs-shadow-sm);
+}
+
+.cs-brand-mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ============================================================
+   Expandable mobile search row (revealed by the search icon)
+   ============================================================ */
+
+.cs-searchrow {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 16px;
+  margin: -4px 0 14px;
+  background: var(--cs-raised);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-pill);
+  box-shadow: var(--cs-shadow-sm);
+}
+
+.cs-searchrow.is-open {
+  display: flex;
+}
+
+.cs-searchrow > svg {
+  width: 17px;
+  height: 17px;
+  color: var(--cs-text-3);
+  flex-shrink: 0;
+}
+
+.cs-searchrow input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--cs-text);
+  font-family: var(--cs-font-body);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 7px 0;
+}
+
+.cs-searchrow input::placeholder {
+  color: var(--cs-text-3);
+}
+
+.cs-searchrow-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cs-surface-2);
+  color: var(--cs-text-2);
+  cursor: pointer;
+  transition: background var(--cs-dur-fast) var(--cs-ease), color var(--cs-dur-fast) var(--cs-ease);
+}
+
+.cs-searchrow-close:hover {
+  background: var(--cs-surface-3);
+  color: var(--cs-text);
+}
+
+.cs-searchrow-close svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ============================================================
+   Bottom tab bar (mobile primary navigation)
+   Desktop sidebar remains the nav at >=768px.
+   ============================================================ */
+
+.cs-tabbar {
+  position: fixed;
+  z-index: 60;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: var(--cs-tabbar-bg);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  backdrop-filter: blur(14px) saturate(1.5);
+  border-top: 1px solid var(--cs-border);
+  box-shadow: 0 -6px 24px -12px rgba(27, 28, 28, 0.18);
+}
+
+.cs-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 2px 3px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--cs-text-3);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--cs-dur-fast) var(--cs-ease);
+}
+
+.cs-tab:hover {
+  color: var(--cs-text-2);
+}
+
+.cs-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 28px;
+  border-radius: 999px;
+  transition: background var(--cs-dur-fast) var(--cs-ease), transform var(--cs-dur-fast) var(--cs-ease);
+}
+
+.cs-tab-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.cs-tab:active .cs-tab-icon {
+  transform: scale(0.92);
+}
+
+.cs-tab-label {
+  font-family: var(--cs-font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.cs-tab.is-active {
+  color: var(--cs-primary);
+}
+
+.cs-tab.is-active .cs-tab-icon {
+  background: var(--cs-primary);
+  color: var(--cs-text-on-color);
+  box-shadow: var(--cs-shadow-sm);
+}
+
+/* ============================================================
+   Mobile-only layout refinements (< 768px)
+   ============================================================ */
+
+@media (max-width: 767.98px) {
+  /* Keep content clear of the fixed bottom tab bar */
+  .has-tabbar main {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Field-health cards: two-up grid instead of the desktop strip */
+  #cropScrollContainer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Health card scroll strip (>=768px) is defined via responsive
+   Tailwind utilities on the container itself (md:flex etc.). */
