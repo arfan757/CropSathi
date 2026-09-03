@@ -78,12 +78,19 @@ Use this as your `CROPSATHI_API_URL` in Vercel.
 3. Configure:
    - **Framework Preset**: Other
    - **Root Directory**: `./` (leave blank)
-   - **Build Command**: (leave empty — static files)
-   - **Output Directory**: `frontend`
-4. Add Environment Variable:
-   - **Name**: `CROPSATHI_API_URL`
-   - **Value**: `https://cropsathi-backend.onrender.com/api`
-5. Deploy
+   - **Build Command**: `npm run build` — compiles the Tailwind stylesheet (`frontend/app.css`) and copies the pages to the root, which is the output
+   - **Output Directory**: `.`
+4. Deploy
+
+   > The pages reference a compiled `app.css` (build-time Tailwind), not the
+   > Tailwind CDN, so the build command **must** run (at minimum `npm run build:css`).
+   > If you keep the Vercel project configured with Output Directory `frontend`,
+   > set the Build Command to `npm run build:css` instead and leave the output
+   > directory as `frontend`.
+
+   The backend URL is hard-coded in `frontend/config.js` (it switches to
+   `http://localhost:5000` when served from `localhost`); point it at your
+   Render URL before deploying if it doesn't already match.
 
 ### 2. Custom Domain (Optional)
 1. Vercel dashboard → Settings → Domains
