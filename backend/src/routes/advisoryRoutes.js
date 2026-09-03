@@ -3,8 +3,12 @@ import Advisory from '../models/Advisory.js';
 import DiagnosisCase from '../models/DiagnosisCase.js';
 import Field from '../models/Field.js';
 import { localizeAdvisory } from '../services/advisoryService.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = Router();
+
+// All advisory routes require authentication
+router.use(protect);
 
 /**
  * GET /api/advisories/latest
@@ -12,7 +16,7 @@ const router = Router();
  */
 router.get('/latest', async (req, res) => {
   try {
-    const userId = req.userId || req.user?.id;
+    const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
     // Find all fields for this user

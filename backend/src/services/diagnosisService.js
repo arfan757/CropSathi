@@ -46,6 +46,23 @@ function routeDiagnosis(result) {
   return 'expert_review';
 }
 
+// Gemini reports diagnostic severity in its own vocabulary
+// (none/mild/moderate/severe). The Advisory model, advisory rules, and
+// weather rules all use low/medium/high/critical — map before persisting.
+const ADVISORY_SEVERITY = {
+  none: 'low',
+  mild: 'low',
+  moderate: 'medium',
+  severe: 'high',
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'high',
+};
+function severityForAdvisory(severity) {
+  return ADVISORY_SEVERITY[severity] || 'low';
+}
+
 export async function createCase({ farmId, userId, triggeredBy, triggeringRiskScoreId = null, gpsPoint = null }) {
   const farm = await Field.findById(farmId);
   if (!farm) throw new Error('Farm not found');
@@ -227,7 +244,12 @@ async function saveGeminiResult(dc, parsed, farm) {
     dc.status = 'report_ready'; dc.outcome = 'confirmed';
     dc.finalDiseaseCode = dc.geminiResult.detectedIssue;
     try { 
-      await generateAndSaveAdvisory(dc._id, parsed.detected_issue, parsed.severity, farm?.cropStage || 'vegetative'); 
+      await generateAndSaveAdvisory(
+        dc._id,
+        parsed.detected_issue,
+        severityForAdvisory(parsed.severity),
+        farm?.cropStage || 'vegetative'
+      );
     } catch (advisoryErr) {
       console.warn('Advisory generation failed:', advisoryErr.message);
     }
