@@ -2,6 +2,7 @@ import DiagnosisCase from '../models/DiagnosisCase.js';
 import CasePhoto from '../models/CasePhoto.js';
 import Field from '../models/Field.js';
 import { generateAndSaveAdvisory } from './advisoryService.js';
+import { recalibrateThreshold } from './riskService.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import sharp from 'sharp';
 
@@ -240,6 +241,18 @@ async function saveGeminiResult(dc, parsed, farm) {
     dc.status = 'retry_failed'; dc.outcome = 'retry';
   } else if (route === 'false_alarm') {
     dc.status = 'report_ready'; dc.outcome = 'false_alarm'; dc.finalDiseaseCode = 'healthy';
+    // False-alarm recalibration (spec §7.4 / ARCHITECTURE.md §4): a
+    // photo-confirmed healthy result on a risk-alerted farm nudges that
+    // crop's alert threshold upward so the same noise doesn't re-alert.
+    // Only applies to risk-triggered cases — farmer-initiated scans that
+    // come back healthy don't indicate a threshold problem.
+    if (dc.triggeredBy === 'risk_alert') {
+      try {
+        recalibrateThreshold(farm?.cropType);
+      } catch (recalibErr) {
+        console.warn('Threshold recalibration failed:', recalibErr.message);
+      }
+    }
   } else if (route === 'confirmed') {
     dc.status = 'report_ready'; dc.outcome = 'confirmed';
     dc.finalDiseaseCode = dc.geminiResult.detectedIssue;
