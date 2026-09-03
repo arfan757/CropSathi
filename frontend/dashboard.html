@@ -13,7 +13,6 @@
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="ui.css">
 
-
   <script>
     async function syncUserProfile() {
       const token = localStorage.getItem('token');
@@ -36,7 +35,9 @@
           if (navAvatar && user.name) {
             navAvatar.textContent = user.name.trim().charAt(0).toUpperCase();
           }
-          applyProfilePhoto(user.profilePhoto);
+          if (typeof applyProfilePhoto === 'function') {
+            applyProfilePhoto(user.profilePhoto);
+          }
 
           if (locationElem && user.farmDetails) {
             const village = user.farmDetails.village || '';
@@ -105,7 +106,8 @@
       box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
     }
   </style>
-</head>  <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
 
   <!-- Sidebar Navigation -->
   <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
@@ -151,13 +153,13 @@
     <!-- Top Header -->
     <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6 md:mb-8">
 
-      <!-- Brand lockup — mobile top app bar (desktop uses the sidebar brand) -->
+      <!-- Brand lockup — mobile top app bar -->
       <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi — Dashboard">
         <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
         <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
       </a>
 
-      <!-- Title — drops to its own row on mobile -->
+      <!-- Title -->
       <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
         <h1 class="text-2xl md:text-3xl font-bold text-[#1b1c1c]"><span id="dashHelloText" data-i18n="dash_hello">Hello</span>, <span id="userName">Farmer</span></h1>
         <p class="text-[#3f4941] text-sm flex items-center gap-1 mt-1">
@@ -165,7 +167,7 @@
         </p>
       </div>
 
-      <!-- Actions — top-right on mobile; right of the title on desktop -->
+      <!-- Actions -->
       <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
         <button type="button" class="cs-app-action cs-search-trigger md:hidden w-11 h-11" aria-label="Search" aria-expanded="false">
           <i data-lucide="search"></i>
@@ -202,7 +204,7 @@
       </div>
     </header>
 
-    <!-- Mobile search row (revealed by the search icon on small screens) -->
+    <!-- Mobile search row -->
     <div class="cs-searchrow md:hidden">
       <i data-lucide="search" aria-hidden="true"></i>
       <input type="search" placeholder="Search crops, tasks..." aria-label="Search">
@@ -218,7 +220,6 @@
       <div class="lg:col-span-5 flex flex-col justify-between h-full gap-3 font-sans">
         <!-- Main Weather Card -->
         <div id="weatherCardBg" class="bg-[#f7f5f4] border border-[#e4e2e1] p-6 rounded-2xl relative overflow-hidden tactile-card flex justify-between min-h-[170px] flex-1">
-          <!-- Left Info Content -->
           <div class="relative z-10 flex flex-col justify-between items-start">
             <div>
               <span class="text-[#3f4941] font-medium text-sm tracking-wide" data-i18n="dash_current_temp">Current Temperature</span>
@@ -233,13 +234,11 @@
             </div>
           </div>
 
-          <!-- Vector Graphic Floating Bottom Right -->
           <div id="weatherVectorContainer" class="absolute bottom-0 right-0 w-48 h-full pointer-events-none flex items-end justify-end"></div>
         </div>
 
         <!-- 2x2 Secondary Metrics Grid -->
         <div class="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3">
-          <!-- Soil Temp -->
           <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
             <div>
               <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_soil_temp">Soil temp</p>
@@ -250,7 +249,6 @@
             </div>
           </div>
 
-          <!-- Humidity -->
           <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
             <div>
               <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_humidity">Humidity</p>
@@ -261,7 +259,6 @@
             </div>
           </div>
 
-          <!-- Wind -->
           <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
             <div>
               <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_wind">Wind</p>
@@ -272,7 +269,6 @@
             </div>
           </div>
 
-          <!-- Precipitation -->
           <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
             <div>
               <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_precipitation">Precipitation</p>
@@ -287,20 +283,21 @@
 
       <!-- RIGHT COLUMN: Dial Gauge Cards -->
       <div class="lg:col-span-7 bg-[#f6f3f2] border border-[#e4e2e1] p-6 rounded-xl flex flex-col justify-between tactile-card h-full">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between gap-2 mb-4">
           <div>
             <h2 class="text-lg font-bold text-[#1b1c1c] font-headline" data-i18n="dash_field_health">Field Health Score</h2>
             <p class="text-xs text-[#3f4941]" data-i18n="dash_field_health_sub">Real-time composite telemetry gauge score</p>
           </div>
-          <span class="text-xs font-bold px-3 py-1 bg-[#006038] text-[#ffffff] rounded-full flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-[#abffc9] animate-pulse"></span>            <span data-i18n="dash_sentinel_sync">Sentinel Sync</span>
+          <span class="text-xs font-bold px-3 py-1.5 bg-[#006038] text-[#ffffff] rounded-full flex items-center gap-1.5 whitespace-nowrap shrink-0">
+            <span class="w-2 h-2 rounded-full bg-[#abffc9] animate-pulse"></span>
+            <span data-i18n="dash_sentinel_sync">Sentinel Sync</span>
           </span>
         </div>
 
-        <!-- Scrollable Cards Container (dynamically populated) -->
+        <!-- Scrollable Cards Container -->
         <div id="cropScrollContainer" class="flex overflow-x-auto gap-3 md:gap-4 no-scrollbar cursor-grab active:cursor-grabbing select-none py-1">
           <!-- Loading skeleton -->
-          <div class="health-skeleton min-w-[230px] md:min-w-[220px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col shrink-0 animate-pulse">
+          <div class="health-skeleton w-[200px] h-[270px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col justify-between shrink-0 animate-pulse">
             <div class="flex items-center gap-2.5 w-full">
               <div class="w-8 h-8 rounded-lg bg-[#f0eded]"></div>
               <div class="flex-1 space-y-2 py-1">
@@ -308,27 +305,13 @@
                 <div class="h-2.5 bg-[#f0eded] rounded w-1/2"></div>
               </div>
             </div>
-            <div class="w-full h-20 bg-[#f0eded]/60 rounded-xl mt-4"></div>
-            <div class="flex items-center justify-between w-full pt-3 mt-3 border-t border-[#e4e2e1]">
+            <div class="w-full h-32 bg-[#f0eded]/60 rounded-xl my-2"></div>
+            <div class="flex items-center justify-between w-full pt-3 border-t border-[#e4e2e1]">
               <div class="h-3 w-12 bg-[#f0eded] rounded"></div>
               <div class="h-3 w-20 bg-[#f0eded] rounded"></div>
             </div>
           </div>
-          <div class="health-skeleton min-w-[230px] md:min-w-[220px] bg-white p-4 rounded-2xl border border-[#e4e2e1] flex flex-col shrink-0 animate-pulse">
-            <div class="flex items-center gap-2.5 w-full">
-              <div class="w-8 h-8 rounded-lg bg-[#f0eded]"></div>
-              <div class="flex-1 space-y-2 py-1">
-                <div class="h-3 bg-[#f0eded] rounded w-3/4"></div>
-                <div class="h-2.5 bg-[#f0eded] rounded w-1/2"></div>
-              </div>
-            </div>
-            <div class="w-full h-20 bg-[#f0eded]/60 rounded-xl mt-4"></div>
-            <div class="flex items-center justify-between w-full pt-3 mt-3 border-t border-[#e4e2e1]">
-              <div class="h-3 w-12 bg-[#f0eded] rounded"></div>
-              <div class="h-3 w-20 bg-[#f0eded] rounded"></div>
-            </div>
-          </div>
-          <!-- Empty state (hidden by default) -->
+          <!-- Empty state -->
           <div id="healthEmpty" class="hidden text-center py-8 w-full">
             <i data-lucide="sprout" class="w-10 h-10 text-[#6f7a71] mx-auto mb-2"></i>
             <p class="text-sm text-[#6f7a71]">Add fields to see health scores</p>
@@ -419,7 +402,6 @@
       scrollContainer.scrollLeft += evt.deltaY;
     });
 
-    // Initialize weather visual with default temperature
     updateWeatherVisual(32);
 
     function updateWeatherVisual(temp) {
@@ -434,7 +416,6 @@
       let svgHTML = '';
 
       if (temp < 18) {
-        // COLD / MISTY
         if (cardBg) cardBg.style.backgroundColor = '#f5f7f9';
         if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e8f0f7] px-3.5 py-1.5 rounded-full border border-[#2b6cb0]/10 text-xs font-semibold text-[#2b6cb0] mt-4 shadow-sm';
         if (badgeText) badgeText.textContent = 'Cool / Frost Risk Weather';
@@ -448,7 +429,6 @@
           + '</svg>';
 
       } else if (temp <= 28) {
-        // MILD / OPTIMAL
         if (cardBg) cardBg.style.backgroundColor = '#f7f5f4';
         if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e2efe7] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm';
         if (badgeText) badgeText.textContent = 'Optimal Growth Weather';
@@ -462,7 +442,6 @@
           + '</svg>';
 
       } else if (temp <= 35) {
-        // WARM / ACTIVE
         if (cardBg) cardBg.style.backgroundColor = '#f7f6f4';
         if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e8efe5] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm';
         if (badgeText) badgeText.textContent = 'Warm / Growth Active';
@@ -476,7 +455,6 @@
           + '</svg>';
 
       } else {
-        // HOT
         if (cardBg) cardBg.style.backgroundColor = '#f9f5f2';
         if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#fae8d5] px-3.5 py-1.5 rounded-full border border-[#c05621]/10 text-xs font-semibold text-[#c05621] mt-4 shadow-sm';
         if (badgeText) badgeText.textContent = 'High Heat / Irrigation Advised';
@@ -493,7 +471,6 @@
       if (container) container.innerHTML = svgHTML;
     }
 
-    // ─── Field Health Scores (real data from backend) ──────────────────────
     const cropEmojis = {
       'Rice': 'wheat', 'Wheat': 'wheat', 'Maize': 'wheat', 'Cotton': 'cloud',
       'Sugarcane': 'sprout', 'Potato': 'apple', 'Grapes': 'grape', 'Soybean': 'sprout',
@@ -520,10 +497,10 @@
       return 'Awaiting data';
     }
 
-    function getTrendArrow(trend, score, prev) {
-      if (trend === 'up') return '<i data-lucide="arrow-up" class="w-3.5 h-3.5 text-[#006038] inline-block align-middle"></i>';
-      if (trend === 'down') return '<i data-lucide="arrow-down" class="w-3.5 h-3.5 text-[#933302] inline-block align-middle"></i>';
-      return '<i data-lucide="minus" class="w-3.5 h-3.5 text-[#6f7a71] inline-block align-middle"></i>';
+    function getTrendArrow(trend) {
+      if (trend === 'up') return '<i data-lucide="arrow-up" class="w-3 h-3 text-[#006038] inline-block align-middle"></i>';
+      if (trend === 'down') return '<i data-lucide="arrow-down" class="w-3 h-3 text-[#933302] inline-block align-middle"></i>';
+      return '<i data-lucide="minus" class="w-3 h-3 text-[#6f7a71] inline-block align-middle"></i>';
     }
 
     function renderHealthCard(field) {
@@ -533,14 +510,18 @@
       const label = getScoreLabel(field.severity, field.triggeredAlert);
       const iconName = cropEmojis[field.cropType] || 'sprout';
       const actionText = getActionText(field);
-      const trend = getTrendArrow(field.trend, score, field.previousScore);
+      const trend = getTrendArrow(field.trend);
       const borderColor = field.triggeredAlert ? 'border-[#ffb599]' : 'border-[#e4e2e1]';
 
+      // Total gauge circumference for 240-degree arc (r = 65, total arc length ~ 272.27)
+      const arcLength = 272.27;
+      const dashOffset = arcLength - (arcLength * (hasData ? score : 0)) / 100;
+
       return `
-        <div class="min-w-[230px] md:min-w-[220px] bg-white p-4 rounded-2xl border ${borderColor} flex flex-col tactile-card shrink-0">
-          <div class="flex items-start justify-between w-full gap-2 mb-1">
+        <div class="w-[200px] h-[270px] bg-white p-4 rounded-2xl border ${borderColor} flex flex-col justify-between tactile-card shrink-0">
+          <div class="flex items-start justify-between w-full gap-2">
             <div class="flex items-center gap-2 min-w-0">
-              <div class="w-8 h-8 rounded-lg bg-[${color}]/10 flex items-center justify-center shrink-0">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background-color: ${color}15;">
                 <i data-lucide="${iconName}" class="w-4 h-4 text-[#006038]"></i>
               </div>
               <div class="min-w-0">
@@ -548,22 +529,28 @@
                 <p class="text-[11px] text-[#3f4941] truncate">${field.areaHectares?.toFixed(1) || '?'} Ha · ${field.cropType}</p>
               </div>
             </div>
-            <span class="text-[9.5px] font-bold ${label.color} ${label.bg} px-2 py-1 rounded-full whitespace-nowrap shrink-0">${label.text}</span>
+            <span class="text-[9.5px] font-bold ${label.color} ${label.bg} px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">${label.text}</span>
           </div>
 
-          <div class="relative w-full max-w-[190px] mx-auto mt-1 mb-0.5">
-            <svg viewBox="0 0 200 104" class="w-full h-auto block" aria-hidden="true">
-              <path d="M28 100 A72 72 0 0 1 172 100" fill="none" stroke="#e4e2e1" stroke-width="13" stroke-linecap="round" pathLength="100"/>
-              <path d="M28 100 A72 72 0 0 1 172 100" fill="none" stroke="${color}" stroke-width="13" stroke-linecap="round" pathLength="100" stroke-dasharray="${hasData && score > 0 ? Math.max(score, 3) : 0} 100"/>
+          <!-- Gauge SVG -->
+          <div class="relative w-full flex items-center justify-center my-auto">
+            <svg viewBox="0 0 160 145" class="w-full max-w-[150px] h-auto block" aria-hidden="true">
+              <!-- Background Arc: 240 degrees (from 150 deg to 390 deg) -->
+              <path d="M 23.7 112.5 A 65 65 0 1 1 136.3 112.5" fill="none" stroke="#e4e2e1" stroke-width="12" stroke-linecap="round"/>
+              <!-- Active Score Arc -->
+              <path d="M 23.7 112.5 A 65 65 0 1 1 136.3 112.5" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"
+                stroke-dasharray="${arcLength}" stroke-dashoffset="${dashOffset}"/>
             </svg>
-            <div class="absolute inset-x-0 bottom-0 flex items-baseline justify-center gap-1.5 pointer-events-none">
-              <span class="font-headline text-xl md:text-2xl font-extrabold ${hasData ? 'text-[#1b1c1c]' : 'text-[#6f7a71]'} leading-none">${hasData ? score : '--'}</span>
-              <span class="text-[8.5px] font-bold text-[#3f4941] uppercase tracking-widest">Score</span>
-              ${trend}
+            <div class="absolute inset-0 flex flex-col items-center justify-center pt-2 pointer-events-none">
+              <span class="font-headline text-2xl font-extrabold ${hasData ? 'text-[#1b1c1c]' : 'text-[#6f7a71]'} leading-none">${hasData ? score : '--'}</span>
+              <div class="flex items-center gap-1 mt-1">
+                <span class="text-[9px] font-bold text-[#3f4941] uppercase tracking-wider">SCORE</span>
+                ${trend}
+              </div>
             </div>
           </div>
 
-          <div class="w-full pt-2.5 mt-1 border-t border-[#e4e2e1] flex items-center justify-between gap-2 text-[11px]">
+          <div class="w-full pt-2.5 border-t border-[#e4e2e1] flex items-center justify-between gap-1 text-[11px]">
             <span class="text-[#3f4941]">Action:</span>
             <span class="font-semibold ${field.triggeredAlert ? 'text-[#933302]' : 'text-[#006038]'} capitalize truncate">${actionText}</span>
           </div>
@@ -593,7 +580,6 @@
         const fields = data.data.fields;
         const html = fields.map(renderHealthCard).join('');
 
-        // Replace container content (keep the container itself)
         container.innerHTML = html;
         lucide.createIcons();
 
@@ -603,10 +589,8 @@
       }
     }
 
-    // Load health scores on page load
     loadHealthScores();
 
-    // If a field was just created, poll until the risk score appears
     if (localStorage.getItem('newFieldCreated')) {
       localStorage.removeItem('newFieldCreated');
       let attempts = 0;
@@ -616,7 +600,6 @@
         if (attempts >= 5) clearInterval(poller);
       }, 3000);
     }
-
   </script>
 
   <script src="ui.js"></script>

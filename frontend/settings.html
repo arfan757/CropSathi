@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Fixed viewport to prevent input zoom scaling on iOS -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>CropSathi - Settings</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,7 +33,8 @@
       box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
     }
   </style>
-</head>  <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
+</head>  
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
 
   <!-- Sidebar Navigation -->
   <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
@@ -161,33 +163,33 @@
           <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
               <i data-lucide="user" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
-              <div>
+              <div class="min-w-0">
                 <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_full_name">Full Name</p>
-                <p id="profileFullName" class="text-base font-bold text-[#1b1c1c]">Rajesh Kumar</p>
+                <p id="profileFullName" class="text-base font-bold text-[#1b1c1c] truncate">Rajesh Kumar</p>
               </div>
             </div>
 
             <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
               <i data-lucide="phone" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
-              <div>
+              <div class="min-w-0">
                 <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_mobile">Mobile Number</p>
-                <p id="profilePhone" class="text-base font-bold text-[#1b1c1c]">+91 98765 43210</p>
+                <p id="profilePhone" class="text-base font-bold text-[#1b1c1c] truncate">+91 98765 43210</p>
               </div>
             </div>
 
             <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
               <i data-lucide="map-pin" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
-              <div>
+              <div class="min-w-0">
                 <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_district">District</p>
-                <p id="profileLocation" class="text-base font-bold text-[#1b1c1c]">Nashik</p>
+                <p id="profileLocation" class="text-base font-bold text-[#1b1c1c] truncate">Nashik</p>
               </div>
             </div>
 
             <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
               <i data-lucide="badge-check" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
-              <div>
+              <div class="min-w-0">
                 <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_account_status">Account Status</p>
-                <p id="profileStatus" class="text-base font-bold text-[#006038]" data-i18n="settings_verified">Verified Farmer</p>
+                <p id="profileStatus" class="text-base font-bold text-[#006038] truncate" data-i18n="settings_verified">Verified Farmer</p>
               </div>
             </div>
           </div>
@@ -198,12 +200,13 @@
       <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
         <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_preferences">Preferences</h2>
         <div class="space-y-3">
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+          
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
             <div class="flex items-center gap-3">
-              <i data-lucide="languages" class="w-5 h-5 text-[#006038]"></i>
+              <i data-lucide="languages" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
               <span class="font-medium text-[#1b1c1c]" data-i18n="settings_language">App Language</span>
             </div>
-            <select id="languageSelect" onchange="CropSathiPrefs.applyLanguage(this.value)" class="border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
+            <select id="languageSelect" onchange="CropSathiPrefs.applyLanguage(this.value)" class="w-full sm:w-auto max-w-full border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
               <option value="en">English</option>
               <option value="hi">Hindi (हिंदी)</option>
               <option value="mr">Marathi (मराठी)</option>
@@ -221,39 +224,39 @@
           </div>
 
           <!-- Preferred Units System -->
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-            <div class="flex items-center gap-3">
-              <i data-lucide="ruler" class="w-5 h-5 text-[#006038]"></i>
-              <div>
-                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_units">Preferred Units System</span>
-                <span class="text-xs text-[#3f4941]" data-i18n="settings_units_desc">Area, weight, and temperature measurements</span>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="ruler" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div class="min-w-0">
+                <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_units">Preferred Units System</span>
+                <span class="text-xs text-[#3f4941] break-words" data-i18n="settings_units_desc">Area, weight, and temperature measurements</span>
               </div>
             </div>
-            <select id="unitsSelect" onchange="CropSathiPrefs.setPrefs({units: this.value})" class="border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
+            <select id="unitsSelect" onchange="CropSathiPrefs.setPrefs({units: this.value})" class="w-full sm:w-auto max-w-full border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
               <option value="metric_ha">Hectare / Kg / °C</option>
               <option value="imperial_ac">Acre / Quintal / °C</option>
               <option value="indian_bg">Bigha / Guntha / °C</option>
             </select>
           </div>
 
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-            <div class="flex items-center gap-3">
-              <i data-lucide="bell" class="w-5 h-5 text-[#006038]"></i>
-              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_push_notifications">Push Notifications</span>
+          <div class="flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="bell" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <span class="font-medium text-[#1b1c1c] truncate" data-i18n="settings_push_notifications">Push Notifications</span>
             </div>
-            <label class="relative inline-flex items-center cursor-pointer">
+            <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input type="checkbox" class="sr-only peer" checked>
               <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
             </label>
           </div>
 
           <!-- Theme Preference -->
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-            <div class="flex items-center gap-3">
-              <i data-lucide="palette" class="w-5 h-5 text-[#006038]"></i>
-              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_theme">Theme Preference</span>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="palette" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <span class="font-medium text-[#1b1c1c] truncate" data-i18n="settings_theme">Theme Preference</span>
             </div>
-            <select id="themeSelect" onchange="CropSathiPrefs.applyTheme(this.value)" class="border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
+            <select id="themeSelect" onchange="CropSathiPrefs.applyTheme(this.value)" class="w-full sm:w-auto max-w-full border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
               <option value="light">Light Mode</option>
               <option value="dark">Dark Mode</option>
               <option value="system">System Default</option>
@@ -261,39 +264,39 @@
           </div>
 
           <!-- Severe Weather & Pest Alerts -->
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-            <div class="flex items-center gap-3">
-              <i data-lucide="alert-triangle" class="w-5 h-5 text-[#006038]"></i>
-              <div>
-                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_severe_alerts">Severe Weather & Pest Alerts</span>
-                <span class="text-xs text-[#3f4941]" data-i18n="settings_severe_alerts_desc">Priority warnings for frost, unseasonal rain & pest outbreaks</span>
+          <div class="flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="alert-triangle" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div class="min-w-0">
+                <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_severe_alerts">Severe Weather & Pest Alerts</span>
+                <span class="text-xs text-[#3f4941] hidden sm:block break-words" data-i18n="settings_severe_alerts_desc">Priority warnings for frost, unseasonal rain & pest outbreaks</span>
               </div>
             </div>
-            <label class="relative inline-flex items-center cursor-pointer">
+            <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input type="checkbox" class="sr-only peer" checked>
               <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
             </label>
           </div>
 
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-            <div class="flex items-center gap-3">
-              <i data-lucide="navigation" class="w-5 h-5 text-[#006038]"></i>
-              <div>
-                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_location">Location</span>
-                <span id="preferenceLocationDisplay" class="text-xs text-[#3f4941]">20.0059° N, 73.7898° E (Panchavati, Nashik - 422003)</span>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-start sm:items-center gap-3 min-w-0">
+              <i data-lucide="navigation" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div class="min-w-0">
+                <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_location">Location</span>
+                <span id="preferenceLocationDisplay" class="text-xs text-[#3f4941] break-words block">20.0059° N, 73.7898° E (Panchavati, Nashik - 422003)</span>
               </div>
             </div>
-            <button onclick="updateGPS()" class="flex items-center gap-1 text-xs font-semibold text-[#006038] hover:underline bg-[#f0eded] px-3 py-1.5 rounded-lg border border-[#e4e2e1]">
+            <button onclick="updateGPS()" class="w-full sm:w-auto flex items-center justify-center gap-1 text-xs font-semibold text-[#006038] hover:underline bg-[#f0eded] px-3 py-1.5 rounded-lg border border-[#e4e2e1] flex-shrink-0">
               <i data-lucide="locate-fixed" class="w-3.5 h-3.5"></i> <span data-i18n="settings_update_gps">Update GPS</span>
             </button>
           </div>
 
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-            <div class="flex items-center gap-3">
-              <i data-lucide="git-branch" class="w-5 h-5 text-[#006038]"></i>
-              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_app_version">App Version</span>
+          <div class="flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="git-branch" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <span class="font-medium text-[#1b1c1c] truncate" data-i18n="settings_app_version">App Version</span>
             </div>
-            <span class="text-xs font-semibold text-[#3f4941] bg-[#f0eded] px-2.5 py-1 rounded-md">v1.2.0</span>
+            <span class="text-xs font-semibold text-[#3f4941] bg-[#f0eded] px-2.5 py-1 rounded-md flex-shrink-0">v1.2.0</span>
           </div>
         </div>
       </div>
@@ -303,15 +306,15 @@
         <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_data_mgmt">Data Management</h2>
         <div class="space-y-3">
           <!-- Data Export -->
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-            <div class="flex items-center gap-3">
-              <i data-lucide="download" class="w-5 h-5 text-[#006038]"></i>
-              <div>
-                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_data_export">Data Export</span>
-                <span class="text-xs text-[#3f4941]" data-i18n="settings_data_export_desc">Download field records, diagnostic history & advisory logs</span>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="download" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div class="min-w-0">
+                <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_data_export">Data Export</span>
+                <span class="text-xs text-[#3f4941] break-words block" data-i18n="settings_data_export_desc">Download field records, diagnostic history & advisory logs</span>
               </div>
             </div>
-            <button onclick="alert('Exporting field records to PDF/CSV...')" class="flex items-center gap-1.5 text-xs font-semibold text-[#006038] hover:bg-[#f0eded] px-3 py-1.5 rounded-lg border border-[#e4e2e1]">
+            <button onclick="alert('Exporting field records to PDF/CSV...')" class="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold text-[#006038] hover:bg-[#f0eded] px-3 py-1.5 rounded-lg border border-[#e4e2e1] flex-shrink-0">
               <i data-lucide="file-text" class="w-3.5 h-3.5"></i> <span data-i18n="settings_export_btn">Export Records</span>
             </button>
           </div>
@@ -323,27 +326,27 @@
         <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_support">Support & Feedback</h2>
         <div class="space-y-3">
           <!-- Voice-Guided Support / Helpline Access -->
-          <a href="tel:18001801551" class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
-            <div class="flex items-center gap-3">
-              <i data-lucide="phone-call" class="w-5 h-5 text-[#006038]"></i>
-              <div>
-                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_helpline">Voice-Guided Support / Helpline</span>
-                <span class="text-xs text-[#3f4941]" data-i18n="settings_helpline_desc">Call Kisan Extension Support (1800-180-1551)</span>
+          <a href="tel:18001801551" class="w-full flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="phone-call" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div class="min-w-0">
+                <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_helpline">Voice-Guided Support / Helpline</span>
+                <span class="text-xs text-[#3f4941] break-words block" data-i18n="settings_helpline_desc">Call Kisan Extension Support (1800-180-1551)</span>
               </div>
             </div>
-            <i data-lucide="external-link" class="w-4 h-4 text-[#3f4941]"></i>
+            <i data-lucide="external-link" class="w-4 h-4 text-[#3f4941] flex-shrink-0"></i>
           </a>
 
           <!-- Report an Issue / Feedback -->
-          <button onclick="document.getElementById('feedback-modal').classList.remove('hidden')" class="w-full flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
-            <div class="flex items-center gap-3">
-              <i data-lucide="message-square-plus" class="w-5 h-5 text-[#006038]"></i>
-              <div>
-                <span class="font-medium text-[#1b1c1c] block" data-i18n="settings_feedback">Report an Issue / Feedback</span>
-                <span class="text-xs text-[#3f4941]" data-i18n="settings_feedback_desc">Share suggestions or report bugs directly to our team</span>
+          <button onclick="document.getElementById('feedback-modal').classList.remove('hidden')" class="w-full flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="message-square-plus" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <div class="min-w-0">
+                <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_feedback">Report an Issue / Feedback</span>
+                <span class="text-xs text-[#3f4941] break-words block" data-i18n="settings_feedback_desc">Share suggestions or report bugs directly to our team</span>
               </div>
             </div>
-            <i data-lucide="chevron-right" class="w-4 h-4 text-[#3f4941]"></i>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-[#3f4941] flex-shrink-0"></i>
           </button>
         </div>
       </div>
@@ -353,27 +356,27 @@
         <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_security">Security</h2>
         <div class="space-y-3">
           <button onclick="document.getElementById('change-password-modal').classList.remove('hidden')"
-                  class="w-full flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
-            <div class="flex items-center gap-3">
-              <i data-lucide="lock" class="w-5 h-5 text-[#006038]"></i>
-              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_change_pw">Change Password</span>
+                  class="w-full flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="lock" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <span class="font-medium text-[#1b1c1c] truncate" data-i18n="settings_change_pw">Change Password</span>
             </div>
-            <i data-lucide="chevron-right" class="w-4 h-4 text-[#3f4941]"></i>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-[#3f4941] flex-shrink-0"></i>
           </button>
 
-          <div class="flex items-center justify-between p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-            <div class="flex items-center gap-3">
-              <i data-lucide="shield-check" class="w-5 h-5 text-[#006038]"></i>
-              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_2fa">Two-Factor Authentication</span>
+          <div class="flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="shield-check" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <span class="font-medium text-[#1b1c1c] truncate" data-i18n="settings_2fa">Two-Factor Authentication</span>
             </div>
-            <label class="relative inline-flex items-center cursor-pointer">
+            <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
             </label>
           </div>
 
           <div class="mt-6">
-            <button onclick="localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href='login.html';" class="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-[#ba1a1a] text-[#ffffff] font-semibold rounded-xl transition hover:bg-[#93000a] shadow-sm">
+            <button onclick="localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href='login.html';" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#ba1a1a] text-[#ffffff] font-semibold rounded-xl transition hover:bg-[#93000a] shadow-sm">
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span data-i18n="settings_logout">Log Out</span>
             </button>
@@ -385,7 +388,7 @@
 
   <!-- Edit Profile Modal -->
   <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-6">
+    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-5 sm:gap-6">
       <div class="flex items-center justify-between">
         <h2 class="font-headline text-lg font-bold text-[#1b1c1c]" data-i18n="settings_edit_profile">Edit Profile</h2>
         <button onclick="document.getElementById('edit-profile-modal').classList.add('hidden')"
@@ -427,12 +430,12 @@
           <input id="modalInputPhone" type="text" value="+91 98765 43210" disabled class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#eae8e7] text-[#6f7a71] opacity-80 cursor-not-allowed text-sm" />
         </div>
 
-        <div class="flex items-center justify-end gap-3 mt-4">
+        <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 mt-4">
           <button type="button" onclick="document.getElementById('edit-profile-modal').classList.add('hidden')"
-                  class="px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
+                  class="w-full sm:w-auto px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
             <span data-i18n="btn_cancel">Cancel</span>
           </button>
-          <button type="submit" class="px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c]">
+          <button type="submit" class="w-full sm:w-auto px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c]">
             <span data-i18n="settings_save_changes">Save Changes</span>
           </button>
         </div>
@@ -443,7 +446,7 @@
 
   <!-- Feedback / Issue Modal -->
   <div id="feedback-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-6">
+    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-5 sm:gap-6">
       <div class="flex items-center justify-between">
         <h2 class="font-headline text-lg font-bold text-[#1b1c1c]" data-i18n="fb_title">Report an Issue / Feedback</h2>
         <button onclick="document.getElementById('feedback-modal').classList.add('hidden')"
@@ -467,12 +470,12 @@
           <textarea rows="4" placeholder="Describe the issue or feedback..." data-i18n-placeholder="fb_details_placeholder" class="w-full px-4 py-2.5 rounded-xl border border-[#e4e2e1] bg-[#fbf9f8] text-[#1b1c1c] focus:ring-2 focus:ring-[#006038] outline-none text-sm" required></textarea>
         </div>
 
-        <div class="flex items-center justify-end gap-3 mt-2">
+        <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 mt-2">
           <button type="button" onclick="document.getElementById('feedback-modal').classList.add('hidden')"
-                  class="px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
+                  class="w-full sm:w-auto px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
             <span data-i18n="btn_cancel">Cancel</span>
           </button>
-          <button type="submit" class="px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c]">
+          <button type="submit" class="w-full sm:w-auto px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c]">
             <span data-i18n="fb_submit">Submit</span>
           </button>
         </div>
@@ -482,7 +485,7 @@
 
   <!-- Change Password Modal -->
   <div id="change-password-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-5">
+    <div class="bg-[#ffffff] rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-xl border border-[#e4e2e1] flex flex-col gap-5">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-[#006038]/10 flex items-center justify-center">
@@ -520,13 +523,13 @@
 
         <p class="text-[11px] text-[#3f4941]" data-i18n="cp_hint">Must be at least 6 characters long.</p>
 
-        <div class="flex items-center justify-end gap-3 mt-2">
+        <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 mt-2">
           <button type="button" onclick="document.getElementById('change-password-modal').classList.add('hidden'); resetPasswordForm();"
-                  class="px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
+                  class="w-full sm:w-auto px-4 py-2 rounded-lg border border-[#e4e2e1] text-[#6f7a71] font-semibold text-sm hover:bg-[#f0eded]">
             <span data-i18n="cp_cancel">Cancel</span>
           </button>
           <button type="submit" id="savePasswordBtn"
-                  class="px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c] transition shadow-sm">
+                  class="w-full sm:w-auto px-5 py-2 rounded-lg bg-[#006038] text-[#ffffff] font-semibold text-sm hover:bg-[#1a7a4c] transition shadow-sm">
             <span data-i18n="settings_save_changes">Save Changes</span>
           </button>
         </div>
