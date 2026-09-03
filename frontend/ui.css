@@ -397,6 +397,15 @@ a {
   box-shadow: 0 -6px 24px -12px rgba(27, 28, 28, 0.18);
 }
 
+/* Belt-and-braces: the markup also carries `md:hidden`, but that relies on
+   cascade order against the compiled Tailwind stylesheet. Scoping the show/hide
+   here too means the tab bar is correct even if load order ever changes. */
+@media (min-width: 768px) {
+  .cs-tabbar {
+    display: none;
+  }
+}
+
 .cs-tab {
   flex: 1 1 0;
   min-width: 0;

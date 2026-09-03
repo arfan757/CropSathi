@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Fixed viewport to prevent input zoom scaling on iOS -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- iOS auto-zoom-on-input-focus is prevented via 16px form-field font-size
+       in ui.css, not by locking the viewport (locking it blocks pinch-zoom
+       and fails WCAG 1.4.4 Resize Text). -->
   <title>CropSathi - Settings</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
