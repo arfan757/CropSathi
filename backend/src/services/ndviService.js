@@ -2,6 +2,50 @@ import NdviReading from '../models/NdviReading.js';
 import Field from '../models/Field.js';
 import { fetchSentinelNdvi } from './sentinelService.js';
 
+// ─── Field validity gate ────────────────────────────────────────────────
+// This answers a DIFFERENT question than computeNdviComponent below:
+// "is there any vegetation in this boundary at all?" vs "how stressed is
+// the crop?" Trying to answer the first question by pushing the second
+// question's stress score toward 1.0 doesn't work — NDVI/NDRE are only
+// ~30-45% of the total weighted score (see computeFusedHealthScore in
+// riskService.js), so even a maxed-out vegetation-index stress can only
+// ever drag the composite down to roughly 100 * (1 - ndviWeight), not to
+// 0 — weather/thermal/pestHistory don't measure whether THIS polygon has
+// plants on it, so they can't contribute to detecting a misplaced
+// boundary at all. This function is meant to be checked BEFORE/alongside
+// the stress fusion and short-circuit it when vegetation is absent,
+// rather than folded into the weighted average.
+//
+// Requires BOTH NDVI and NDRE to independently indicate no vegetation
+// before concluding that — they're derived from the same averaged pixel
+// grid, so if the underlying imagery is genuinely bare/paved/water, both
+// should agree; requiring agreement avoids a single noisy read
+// wrongly invalidating a real, just-planted field (bare soil at sowing
+// stage can legitimately dip toward this NDVI range on its own).
+const NO_VEGETATION_NDVI = 0.15;
+const NO_VEGETATION_NDRE = 0.2;
+
+export function isVegetationDetected(ndvi, ndre, sceneSource) {
+  // Only apply the no-vegetation gate to REAL satellite data. Simulated NDVI
+  // is generated FROM crop assumptions (type/stage), not actual pixels, so it
+  // can never detect a misdrawn boundary — it will produce plausible values
+  // even for a polygon over a rooftop. The gate exists to catch real-world
+  // data quality issues (boundary errors), not simulation artifacts.
+  //
+  // Additionally, mature/harvested crops can legitimately read very low on
+  // both indices (wheat at maturity: NDVI ~0.35 base, can drop to 0.05 with
+  // the anomaly-injection logic), so applying this threshold to simulated
+  // data causes false positives on late-stage crops.
+  if (sceneSource !== 'sentinel-2' && sceneSource !== 'landsat-8-9') {
+    return true; // simulated or unknown source — assume vegetation present
+  }
+
+  const ndviBare = ndvi !== null && ndvi !== undefined && ndvi < NO_VEGETATION_NDVI;
+  const ndreBare = ndre !== null && ndre !== undefined && ndre < NO_VEGETATION_NDRE;
+  if (ndviBare && ndreBare) return false;
+  return true; // vegetation present, or insufficient data to say otherwise
+}
+
 // ─── Crop-specific NDVI baselines (typical peak-season values) ─────────────
 const CROP_NDVI_BASELINE = {
   cotton: 0.60,
@@ -32,6 +76,27 @@ function getSeasonalFactor(month) {
   return factors[month];
 }
 
+// ─── NDRE interpretation (crop-agnostic, needs no cropType or history) ────
+// NDRE is fetched and stored on every real Sentinel-2 reading (sentinelService.js)
+// but was never actually used anywhere in scoring — dead data. NDRE is more
+// sensitive to chlorophyll content than NDVI and is specifically called out
+// as an early-disease/nutrient-deficiency indicator in its 0.2-0.6 band, which
+// makes it directly relevant to an early-disease-detection system. Bands:
+//   >= 0.6         : dense, healthy, high-chlorophyll canopy — no stress
+//   0.2 to 0.6     : moderate growth — potentially early disease stress,
+//                    nutrient deficiency, or a maturing crop
+//   -1.0 to 0.2    : bare soil, dead vegetation, water, or severely
+//                    diseased/low-chlorophyll plants
+export function ndreToStress(ndre) {
+  if (ndre >= 0.6) return 0;
+  if (ndre >= 0.2) {
+    // early-disease/nutrient-deficiency band — mild to moderate stress
+    return 0.5 * (0.6 - ndre) / 0.4;
+  }
+  // bare/dead/severely diseased band
+  return 0.5 + 0.5 * Math.min(1, (0.2 - ndre) / 1.2);
+}
+
 /**
  * Expected NDVI for a crop at a given stage/season — an ABSOLUTE reference,
  * not derived from this farm's own history. This is what lets a field be
@@ -41,7 +106,7 @@ function getSeasonalFactor(month) {
  * Returns null when cropType is unknown/unset — there is no reference to
  * compare against without knowing what should be growing there.
  */
-function getExpectedNdvi(cropType, cropStage, date = new Date()) {
+export function getExpectedNdvi(cropType, cropStage, date = new Date()) {
   const cropKey = cropType?.toLowerCase();
   const baseline = CROP_NDVI_BASELINE[cropKey];
   if (!baseline) return null;
@@ -151,23 +216,44 @@ export async function fetchNdviForFarm(farm) {
     try {
       const sentinel = await fetchSentinelNdvi(farm);
 
-      // Average the grid to get scalar values
-      ndvi = averageGrid(sentinel.ndviGrid);
-      ndre = averageGrid(sentinel.ndreGrid);
-      gridData = { ndvi: sentinel.ndviGrid, ndre: sentinel.ndreGrid };
-      sceneSource = 'sentinel-2';
-      sceneId = sentinel.sceneInfo.sceneId;
-      cloudCoverPct = sentinel.sceneInfo.cloudCover || 0;
-      observedAt = sentinel.observedAt;
+      if (sentinel.sceneInfo?.source === 'simulated') {
+        const simulated = generateSimulatedNdvi(farm);
+        ndvi = simulated.ndvi;
+        ndre = simulated.ndre;
+        cloudCoverPct = sentinel.sceneInfo.cloudCover ?? 100;
+        pixelCountPureCrop = simulated.pixelCountPureCrop;
+        sceneSource = 'simulated';
+        sceneId = null;
+        gridData = { ndvi: sentinel.ndviGrid, ndre: sentinel.ndreGrid };
+      } else {
+        // Average the grid to get scalar values
+        ndvi = averageGrid(sentinel.ndviGrid);
+        ndre = averageGrid(sentinel.ndreGrid);
 
-      // Estimate pixel count from grid dimensions
-      pixelCountPureCrop = GRID_SIZE * GRID_SIZE;
+        if (ndvi == null || ndre == null) {
+          const simulated = generateSimulatedNdvi(farm);
+          ndvi = simulated.ndvi;
+          ndre = simulated.ndre;
+          cloudCoverPct = 100;
+          pixelCountPureCrop = simulated.pixelCountPureCrop;
+          sceneSource = 'simulated';
+          sceneId = null;
+          gridData = { ndvi: sentinel.ndviGrid, ndre: sentinel.ndreGrid };
+        } else {
+          gridData = { ndvi: sentinel.ndviGrid, ndre: sentinel.ndreGrid };
+          sceneSource = 'sentinel-2';
+          sceneId = sentinel.sceneInfo.sceneId;
+          cloudCoverPct = sentinel.sceneInfo.cloudCover || 0;
+          observedAt = sentinel.observedAt;
+          pixelCountPureCrop = GRID_SIZE * GRID_SIZE;
+        }
+      }
     } catch (error) {
       console.warn('Sentinel-2 fetch failed, falling back to simulated:', error.message);
       const simulated = generateSimulatedNdvi(farm);
       ndvi = simulated.ndvi;
       ndre = simulated.ndre;
-      cloudCoverPct = simulated.cloudCoverPct;
+      cloudCoverPct = 100;
       pixelCountPureCrop = simulated.pixelCountPureCrop;
     }
   } else {
@@ -209,9 +295,9 @@ export async function fetchNdviForFarm(farm) {
 // Helper to average a 10x10 grid into a single value
 const GRID_SIZE = 10;
 function averageGrid(grid) {
-  if (!grid || !Array.isArray(grid)) return 0.5;
+  if (!grid || !Array.isArray(grid)) return null;
   const flat = grid.flat().filter(v => v != null && !isNaN(v));
-  if (flat.length === 0) return 0.5;
+  if (flat.length === 0) return null;
   return Math.round((flat.reduce((s, v) => s + v, 0) / flat.length) * 1000) / 1000;
 }
 
@@ -241,13 +327,17 @@ export async function getRecentNdvi(farmId, limit = 10) {
  *    28-day trailing average. Requires at least one prior reading.
  *    - current >= trailing_avg → 0 (stable/improving)
  *    - current < trailing_avg → scales 0-1 with the deficit
+ * 3. NDRE component (see ndreToStress) — crop-agnostic like the universal
+ *    floor, but sensitive to chlorophyll specifically, which can catch
+ *    stress before NDVI would (canopy can look structurally full while
+ *    chlorophyll is already declining).
  *
  * Using max() rather than averaging is deliberate: for early-disease
  * detection, a field that is unambiguously bad on any one measure should
  * not have that diluted by another measure looking fine or being
  * unavailable (e.g. a rooftop with no cropType set has no absolute or
- * trend signal to fall back on — the universal floor is what still
- * catches it).
+ * trend signal to fall back on — the universal floor and NDRE are what
+ * still catch it).
  *
  * Returns 0.5 (neutral/unknown) only when there is no NDVI reading at all.
  */
@@ -294,47 +384,15 @@ export async function computeNdviComponent(farmId, cropType = null, cropStage = 
       : Math.min(1, (trailingAvg - latest.ndvi) / trailingAvg);
   }
 
-  const component = Math.max(universalComponent, absoluteComponent ?? 0, trendComponent ?? 0);
+  // 3. NDRE component — crop-agnostic, needs no history either. Only
+  // available when this reading actually has an NDRE value (real
+  // Sentinel-2 readings always do; older readings or a simulation branch
+  // that skips it won't).
+  let ndreComponent = null;
+  if (latest.ndre !== null && latest.ndre !== undefined) {
+    ndreComponent = ndreToStress(latest.ndre);
+  }
+
+  const component = Math.max(universalComponent, absoluteComponent ?? 0, trendComponent ?? 0, ndreComponent ?? 0);
   return Math.round(component * 1000) / 1000;
-}
-
-/**
- * Compute NDRE component (0-1 stress, 1 = max stress).
- *
- * NDRE (red-edge) detects chlorophyll loss EARLIER than NDVI, especially in
- * dense canopies where NDVI saturates — a falling NDRE is often the first
- * sign of stress before NDVI moves. NDRE has no per-crop expected table, so
- * this component is trend-based: how far the latest reading has dropped
- * below the trailing average of the farm's recent readings.
- *
- * Conventions mirror computeNdviComponent:
- *  - no readings at all        → 0.5 (genuinely unknown)
- *  - first reading / no trend  → 0 (nothing to compare; no false alarm on
- *                                  a cold start)
- * NDVI and NDRE share the same Sentinel-2 acquisition (same observedAt).
- */
-export async function computeNdreComponent(farmId) {
-  const readings = await NdviReading.find({ farmId })
-    .sort({ observedAt: -1 })
-    .limit(6)
-    .lean();
-
-  if (readings.length === 0) return 0.5;
-
-  const latest = readings[0];
-  if (latest.ndre === null || latest.ndre === undefined || isNaN(latest.ndre)) return 0;
-
-  const prior = readings
-    .slice(1)
-    .map(r => r.ndre)
-    .filter(v => v !== null && v !== undefined && !isNaN(v));
-  if (prior.length === 0) return 0;
-
-  const trailingAvg = prior.reduce((sum, v) => sum + v, 0) / prior.length;
-  if (trailingAvg <= 0) return 0;
-
-  const trend = latest.ndre >= trailingAvg
-    ? 0
-    : Math.min(1, (trailingAvg - latest.ndre) / trailingAvg);
-  return Math.round(trend * 1000) / 1000;
 }

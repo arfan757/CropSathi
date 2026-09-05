@@ -50,9 +50,9 @@ async function getToken() {
  */
 export async function fetchSentinelNdvi(farm, options = {}) {
   const {
-    startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    startDate = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
     endDate = new Date(),
-    maxCloudCover = 40,
+    maxCloudCover = 80,
   } = options;
 
   // computeBBox handles GeoJSON, [{lat,lng}], and farm documents
@@ -62,25 +62,33 @@ export async function fetchSentinelNdvi(farm, options = {}) {
   const token = await getToken();
 
   // Request NDVI, NDRE, and an explicit dataMask band (5 bands total).
-  // Previously dataMask wasn't in the output — a masked pixel (cloud,
-  // off-scene) produces ndvi=0/ndre=0 from evaluatePixel's early return,
-  // which is indistinguishable from a genuinely valid 0.0 reading once it
-  // reaches the grid parser below. Emitting dataMask as its own band lets
-  // the parser tell "no data" apart from "valid pixel that happens to be 0".
+  // Uses multi-temporal ORBIT mosaicking with Scene Classification Layer (SCL)
+  // filtering to penetrate cloud gaps across orbital passes in the time window.
+  // Pixels with cloud/shadow (SCL 1, 3, 8, 9, 10, 11) are rejected in favor of
+  // the most recent clear ground observation.
   const evalscript = `//VERSION=3
 function setup() {
   return {
-    input: ["B04", "B05", "B08", "dataMask"],
-    output: { bands: 5, sampleType: "FLOAT32" }
+    input: ["B04", "B05", "B08", "SCL", "dataMask"],
+    output: { bands: 5, sampleType: "FLOAT32" },
+    mosaicking: "ORBIT"
   };
 }
-function evaluatePixel(sample) {
-  if (sample.dataMask === 0) return [0, 0, 0, 0, 0];
-  const sum84 = sample.B08 + sample.B04;
-  const sum85 = sample.B08 + sample.B05;
-  const ndvi = sum84 === 0 ? 0 : (sample.B08 - sample.B04) / sum84;
-  const ndre = sum85 === 0 ? 0 : (sample.B08 - sample.B05) / sum85;
-  return [ndvi, ndre, sample.B08, sample.B04, sample.dataMask];
+function isCloudOrShadow(scl) {
+  return scl === 1 || scl === 3 || scl === 8 || scl === 9 || scl === 10 || scl === 11;
+}
+function evaluatePixel(samples) {
+  for (var i = 0; i < samples.length; i++) {
+    var s = samples[i];
+    if (s.dataMask === 1 && !isCloudOrShadow(s.SCL)) {
+      var sum84 = s.B08 + s.B04;
+      var sum85 = s.B08 + s.B05;
+      var ndvi = sum84 === 0 ? 0 : (s.B08 - s.B04) / sum84;
+      var ndre = sum85 === 0 ? 0 : (s.B08 - s.B05) / sum85;
+      return [ndvi, ndre, s.B08, s.B04, 1];
+    }
+  }
+  return [0, 0, 0, 0, 0];
 }`;
 
   const request = {
@@ -130,11 +138,7 @@ function evaluatePixel(sample) {
 
     // Extract NDVI (band 0), NDRE (band 1), and dataMask (band 4) grids.
     // The TIFF has 5 bands interleaved: [ndvi, ndre, b8, b4, mask, ndvi, ndre, ...]
-    // Masked pixels (mask === 0) are emitted as null rather than a clamped
-    // 0.5/0.4 default: `pixels[idx] ?? 0.5` only ever catches actual
-    // undefined/null values, never a real 0 from the evalscript's masked-
-    // pixel branch, so cloud-covered or off-scene pixels were silently
-    // averaged in as if they were real low-vegetation readings.
+    // Masked pixels (mask === 0) are emitted as null.
     const ndviGrid = [];
     const ndreGrid = [];
 
@@ -154,8 +158,14 @@ function evaluatePixel(sample) {
       ndreGrid.push(ndreRow);
     }
 
-    // Extract scene metadata from response headers
-    const sceneDate = resp.headers['sentinel-data-date'] || startDate.toISOString();
+    const validPixelCount = ndviGrid.flat().filter(v => v !== null).length;
+    if (validPixelCount === 0) {
+      throw new Error('Sentinel-2 scene fully cloud-masked — no valid pixels across search window');
+    }
+
+    const cloudCover = Math.round((1 - validPixelCount / (GRID_SIZE * GRID_SIZE)) * 100);
+    // Extract scene metadata from response headers (or use endDate = latest in window)
+    const sceneDate = resp.headers['sentinel-data-date'] || endDate.toISOString();
 
     return {
       ndviGrid,
@@ -163,7 +173,7 @@ function evaluatePixel(sample) {
       sceneInfo: {
         sceneId: `sentinel-${Date.now()}`,
         sceneName: `Sentinel-2 L2A`,
-        cloudCover: maxCloudCover,
+        cloudCover,
         source: 'sentinel-2',
       },
       observedAt: new Date(sceneDate),
@@ -173,7 +183,7 @@ function evaluatePixel(sample) {
     return {
       ndviGrid: generateFallbackGrid('NDVI'),
       ndreGrid: generateFallbackGrid('NDRE'),
-      sceneInfo: { sceneId: null, sceneName: 'Simulated', cloudCover: 0, source: 'simulated' },
+      sceneInfo: { sceneId: null, sceneName: 'Simulated', cloudCover: 100, source: 'simulated' },
       observedAt: new Date(),
     };
   }

@@ -167,7 +167,7 @@ function evaluatePixel(sample) {
       throw new Error('Landsat scene fully cloud-masked — no valid pixels');
     }
 
-    const sceneDate = resp.headers['landsat-data-date'] || startDate.toISOString();
+    const sceneDate = resp.headers['landsat-data-date'] || endDate.toISOString();
 
     return {
       thermalGrid,

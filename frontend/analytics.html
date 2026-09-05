@@ -385,6 +385,7 @@
           if (e.target.value) {
             currentFarmId = e.target.value;
             loadAnalyticsData(currentFarmId);
+            startAutoRefresh(); // Start auto-refresh for this field
           }
         });
 
@@ -392,6 +393,7 @@
           selector.value = farms[0]._id;
           currentFarmId = farms[0]._id;
           loadAnalyticsData(currentFarmId);
+          startAutoRefresh(); // Start auto-refresh
         }
       } catch (err) {
         console.error('Failed to load farms:', err);
@@ -404,8 +406,21 @@
       try {
         const token = localStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const forceParam = force ? '?force=true' : '';
 
+        // Step 1: Auto-fetch fresh satellite data if needed (no cached data or force refresh)
+        if (force) {
+          try {
+            await fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/poll-satellite`, {
+              method: 'POST',
+              headers,
+            });
+          } catch (pollErr) {
+            console.warn('Auto-fetch satellite failed:', pollErr.message);
+          }
+        }
+
+        // Step 2: Load grid data (will auto-fetch if missing via ensureNdviData/ensureThermalData)
+        const forceParam = force ? '?force=true' : '';
         const [ndviRes, ndreRes, thermalRes] = await Promise.all([
           fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/ndvi-grid${forceParam}`, { headers }),
           fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/ndre-grid${forceParam}`, { headers }),
@@ -416,8 +431,13 @@
         const ndreData = await ndreRes.json();
         const thermalData = await thermalRes.json();
 
+        // Step 3: If no data exists at all, trigger a fresh fetch and retry
         const hasData = ndviData.data || ndreData.data || thermalData.data;
-        if (!hasData) { showLoading(false); return; }
+        if (!hasData && !force) {
+          console.log('No cached data found, auto-fetching satellite data...');
+          await loadAnalyticsData(farmId, true);
+          return;
+        }
 
         const farmRes = await fetch(`${CropSathiPrefs.api}/api/fields/${farmId}`, { headers });
         const farmData = await farmRes.json();
@@ -570,13 +590,43 @@
       showLoading(true);
       try {
         const token = localStorage.getItem('token');
+
+        // Fetch fresh satellite data + recompute health score
         await fetch(`${CropSathiPrefs.api}/api/analytics/farms/${currentFarmId}/poll-satellite`, {
           method: 'POST', headers: { Authorization: `Bearer ${token}` },
         });
+
+        // Also trigger weather poll + full risk score recomputation
+        await fetch(`${CropSathiPrefs.api}/api/monitoring/farms/${currentFarmId}/poll-weather`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // Reload with fresh data
         await loadAnalyticsData(currentFarmId, true);
       } catch (err) { alert('Network error: ' + err.message); }
       finally { btn.disabled = false; btn.querySelector('span').textContent = 'Force Re-analyse'; showLoading(false); }
     }
+
+    // ─── Auto-refresh: Poll data every 5 minutes while on page ───────────────
+    let autoRefreshInterval = null;
+
+    function startAutoRefresh() {
+      // Clear any existing interval
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+
+      // Refresh data every 5 minutes (300000ms)
+      autoRefreshInterval = setInterval(() => {
+        if (currentFarmId) {
+          console.log('Auto-refreshing analytics data...');
+          loadAnalyticsData(currentFarmId, false);
+        }
+      }, 5 * 60 * 1000);
+    }
+
+    // Stop auto-refresh when leaving page
+    window.addEventListener('beforeunload', () => {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    });
 
     // ─── UI Helpers ──────────────────────────────────────────────────────
     function showLoading(show) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; }

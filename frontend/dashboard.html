@@ -483,7 +483,8 @@
       return '#933302';
     }
 
-    function getScoreLabel(severity, triggeredAlert) {
+    function getScoreLabel(severity, triggeredAlert, noVegetationDetected) {
+      if (noVegetationDetected) return { text: 'No Vegetation', bg: 'bg-[#933302]/10', color: 'text-[#933302]' };
       if (triggeredAlert) return { text: 'Alert', bg: 'bg-[#933302]/10', color: 'text-[#933302]' };
       if (severity === 'low') return { text: 'Optimal', bg: 'bg-[#006038]/10', color: 'text-[#006038]' };
       if (severity === 'medium') return { text: 'Watch', bg: 'bg-[#1a7a4c]/10', color: 'text-[#1a7a4c]' };
@@ -491,6 +492,7 @@
     }
 
     function getActionText(field) {
+      if (field.noVegetationDetected) return 'Check boundary';
       if (field.triggeredAlert) return field.diseaseHypothesis?.replace(/_/g, ' ') || 'Risk detected';
       if (field.severity === 'medium') return 'Monitor closely';
       if (field.severity === 'low') return 'No action needed';
@@ -507,11 +509,11 @@
       const hasData = field.compositeScore != null;
       const score = hasData ? field.compositeScore : 0;
       const color = getScoreColor(score);
-      const label = getScoreLabel(field.severity, field.triggeredAlert);
+      const label = getScoreLabel(field.severity, field.triggeredAlert, field.noVegetationDetected);
       const iconName = cropEmojis[field.cropType] || 'sprout';
       const actionText = getActionText(field);
       const trend = getTrendArrow(field.trend);
-      const borderColor = field.triggeredAlert ? 'border-[#ffb599]' : 'border-[#e4e2e1]';
+      const borderColor = (field.triggeredAlert || field.noVegetationDetected) ? 'border-[#ffb599]' : 'border-[#e4e2e1]';
 
       // 240-degree arc, r = 80, centered at (100,100) on a square 200x200 viewBox
       // so the arc's true center matches the box center the score text is
@@ -554,7 +556,7 @@
 
           <div class="w-full pt-3 border-t border-[#e4e2e1] flex items-center justify-between gap-1 text-[11px]">
             <span class="text-[#3f4941]">Action:</span>
-            <span class="font-semibold ${field.triggeredAlert ? 'text-[#933302]' : 'text-[#006038]'} capitalize truncate">${actionText}</span>
+            <span class="font-semibold ${(field.triggeredAlert || field.noVegetationDetected) ? 'text-[#933302]' : 'text-[#006038]'} capitalize truncate">${actionText}</span>
           </div>
         </div>`;
     }

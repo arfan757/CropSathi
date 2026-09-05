@@ -19,6 +19,22 @@ const CROP_CONSTANTS = {
 
 const DEFAULT_CONSTANTS = { offsetC: 3.0, humidityCoeff: 0.10 };
 
+// ─── CWSI (Crop Water Stress Index) ────────────────────────────────────────
+// CWSI = (Tc - Tlower) / (Tupper - Tlower), always 0-1.
+//   Tc     = actual measured canopy temperature (real Landsat LST only —
+//            meaningless if Tc IS the formula estimate, see below)
+//   Tlower = non-water-stressed baseline: expected temp of a healthy,
+//            actively-transpiring plant under CURRENT weather. This is
+//            exactly what estimateCanopyTemp() already computes.
+//   Tupper = max-stressed baseline: temp if the plant had fully stopped
+//            transpiring (stomata closed). Commonly approximated as
+//            Tlower plus a fixed offset for full stomatal closure.
+// MAX_STRESS_OFFSET_C is that offset — a documented, tunable assumption
+// (not measured from this project's own data), consistent with commonly
+// cited empirical CWSI ranges. Ideally recalibrated per crop from real
+// canopy-temp/soil-moisture pairs before finals if time allows.
+const MAX_STRESS_OFFSET_C = 6.0;
+
 // ─── Estimation Formula ────────────────────────────────────────────────────
 
 /**
@@ -29,7 +45,7 @@ const DEFAULT_CONSTANTS = { offsetC: 3.0, humidityCoeff: 0.10 };
  * High humidity → lower canopy temp (evaporative cooling).
  * Crop offset accounts for canopy density and transpiration differences.
  */
-function estimateCanopyTemp(airTempC, humidityPct, cropType) {
+export function estimateCanopyTemp(airTempC, humidityPct, cropType) {
   const cropKey = cropType?.toLowerCase();
   const constants = CROP_CONSTANTS[cropKey] || DEFAULT_CONSTANTS;
 
@@ -252,14 +268,30 @@ export async function getRecentThermal(farmId, limit = 10) {
 /**
  * Compute thermal risk component for a farm.
  *
- * Logic: positive anomaly (canopy hotter than baseline) = stress = risk.
- * - anomaly <= 0 → score = 0 (no thermal stress)
- * - anomaly > 0 → scales from 0 to 1
- * - 10°C anomaly = maximum risk (score = 1)
+ * Two signals feed in, and the WORSE wins:
  *
- * Formula: thermal_component = min(1, max(0, anomaly_c / 10))
+ * 1. Anomaly component (existing) — canopy hotter than the district/farm
+ *    trailing baseline. Requires reading history to exist; on a cold
+ *    start this is 0 by construction (see computeThermalReading's
+ *    weather-formula fallback, which mitigates but doesn't fully solve
+ *    this).
+ * 2. CWSI component — a bounded, physically-grounded stress index that
+ *    needs NO history at all: only today's weather (to derive Tlower,
+ *    the well-watered baseline) and a REAL measured canopy temperature
+ *    (Landsat). This is what actually solves thermal's cold-start gap,
+ *    the same way NDVI's universal floor solved it for vegetation index.
+ *    Only meaningful when sceneSource === 'landsat-8-9' — for a
+ *    formula-only reading, Tc IS the Tlower formula applied to the same
+ *    weather, so CWSI would trivially be 0 (comparing the estimate to
+ *    itself), not a real measurement of stress.
+ *
+ * @param {string} farmId
+ * @param {Object|null} weatherReading - today's weather reading, used only
+ *   to compute Tlower for CWSI. Pass the reading from the same
+ *   computeRiskScore run for consistency.
+ * @param {string|null} cropType - selects the canopy-temp offset formula
  */
-export async function computeThermalComponent(farmId) {
+export async function computeThermalComponent(farmId, weatherReading = null, cropType = null) {
   const readings = await ThermalReading.find({ farmId })
     .sort({ observedAt: -1 })
     .limit(1)
@@ -269,8 +301,15 @@ export async function computeThermalComponent(farmId) {
 
   const latest = readings[0];
 
-  if (latest.anomalyC <= 0) return 0;
+  const anomalyComponent = latest.anomalyC > 0 ? Math.min(1, latest.anomalyC / 10) : 0;
 
-  const component = Math.min(1, latest.anomalyC / 10);
+  let cwsiComponent = null;
+  if (latest.sceneSource === 'landsat-8-9' && weatherReading) {
+    const tLower = estimateCanopyTemp(weatherReading.temperatureC, weatherReading.humidityPct, cropType);
+    const tUpper = tLower + MAX_STRESS_OFFSET_C;
+    cwsiComponent = Math.min(1, Math.max(0, (latest.estimatedCanopyTempC - tLower) / (tUpper - tLower)));
+  }
+
+  const component = Math.max(anomalyComponent, cwsiComponent ?? 0);
   return Math.round(component * 1000) / 1000;
 }

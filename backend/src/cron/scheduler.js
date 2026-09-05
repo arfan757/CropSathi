@@ -2,6 +2,7 @@ import { startPollWeatherCron, pollWeatherForActiveFarms } from './pollWeather.j
 import { startPollSatelliteCron, pollSatelliteForActiveFarms } from './pollSatellite.js';
 import { startFollowupScanCron, scanPendingFollowUps } from './followupScan.js';
 import { startRetrainTriggerCron, checkRetrainReady } from './retrainTrigger.js';
+import { startContinuousPollCron, pollActiveFarmsContinuously } from './pollContinuous.js';
 import { verifyCronSecret } from './middleware.js';
 
 /**
@@ -13,6 +14,7 @@ export function startCronJobs() {
   startPollSatelliteCron();
   startFollowupScanCron();
   startRetrainTriggerCron();
+  startContinuousPollCron(); // Every 10 minutes: keep data fresh
 }
 
 /**
@@ -22,6 +24,7 @@ export function startCronJobs() {
  * POST /api/cron/poll-satellite    — trigger satellite polling now
  * POST /api/cron/followup-scan     — trigger follow-up scan now
  * POST /api/cron/retrain-trigger   — trigger retrain check now
+ * POST /api/cron/continuous-poll   — trigger continuous polling now
  *
  * All require X-Cron-Secret header (or no secret configured in dev).
  */
@@ -56,6 +59,15 @@ export function mountCronRoutes(app) {
   app.post('/api/cron/retrain-trigger', verifyCronSecret, async (req, res) => {
     try {
       const result = await checkRetrainReady();
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/cron/continuous-poll', verifyCronSecret, async (req, res) => {
+    try {
+      const result = await pollActiveFarmsContinuously();
       res.json({ success: true, ...result });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

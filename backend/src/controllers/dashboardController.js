@@ -109,6 +109,7 @@ export async function getDashboardHealth(req, res) {
           computedAt: latest.computedAt,
           previousScore: prevScore,
           trend,
+          noVegetationDetected: latest.inputsSnapshot?.noVegetationDetected || false,
         });
 
         totalScore += score;

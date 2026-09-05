@@ -2,7 +2,7 @@ import RiskScore from '../models/RiskScore.js';
 import Field from '../models/Field.js';
 import DiagnosisCase from '../models/DiagnosisCase.js';
 import { evaluateWeatherForFarm } from './weatherService.js';
-import { fetchNdviForFarm, computeNdviComponent, computeNdreComponent } from './ndviService.js';
+import { fetchNdviForFarm, computeNdviComponent, ndreToStress, isVegetationDetected } from './ndviService.js';
 import { computeThermalReading, computeThermalComponent, resolveDistrictFarmIds } from './thermalService.js';
 
 // ─── Health Levels (from risk_fusion.py) ────────────────────────────────────
@@ -18,24 +18,17 @@ export const HealthLevel = Object.freeze({
 });
 
 // ─── Per-crop configurable weights (spec §7.4) ─────────────────────────────
-// NDRE joined the fusion as a fifth signal (early vegetation stress, detected
-// before NDVI moves). NDVI and NDRE are both driven by the same underlying
-// chlorophyll/canopy state, so instead of giving NDRE a fresh weight on top
-// of NDVI's, the total satellite budget is SPLIT between them (e.g. default
-// keeps 0.30 total: ndvi 0.20 + ndre 0.10). The discount for overlap is
-// therefore structural — no extra term needed, and the weather/thermal
-// overlap discount below remains the only explicit one.
 const CROP_WEIGHTS = {
-  default:  { weather: 0.35, ndvi: 0.20, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
-  rice:     { weather: 0.30, ndvi: 0.25, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
-  cotton:   { weather: 0.40, ndvi: 0.15, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
-  soybean:  { weather: 0.35, ndvi: 0.20, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
-  wheat:    { weather: 0.40, ndvi: 0.15, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
-  potato:   { weather: 0.35, ndvi: 0.20, ndre: 0.10, thermal: 0.20, pestHistory: 0.15 },
-  maize:    { weather: 0.35, ndvi: 0.20, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
-  sugarcane:{ weather: 0.35, ndvi: 0.20, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
-  grapes:   { weather: 0.35, ndvi: 0.20, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
-  tur:      { weather: 0.35, ndvi: 0.20, ndre: 0.10, thermal: 0.15, pestHistory: 0.20 },
+  default:  { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
+  rice:     { weather: 0.30, ndvi: 0.35, thermal: 0.15, pestHistory: 0.20 },
+  cotton:   { weather: 0.40, ndvi: 0.25, thermal: 0.15, pestHistory: 0.20 },
+  soybean:  { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
+  wheat:    { weather: 0.40, ndvi: 0.25, thermal: 0.15, pestHistory: 0.20 },
+  potato:   { weather: 0.35, ndvi: 0.30, thermal: 0.20, pestHistory: 0.15 },
+  maize:    { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
+  sugarcane:{ weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
+  grapes:   { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
+  tur:      { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
 };
 
 // ─── Staleness limits (days) ────────────────────────────────────────────────
@@ -44,7 +37,6 @@ const CROP_WEIGHTS = {
 const STALENESS_LIMIT_DAYS = {
   weather: 2,      // should essentially never trigger — no satellite gap
   ndvi: 10,         // ~2 missed Sentinel-2 revisits
-  ndre: 10,         // same Sentinel-2 acquisition as NDVI — same revisit
   thermal: 20,      // Landsat/MODIS revisit is already slow; extra slack
   pestHistory: null, // never goes stale — historical baseline
 };
@@ -59,10 +51,6 @@ const STAGE_RELEVANCE = {
     fruiting: 0.9, maturity: 0.7, harvested: 0.3,
   },
   ndvi: {
-    sowing: 0.6, vegetative: 1.0, flowering: 1.0,
-    fruiting: 0.9, maturity: 0.8, harvested: 0.4,
-  },
-  ndre: {
     sowing: 0.6, vegetative: 1.0, flowering: 1.0,
     fruiting: 0.9, maturity: 0.8, harvested: 0.4,
   },
@@ -259,7 +247,7 @@ async function computePestHistoryComponent(farm) {
  */
 export function computeFusedHealthScore(stressComponents, signalDates = {}, cropStage = null, now = null, cropType = null, diseaseHypothesis = null) {
   now = now || new Date();
-  const signalNames = ['weather', 'ndvi', 'ndre', 'thermal', 'pestHistory'];
+  const signalNames = ['weather', 'ndvi', 'thermal', 'pestHistory'];
   const baseWeights = getCropWeights(cropType);
 
   // 1. Detect stale signals
@@ -321,17 +309,14 @@ export function computeFusedHealthScore(stressComponents, signalDates = {}, crop
   const weightedWeather = normalizedWeights.weather * effectiveStress.weather;
   const weightedThermal = normalizedWeights.thermal * effectiveStress.thermal;
   const weightedNdvi = normalizedWeights.ndvi * effectiveStress.ndvi;
-  const weightedNdre = normalizedWeights.ndre * effectiveStress.ndre;
   const weightedPest = normalizedWeights.pestHistory * effectiveStress.pestHistory;
 
   // Discount is naturally 0 whenever either signal is stale/absent
   // (weight 0 → that weighted term is 0 → min is 0), so this only ever
   // reduces stress when BOTH weather and thermal are actually agreeing.
-  // NDVI/NDRE overlap needs no explicit term — their combined satellite
-  // budget is split structurally in CROP_WEIGHTS (see note there).
   const weatherThermalOverlap = WEATHER_THERMAL_OVERLAP_DISCOUNT * Math.min(weightedWeather, weightedThermal);
 
-  let weightedStress = weightedWeather + weightedThermal + weightedNdvi + weightedNdre + weightedPest - weatherThermalOverlap;
+  let weightedStress = weightedWeather + weightedThermal + weightedNdvi + weightedPest - weatherThermalOverlap;
   weightedStress = Math.max(0, weightedStress);
 
   // 4. Convert to health score (0-100, higher = healthier)
@@ -406,20 +391,16 @@ export async function computeRiskScore(farmId) {
     console.warn('Thermal reading unavailable:', err.message);
   }
 
-  // ── 3. Compute all 5 component stress scores (0-1, 1 = max stress) ──
+  // ── 3. Compute all 4 component stress scores (0-1, 1 = max stress) ──
   const weatherStress = weatherEval.score;
-  const [ndviStress, ndreStress] = await Promise.all([
-    computeNdviComponent(farmId, farm.cropType, farm.cropStage),
-    computeNdreComponent(farmId),
-  ]);
-  const thermalStress = await computeThermalComponent(farmId);
+  const ndviStress = await computeNdviComponent(farmId, farm.cropType, farm.cropStage);
+  const thermalStress = await computeThermalComponent(farmId, weatherEval.weatherReading || null, farm.cropType || null);
   const pestHistoryStress = await computePestHistoryComponent(farm);
 
   // ── 4. Staleness-aware weighted fusion → health score (0-100) ──
   const stressComponents = {
     weather: weatherStress,
     ndvi: ndviStress,
-    ndre: ndreStress,
     thermal: thermalStress,
     pestHistory: pestHistoryStress,
   };
@@ -427,7 +408,6 @@ export async function computeRiskScore(farmId) {
   const signalDates = {
     weather: weatherEval.weatherReading?.observedAt || new Date(),
     ndvi: ndviReading?.observedAt || new Date(),
-    ndre: ndviReading?.observedAt || new Date(), // same Sentinel-2 acquisition as NDVI
     thermal: thermalReading?.observedAt || null,
     pestHistory: null, // historical never goes stale
   };
@@ -441,13 +421,41 @@ export async function computeRiskScore(farmId) {
     weatherEval.diseaseHypothesis || null,
   );
 
+  // ── 4b. Field validity override ──
+  // "Is there any vegetation here at all" and "how stressed is the crop"
+  // are different questions. The weighted fusion above answers the
+  // second one and structurally CANNOT answer the first: NDVI/NDRE are
+  // only ~30-45% of the total weight, so even maximal vegetation-index
+  // stress can only drag compositeScore down to roughly
+  // 100 * (1 - ndviWeight) — never to 0 — because weather/thermal/
+  // pestHistory measure ambient/regional conditions that don't depend on
+  // whether this specific polygon has plants on it. When both NDVI and
+  // NDRE independently agree there's no vegetation (e.g. a boundary
+  // mistakenly drawn over a building), report that plainly instead of a
+  // misleadingly moderate score. This does not touch triggeredAlert —
+  // this is a boundary/data-entry problem, not a disease signal, so it
+  // should not send the farmer a "possible disease, upload a photo"
+  // prompt.
+  const vegetationDetected = isVegetationDetected(ndviReading?.ndvi, ndviReading?.ndre, ndviReading?.sceneSource);
+  if (!vegetationDetected) {
+    fusionResult.score = 0;
+    fusionResult.level = HealthLevel.HIGH;
+    fusionResult.triggeredAlert = false;
+  }
+
   // ── 5. Save ──
+  // Compute NDRE stress separately for observability — it's already
+  // folded into ndviStress via Math.max() in computeNdviComponent, but
+  // persisting it individually lets the dashboard show it and lets us
+  // verify the signal is actually influencing scores.
+  const ndreStressValue = ndreToStress(ndviReading?.ndre) ?? 0;
+
   const riskScore = await RiskScore.create({
     farmId,
     computedAt: new Date(),
     weatherComponent: Math.round(weatherStress * 1000) / 1000,
     ndviComponent: Math.round(ndviStress * 1000) / 1000,
-    ndreComponent: Math.round(ndreStress * 1000) / 1000,
+    ndreComponent: Math.round(ndreStressValue * 1000) / 1000,
     thermalComponent: Math.round(thermalStress * 1000) / 1000,
     pestHistoryComponent: Math.round(pestHistoryStress * 1000) / 1000,
     compositeScore: fusionResult.score,   // 0-100 health score
@@ -465,12 +473,27 @@ export async function computeRiskScore(farmId) {
     inputsSnapshot: {
       weatherReadingId: weatherEval.weatherReading?._id,
       ndviReadingId: ndviReading?._id,
-      ndreReadingId: ndviReading?._id, // same Sentinel-2 acquisition as NDVI
       thermalReadingId: thermalReading?._id,
       weights: fusionResult.weightsUsed,
       cropType: farm.cropType,
       cropStage: farm.cropStage,
       source: 'riskService',
+      // Whether each signal came from real satellite data or a fabricated
+      // fallback (see generateSimulatedNdvi / the formula-based thermal
+      // path). This matters a lot: simulated NDVI is generated FROM the
+      // farm's cropType/stage assumption, not from actual pixels of that
+      // location — it will read as a plausible healthy crop even if the
+      // drawn boundary sits over a rooftop or bare ground, because it
+      // never looks at the real imagery at all. A "100, healthy" score
+      // built entirely on simulated signals is not a verified reading and
+      // should be shown to the user as such, not with the same confidence
+      // as a real Sentinel-2/Landsat-derived score.
+      dataSources: {
+        ndvi: ndviReading?.sceneSource || 'unknown',
+        thermal: thermalReading?.sceneSource || 'unknown',
+      },
+      groundTruthVerified: ndviReading?.sceneSource === 'sentinel-2' || thermalReading?.sceneSource === 'landsat-8-9',
+      noVegetationDetected: !vegetationDetected,
     },
   });
 
