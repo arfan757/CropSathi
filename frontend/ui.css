@@ -6,6 +6,40 @@
    Colors come from tokens.css via var(--cs-*) references.
    ============================================================ */
 
+/* ---- Sentinel Sync toast ---- */
+
+.sync-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  color: #fff;
+  background: var(--cs-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--cs-dur-fast) var(--cs-ease), transform var(--cs-dur-fast) var(--cs-ease);
+}
+
+.sync-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.sync-toast.err {
+  background: var(--cs-danger);
+}
+
 /* ---- Depth & interaction polish (safe, global) ---- */
 
 :focus-visible {

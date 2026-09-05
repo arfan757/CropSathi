@@ -33,6 +33,24 @@ function getSeasonalFactor(month) {
 }
 
 /**
+ * Expected NDVI for a crop at a given stage/season — an ABSOLUTE reference,
+ * not derived from this farm's own history. This is what lets a field be
+ * flagged as unhealthy on its very first reading (see computeNdviComponent):
+ * a trailing-average comparison has nothing to compare against yet, but a
+ * bare/dead field is still obviously below what a healthy crop should read.
+ * Returns null when cropType is unknown/unset — there is no reference to
+ * compare against without knowing what should be growing there.
+ */
+function getExpectedNdvi(cropType, cropStage, date = new Date()) {
+  const cropKey = cropType?.toLowerCase();
+  const baseline = CROP_NDVI_BASELINE[cropKey];
+  if (!baseline) return null;
+  const stageMult = STAGE_MULTIPLIER[cropStage] ?? 0.8;
+  const seasonal = getSeasonalFactor(date.getMonth());
+  return baseline * stageMult * seasonal;
+}
+
+/**
  * Generate a realistic simulated NDVI reading for a farm.
  * In production, this would query Google Earth Engine for Sentinel-2 imagery.
  * The simulation produces values consistent with crop type, stage, and season.
@@ -88,7 +106,13 @@ async function computeTrailingAvg(farmId, currentNdvi, observedAt) {
     .limit(10)
     .lean();
 
-  if (recentReadings.length === 0) return currentNdvi;
+  // No prior readings yet — there IS no trailing average. Returning
+  // currentNdvi here (as this used to do) makes the very next
+  // "current >= trailing_avg" check trivially true, which forces the
+  // trend component to 0 on every farm's first-ever reading regardless
+  // of how unhealthy the field actually looks. Return null so callers
+  // know to fall back to an absolute reference instead of a fabricated one.
+  if (recentReadings.length === 0) return null;
 
   const avg = recentReadings.reduce((sum, r) => sum + r.ndvi, 0) / recentReadings.length;
   return Math.round(avg * 1000) / 1000;
@@ -100,6 +124,7 @@ async function computeTrailingAvg(farmId, currentNdvi, observedAt) {
  */
 function computeAnomalyScore(currentNdvi, trailingAvg, readings) {
   if (readings.length < 2) return 0;
+  if (trailingAvg === null || trailingAvg === undefined) return 0;
   const mean = readings.reduce((s, r) => s + r.ndvi, 0) / readings.length;
   const variance = readings.reduce((s, r) => s + (r.ndvi - mean) ** 2, 0) / readings.length;
   const stddev = Math.sqrt(variance);
@@ -203,32 +228,113 @@ export async function getRecentNdvi(farmId, limit = 10) {
 /**
  * Compute NDVI risk component for a farm.
  *
- * Logic: if current NDVI is below trailing average, risk increases.
- * - current >= trailing_avg → score = 0 (improving/stable = no risk)
- * - current < trailing_avg → score scales from 0 to 1 based on deficit
+ * Three signals feed in, and the WORST of them wins:
  *
- * Formula: ndvi_component = min(1, max(0, (trailing_avg - current) / trailing_avg))
- * Floored at 0 when NDVI is at/above baseline (improving = no risk per spec §7.2).
+ * 0. Universal bare-surface floor — is NDVI below what any live
+ *    vegetation reads, regardless of crop type? Needs nothing but the
+ *    NDVI value itself, so it can't be bypassed by missing farm data.
+ * 1. Absolute component — how far current NDVI sits below the expected
+ *    NDVI for this crop/stage/season (CROP_NDVI_BASELINE). Catches a
+ *    field that's unhealthy relative to what THIS crop should read.
+ *    Requires a recognized cropType.
+ * 2. Trend component — is NDVI declining relative to this farm's own
+ *    28-day trailing average. Requires at least one prior reading.
+ *    - current >= trailing_avg → 0 (stable/improving)
+ *    - current < trailing_avg → scales 0-1 with the deficit
+ *
+ * Using max() rather than averaging is deliberate: for early-disease
+ * detection, a field that is unambiguously bad on any one measure should
+ * not have that diluted by another measure looking fine or being
+ * unavailable (e.g. a rooftop with no cropType set has no absolute or
+ * trend signal to fall back on — the universal floor is what still
+ * catches it).
+ *
+ * Returns 0.5 (neutral/unknown) only when there is no NDVI reading at all.
  */
-export async function computeNdviComponent(farmId) {
+export async function computeNdviComponent(farmId, cropType = null, cropStage = null) {
   const readings = await NdviReading.find({ farmId })
     .sort({ observedAt: -1 })
     .limit(1)
     .lean();
 
-  if (readings.length === 0) return 0.5; // neutral if no data
+  if (readings.length === 0) return 0.5; // no data at all — genuinely unknown
 
   const latest = readings[0];
+
+  // 0. Universal bare-surface floor. This needs NEITHER cropType NOR
+  // reading history — just this one NDVI value — so it can never be
+  // silently bypassed the way absoluteComponent/trendComponent below
+  // both can be (unset/unrecognized cropType, or a farm's first-ever
+  // reading). NDVI this low reads as pavement, rooftop, water, or bare
+  // soil for essentially any crop at any stage; a value like -0.04 is
+  // not "unknown, assume neutral" — it is a direct, crop-agnostic signal
+  // that there's no live vegetation in the boundary at all. This is what
+  // catches a boundary mistakenly drawn over a building even when the
+  // field's crop type was never set.
+  const UNIVERSAL_BARE_NDVI = 0.15;
+  let universalComponent = 0;
+  if (latest.ndvi < UNIVERSAL_BARE_NDVI) {
+    universalComponent = Math.min(1, (UNIVERSAL_BARE_NDVI - latest.ndvi) / (UNIVERSAL_BARE_NDVI + 0.1));
+  }
+
+  // 1. Absolute (crop-specific) component — requires a known cropType
+  let absoluteComponent = null;
+  const expected = getExpectedNdvi(cropType, cropStage, new Date(latest.observedAt));
+  if (expected !== null && expected > 0) {
+    const deficit = expected - latest.ndvi;
+    absoluteComponent = Math.min(1, Math.max(0, deficit / expected));
+  }
+
+  // 2. Trend component — requires at least one prior reading
+  let trendComponent = null;
   const trailingAvg = latest.trailingAvgNdvi28d;
+  if (trailingAvg !== null && trailingAvg !== undefined && trailingAvg > 0) {
+    trendComponent = latest.ndvi >= trailingAvg
+      ? 0
+      : Math.min(1, (trailingAvg - latest.ndvi) / trailingAvg);
+  }
 
-  if (!trailingAvg || trailingAvg <= 0) return 0.5;
-
-  // If current >= trailing avg → no risk (improving or stable)
-  if (latest.ndvi >= trailingAvg) return 0;
-
-  // Risk scales with deficit
-  const deficit = trailingAvg - latest.ndvi;
-  const component = Math.min(1, deficit / trailingAvg);
-
+  const component = Math.max(universalComponent, absoluteComponent ?? 0, trendComponent ?? 0);
   return Math.round(component * 1000) / 1000;
+}
+
+/**
+ * Compute NDRE component (0-1 stress, 1 = max stress).
+ *
+ * NDRE (red-edge) detects chlorophyll loss EARLIER than NDVI, especially in
+ * dense canopies where NDVI saturates — a falling NDRE is often the first
+ * sign of stress before NDVI moves. NDRE has no per-crop expected table, so
+ * this component is trend-based: how far the latest reading has dropped
+ * below the trailing average of the farm's recent readings.
+ *
+ * Conventions mirror computeNdviComponent:
+ *  - no readings at all        → 0.5 (genuinely unknown)
+ *  - first reading / no trend  → 0 (nothing to compare; no false alarm on
+ *                                  a cold start)
+ * NDVI and NDRE share the same Sentinel-2 acquisition (same observedAt).
+ */
+export async function computeNdreComponent(farmId) {
+  const readings = await NdviReading.find({ farmId })
+    .sort({ observedAt: -1 })
+    .limit(6)
+    .lean();
+
+  if (readings.length === 0) return 0.5;
+
+  const latest = readings[0];
+  if (latest.ndre === null || latest.ndre === undefined || isNaN(latest.ndre)) return 0;
+
+  const prior = readings
+    .slice(1)
+    .map(r => r.ndre)
+    .filter(v => v !== null && v !== undefined && !isNaN(v));
+  if (prior.length === 0) return 0;
+
+  const trailingAvg = prior.reduce((sum, v) => sum + v, 0) / prior.length;
+  if (trailingAvg <= 0) return 0;
+
+  const trend = latest.ndre >= trailingAvg
+    ? 0
+    : Math.min(1, (trailingAvg - latest.ndre) / trailingAvg);
+  return Math.round(trend * 1000) / 1000;
 }

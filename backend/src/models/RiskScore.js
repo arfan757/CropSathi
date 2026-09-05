@@ -12,6 +12,7 @@ const riskScoreSchema = new mongoose.Schema({
   },
   weatherComponent: { type: Number, default: 0, min: 0, max: 1 },
   ndviComponent: { type: Number, default: 0.5, min: 0, max: 1 },
+  ndreComponent: { type: Number, default: 0, min: 0, max: 1 },
   thermalComponent: { type: Number, default: 0.5, min: 0, max: 1 },
   pestHistoryComponent: { type: Number, default: 0, min: 0, max: 1 },
   compositeScore: { type: Number, default: 0, min: 0, max: 100 },

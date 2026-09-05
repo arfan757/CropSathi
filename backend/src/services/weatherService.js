@@ -148,13 +148,18 @@ export function evaluateWeatherRules(weatherReading, cropType, farmCropStage = n
     const stageMatch = !rule.cropStages || rule.cropStages.length === 0 ||
       (farmCropStage && rule.cropStages.includes(farmCropStage));
 
-    // Count how many thresholds are met (out of 6 possible)
-    const thresholdsMet = [humidityMatch, tempMatch, rainfallMatch, windMatch, soilTempMatch, stageMatch].filter(Boolean).length;
+    // Count how many optional thresholds are met (wind, soil temp — out of 2).
+    // stageMatch is deliberately NOT counted here: it used to only add a
+    // small bonus, which meant a rule scoped to e.g. "flowering only" still
+    // fired (at nearly full weight) during every other stage. Stage is now
+    // a hard gate below, same as the core 3.
+    const thresholdsMet = [windMatch, soilTempMatch].filter(Boolean).length;
 
-    // Only match if at least the core 3 (humidity, temp, rainfall) are met
-    if (humidityMatch && tempMatch && rainfallMatch) {
+    // Only match if the core 3 (humidity, temp, rainfall) are met AND the
+    // rule's crop-stage restriction (if any) is satisfied.
+    if (humidityMatch && tempMatch && rainfallMatch && stageMatch) {
       // Scale risk weight by how many additional thresholds are met
-      const bonus = (thresholdsMet - 3) * 0.02; // up to +0.06 for all 3 extras
+      const bonus = thresholdsMet * 0.03; // up to +0.06 for both extras
       const adjustedWeight = Math.min(rule.riskWeight + bonus, 1.0);
 
       matchedRules.push({

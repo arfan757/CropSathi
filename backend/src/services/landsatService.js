@@ -2,9 +2,19 @@ import axios from 'axios';
 import { fromArrayBuffer } from 'geotiff';
 import { computeBBox } from './copernicusClient.js';
 
-// ─── Landsat 8/9 Thermal LST Service ─────────────────────────────────────
-// Uses Copernicus Sentinel Hub Process API to extract Land Surface Temperature
-// from Landsat 8/9 Band 10 (TIRS) at 100m resolution.
+// ─── Landsat 8/9 Thermal Service ────────────────────────────────────────
+// Uses Copernicus Sentinel Hub Process API to extract thermal data from
+// Landsat 8/9 Band 10 (TIRS).
+//
+// NOTE on collection: we request landsat-ot-l1, NOT landsat-ot-l2. On the
+// current Copernicus Data Space Processing API (sh.dataspace.copernicus.eu)
+// the L2 collection is unresolvable server-side ("Unable to resolve: LOTL2",
+// HTTP 500) while L1 works. L1 exposes B10 as TOA brightness temperature in
+// Kelvin (docs: "Thermal infrared bands B10-B11 Brightness Temperature"),
+// which the evalscript converts to Celsius. The physical quantity is
+// at-sensor brightness temperature rather than land surface temperature,
+// but it is real satellite data and fully usable for the app's relative
+// farm-vs-baseline anomaly detection.
 //
 // Resolution: 100m per pixel (Landsat thermal band native)
 // Grid: Sampled into a 10x10 grid per field for heatmap visualization
@@ -47,7 +57,13 @@ async function getToken() {
  */
 export async function fetchLandsatLst(farm, options = {}) {
   const {
-    startDate = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+    // 90-day lookback (was 45): Maharashtra's monsoon (Jun-Sep) leaves many
+    // 45-day windows with zero cloud-free pixels, which silently degraded
+    // thermal to the formula path for months. 90 days still picks the most
+    // recent clear scene; its acquisition date becomes observedAt and the
+    // existing staleness rules (thermal stale after 20 days) keep old scenes
+    // from inflating current risk scores.
+    startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
     endDate = new Date(),
     maxCloudCoverage = 30,
   } = options;
@@ -57,8 +73,9 @@ export async function fetchLandsatLst(farm, options = {}) {
 
   const token = await getToken();
 
-  // Evalscript for Landsat 8/9 Collection 2 Level-2
-  // B10 = Thermal Infrared (TIRS) 1, surface temperature
+  // Evalscript for Landsat 8/9 Level-1
+  // B10 = Thermal Infrared (TIRS) 1, TOA brightness temperature in Kelvin
+  // (the L1 collection serves B10 pre-calibrated to Kelvin on this API)
   const evalscript = `//VERSION=3
 function setup() {
   return {
@@ -68,7 +85,7 @@ function setup() {
 }
 function evaluatePixel(sample) {
   if (sample.dataMask === 0) return [0, 0];
-  // Landsat C2L2 B10 is in Kelvin — convert to Celsius
+  // Landsat L1 B10 is TOA brightness temperature in Kelvin — convert to Celsius
   const lstC = sample.B10 - 273.15;
   return [lstC, sample.dataMask];
 }`;
@@ -80,7 +97,7 @@ function evaluatePixel(sample) {
         properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' },
       },
       data: [{
-        type: 'landsat-ot-l2',
+        type: 'landsat-ot-l1',
         dataFilter: {
           timeRange: { from: startDate.toISOString(), to: endDate.toISOString() },
           maxCloudCoverage,
@@ -117,16 +134,37 @@ function evaluatePixel(sample) {
     for (let i = 0; i < buf.length; i++) view[i] = buf[i];
     const pixels = await parseTiffWithGeotiff(arrayBuffer);
 
-    // Extract LST grid (band 0 = temperature in Celsius)
+    // Extract LST grid (band 0 = temperature in Celsius, band 1 = dataMask).
+    // The evalscript emits [0, 0] for cloud-covered / off-scene pixels
+    // (dataMask === 0). Those were previously read as a literal 0°C and
+    // folded into the field average via averageGrid()'s `!= null` filter,
+    // which silently corrupted the whole farm's reading on any cloudy or
+    // edge-of-scene pixel (0°C looks like an extreme cold anomaly). Emit
+    // null for masked pixels instead so averageGrid() correctly excludes
+    // them, the same way it already excludes actual nulls.
     const thermalGrid = [];
     for (let row = 0; row < GRID_SIZE; row++) {
       const rowData = [];
       for (let col = 0; col < GRID_SIZE; col++) {
-        const idx = (row * GRID_SIZE + col) * 2; // 2 bands per pixel
-        const lstC = pixels[idx] ?? 30;
-        rowData.push(Math.round(lstC * 100) / 100);
+        const pixelBase = (row * GRID_SIZE + col) * 2; // 2 bands per pixel
+        const lstC = pixels[pixelBase];
+        const mask = pixels[pixelBase + 1];
+        const valid = mask !== undefined && mask !== 0 && lstC !== undefined && !isNaN(lstC);
+        rowData.push(valid ? Math.round(lstC * 100) / 100 : null);
       }
       thermalGrid.push(rowData);
+    }
+
+    const validPixelCount = thermalGrid.flat().filter(v => v !== null).length;
+    if (validPixelCount === 0) {
+      // Every pixel was cloud-covered or off-scene. averageGrid() would
+      // silently fall back to its 30C default here — indistinguishable
+      // from a real reading once returned — and this result gets labeled
+      // sceneInfo.source: 'landsat-8-9' with a real sceneId, so
+      // computeThermalReading has no way to know it's fabricated. Throw
+      // so the caller falls through to the honest simulated/formula path
+      // instead of storing a fake number as authentic satellite data.
+      throw new Error('Landsat scene fully cloud-masked — no valid pixels');
     }
 
     const sceneDate = resp.headers['landsat-data-date'] || startDate.toISOString();
@@ -135,7 +173,7 @@ function evaluatePixel(sample) {
       thermalGrid,
       sceneInfo: {
         sceneId: `landsat-${Date.now()}`,
-        sceneName: 'Landsat 8/9 C2L2',
+        sceneName: 'Landsat 8/9 L1',
         cloudCover: maxCloudCoverage,
         source: 'landsat-8-9',
       },
@@ -159,6 +197,13 @@ async function parseTiffWithGeotiff(buffer) {
   const width = image.getWidth();
   const height = image.getHeight();
   const numBands = image.getSamplesPerPixel();
+  if (width !== GRID_SIZE || height !== GRID_SIZE) {
+    // fetchLandsatLst indexes into the flat pixel array assuming a
+    // GRID_SIZE x GRID_SIZE layout; a mismatch here would silently
+    // misalign every pixel read rather than throwing. Surfacing it as a
+    // warning is a stopgap — a real fix would resample to GRID_SIZE.
+    console.warn(`Landsat response grid is ${width}x${height}, expected ${GRID_SIZE}x${GRID_SIZE} — pixel indexing may be misaligned.`);
+  }
 
   const bands = await image.readRasters({ interleave: false });
   const pixels = new Float32Array(width * height * numBands);

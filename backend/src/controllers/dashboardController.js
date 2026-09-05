@@ -98,6 +98,7 @@ export async function getDashboardHealth(req, res) {
           components: {
             weather: Math.round((latest.weatherComponent || 0) * 100),  // stress → display %
             ndvi: Math.round((latest.ndviComponent || 0) * 100),
+            ndre: Math.round((latest.ndreComponent || 0) * 100),
             thermal: Math.round((latest.thermalComponent || 0) * 100),
             pestHistory: Math.round((latest.pestHistoryComponent || 0) * 100),
           },
@@ -121,7 +122,7 @@ export async function getDashboardHealth(req, res) {
           areaHectares: farm.areaInHectares,
           compositeScore: null,
           severity: 'unknown',
-          components: { weather: null, ndvi: null, thermal: null, pestHistory: null },
+          components: { weather: null, ndvi: null, ndre: null, thermal: null, pestHistory: null },
           triggeredAlert: false,
           diseaseHypothesis: null,
           staleSignals: [],

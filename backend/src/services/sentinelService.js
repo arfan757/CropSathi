@@ -61,21 +61,26 @@ export async function fetchSentinelNdvi(farm, options = {}) {
 
   const token = await getToken();
 
-  // Request both NDVI and NDRE in a single evalscript (4 bands: ndvi, ndre, b8, b4)
+  // Request NDVI, NDRE, and an explicit dataMask band (5 bands total).
+  // Previously dataMask wasn't in the output — a masked pixel (cloud,
+  // off-scene) produces ndvi=0/ndre=0 from evaluatePixel's early return,
+  // which is indistinguishable from a genuinely valid 0.0 reading once it
+  // reaches the grid parser below. Emitting dataMask as its own band lets
+  // the parser tell "no data" apart from "valid pixel that happens to be 0".
   const evalscript = `//VERSION=3
 function setup() {
   return {
     input: ["B04", "B05", "B08", "dataMask"],
-    output: { bands: 4, sampleType: "FLOAT32" }
+    output: { bands: 5, sampleType: "FLOAT32" }
   };
 }
 function evaluatePixel(sample) {
-  if (sample.dataMask === 0) return [0, 0, 0, 0];
+  if (sample.dataMask === 0) return [0, 0, 0, 0, 0];
   const sum84 = sample.B08 + sample.B04;
   const sum85 = sample.B08 + sample.B05;
   const ndvi = sum84 === 0 ? 0 : (sample.B08 - sample.B04) / sum84;
   const ndre = sum85 === 0 ? 0 : (sample.B08 - sample.B05) / sum85;
-  return [ndvi, ndre, sample.B08, sample.B04];
+  return [ndvi, ndre, sample.B08, sample.B04, sample.dataMask];
 }`;
 
   const request = {
@@ -123,8 +128,13 @@ function evaluatePixel(sample) {
     for (let i = 0; i < buf.length; i++) view[i] = buf[i];
     const pixels = await parseTiffWithGeotiff(arrayBuffer);
 
-    // Extract NDVI (band 0) and NDRE (band 1) grids
-    // The TIFF has 4 bands interleaved: [ndvi, ndre, b8, b4, ndvi, ndre, b8, b4, ...]
+    // Extract NDVI (band 0), NDRE (band 1), and dataMask (band 4) grids.
+    // The TIFF has 5 bands interleaved: [ndvi, ndre, b8, b4, mask, ndvi, ndre, ...]
+    // Masked pixels (mask === 0) are emitted as null rather than a clamped
+    // 0.5/0.4 default: `pixels[idx] ?? 0.5` only ever catches actual
+    // undefined/null values, never a real 0 from the evalscript's masked-
+    // pixel branch, so cloud-covered or off-scene pixels were silently
+    // averaged in as if they were real low-vegetation readings.
     const ndviGrid = [];
     const ndreGrid = [];
 
@@ -132,11 +142,13 @@ function evaluatePixel(sample) {
       const ndviRow = [];
       const ndreRow = [];
       for (let col = 0; col < GRID_SIZE; col++) {
-        const idx = (row * GRID_SIZE + col) * 4; // 4 bands per pixel
-        const ndvi = pixels[idx] ?? 0.5;
-        const ndre = pixels[idx + 1] ?? 0.4;
-        ndviRow.push(Math.max(-0.1, Math.min(0.95, Math.round(ndvi * 1000) / 1000)));
-        ndreRow.push(Math.max(-0.1, Math.min(0.95, Math.round(ndre * 1000) / 1000)));
+        const pixelBase = (row * GRID_SIZE + col) * 5; // 5 bands per pixel
+        const ndvi = pixels[pixelBase];
+        const ndre = pixels[pixelBase + 1];
+        const mask = pixels[pixelBase + 4];
+        const valid = mask !== undefined && mask !== 0 && ndvi !== undefined && ndre !== undefined;
+        ndviRow.push(valid ? Math.max(-0.1, Math.min(0.95, Math.round(ndvi * 1000) / 1000)) : null);
+        ndreRow.push(valid ? Math.max(-0.1, Math.min(0.95, Math.round(ndre * 1000) / 1000)) : null);
       }
       ndviGrid.push(ndviRow);
       ndreGrid.push(ndreRow);
@@ -182,6 +194,12 @@ async function parseTiffWithGeotiff(buffer) {
   const width = image.getWidth();
   const height = image.getHeight();
   const numBands = image.getSamplesPerPixel();
+  if (width !== GRID_SIZE || height !== GRID_SIZE) {
+    // fetchSentinelNdvi indexes into the flat pixel array assuming a
+    // GRID_SIZE x GRID_SIZE layout; a mismatch would silently misalign
+    // every pixel read rather than throwing.
+    console.warn(`Sentinel-2 response grid is ${width}x${height}, expected ${GRID_SIZE}x${GRID_SIZE} — pixel indexing may be misaligned.`);
+  }
 
   // Read bands separately (more reliable than interleave)
   const bands = await image.readRasters({ interleave: false });

@@ -288,10 +288,10 @@
             <h2 class="text-lg font-bold text-[#1b1c1c] font-headline" data-i18n="dash_field_health">Field Health Score</h2>
             <p class="text-xs text-[#3f4941]" data-i18n="dash_field_health_sub">Real-time composite telemetry gauge score</p>
           </div>
-          <span class="text-xs font-bold px-3 py-1.5 bg-[#006038] text-[#ffffff] rounded-full flex items-center gap-1.5 whitespace-nowrap shrink-0">
-            <span class="w-2 h-2 rounded-full bg-[#abffc9] animate-pulse"></span>
+          <button type="button" id="sentinelSyncBtn" class="text-xs font-bold px-3 py-1.5 bg-[#006038] text-[#ffffff] rounded-full flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer" title="Sync satellite data and recalculate health scores">
+            <span id="sentinelSyncDot" class="w-2 h-2 rounded-full bg-[#abffc9]"></span>
             <span data-i18n="dash_sentinel_sync">Sentinel Sync</span>
-          </span>
+          </button>
         </div>
 
         <!-- Scrollable Cards Container -->
@@ -593,6 +593,79 @@
 
     loadHealthScores();
 
+    // Keep the health cards fresh: re-fetch the latest computed scores
+    // every 5 minutes.
+    setInterval(loadHealthScores, 5 * 60 * 1000);
+
+    // Sentinel Sync button: on click, sync satellite data and recalculate
+    // the health score for every field, then refresh the cards.
+    const sentinelSyncBtn = document.getElementById('sentinelSyncBtn');
+    if (sentinelSyncBtn) {
+      let toastTimer = null;
+      // Query at show-time (the toast div sits AFTER this script in the DOM,
+      // so a setup-time lookup would capture null and silently no-op).
+      // Timed feedback: shows a message for 4s, then fades out.
+      function showSyncToast(message, isError) {
+        const toastEl = document.getElementById('syncToast');
+        if (!toastEl) return;
+        toastEl.textContent = message;
+        toastEl.classList.toggle('err', !!isError);
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 4000);
+      }
+      sentinelSyncBtn.addEventListener('click', async () => {
+        if (sentinelSyncBtn.disabled) return;
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        sentinelSyncBtn.disabled = true;
+        const dot = document.getElementById('sentinelSyncDot');
+        dot?.classList.add('animate-pulse');
+        try {
+          // Which farms? Pull the current list from the same endpoint the
+          // cards use, so newly added/removed fields are always covered.
+          const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          const farms = data.data?.fields || [];
+          if (farms.length === 0) {
+            showSyncToast('No fields to sync yet', false);
+            return;
+          }
+          let failures = 0;
+          // One call per farm: poll-weather recomputes the full fused risk
+          // score, and computeRiskScore refetches fresh Sentinel-2 NDVI/NDRE
+          // and Landsat thermal as part of that — so a single call both
+          // syncs the satellite data and recalculates the score.
+          for (const farm of farms) {
+            const syncRes = await fetch(`${CropSathiPrefs.api}/api/monitoring/farms/${farm.farmId}/poll-weather`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!syncRes.ok) {
+              failures++;
+              console.warn(`Sentinel sync failed for ${farm.farmName}:`, syncRes.status);
+            }
+          }
+          // Refresh the cards so the freshly computed scores render now.
+          await loadHealthScores();
+          showSyncToast(
+            failures === 0
+              ? `Synced ${farms.length} field${farms.length === 1 ? '' : 's'} — health scores updated`
+              : `Sync failed for ${failures} of ${farms.length} fields — try again`,
+            failures !== 0
+          );
+        } catch (err) {
+          console.error('Sentinel sync failed:', err);
+          showSyncToast('Sync failed — check connection and try again', true);
+        } finally {
+          sentinelSyncBtn.disabled = false;
+          dot?.classList.remove('animate-pulse');
+        }
+      });
+    }
+
     if (localStorage.getItem('newFieldCreated')) {
       localStorage.removeItem('newFieldCreated');
       let attempts = 0;
@@ -603,6 +676,9 @@
       }, 3000);
     }
   </script>
+
+  <!-- Sync result toast (shown briefly by the Sentinel Sync button) -->
+  <div id="syncToast" class="sync-toast" role="status" aria-live="polite"></div>
 
   <script src="ui.js"></script>
 

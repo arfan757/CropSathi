@@ -52,6 +52,16 @@ function estimateCanopyTemp(airTempC, humidityPct, cropType) {
 export async function resolveDistrictFarmIds(farm) {
   if (!farm) return null;
 
+  if (!farm.userId) {
+    // Without userId there's no way to look up the owner's district, and
+    // this degrades silently to the farm-trailing baseline below with no
+    // signal that district-level comparison never actually ran. Most
+    // often this means the caller fetched `farm` with a projection that
+    // dropped userId — worth checking if district baselines seem to
+    // never kick in for a farm that should have district neighbors.
+    console.warn(`resolveDistrictFarmIds: farm ${farm._id} has no userId — cannot resolve district`);
+  }
+
   const owner = farm.userId
     ? await User.findById(farm.userId).select('farmDetails.district').lean()
     : null;
@@ -127,6 +137,17 @@ export async function computeThermalReading(farm, weatherReading) {
     try {
       const landsat = await fetchLandsatLst(farm);
 
+      // fetchLandsatLst silently returns a SIMULATED grid (random noise
+      // around 32°C) when the Copernicus API call fails (auth, rate limit,
+      // no scene in the time window, empty response). That fallback is
+      // labeled sceneInfo.source === 'formula' / sceneName 'Simulated' /
+      // sceneId null — never store it as if it were real Landsat data, or
+      // the app serves fabricated readings labeled "Landsat 8/9". Throw so
+      // the catch below falls through to the honest formula path instead.
+      if (landsat.sceneInfo?.source !== 'landsat-8-9' || !landsat.sceneInfo?.sceneId) {
+        throw new Error('Landsat returned a simulated fallback grid, not real data');
+      }
+
       // Average the grid for the scalar value
       const avgLst = averageGrid(landsat.thermalGrid);
 
@@ -134,6 +155,15 @@ export async function computeThermalReading(farm, weatherReading) {
       let baseline = await getDistrictBaseline(farm);
       if (baseline === null) {
         baseline = await getFarmTrailingBaseline(farm._id);
+      }
+      // Cold start: no district or farm history yet, so there is nothing
+      // to compare the measured temperature against and anomalyC would
+      // silently default to 0 (no stress) below. Fall back to a
+      // weather-derived expected canopy temp — an independent, absolute
+      // reference — so a real satellite reading can still be flagged as
+      // anomalous on a farm's very first thermal reading.
+      if (baseline === null && weatherReading) {
+        baseline = estimateCanopyTemp(weatherReading.temperatureC, weatherReading.humidityPct, farm.cropType);
       }
 
       const anomalyC = baseline !== null
@@ -169,7 +199,15 @@ export async function computeThermalReading(farm, weatherReading) {
     farm.cropType,
   );
 
-  // Baseline is district-level (spec §7.3); falls back to farm's own history
+  // Baseline is district-level (spec §7.3); falls back to farm's own history.
+  // NOTE: unlike the Landsat branch, there is no independent absolute
+  // fallback available here on cold start — `estimated` IS the formula
+  // applied to today's weather, so comparing it to itself would be
+  // circular. A farm's very first thermal reading, when no real Landsat
+  // data is available, genuinely cannot detect a thermal anomaly; this is
+  // a data limitation (no ground-truth canopy measurement), not something
+  // this function can paper over. It resolves once either district data
+  // accumulates or Landsat/Copernicus access is available.
   let baseline = await getDistrictBaseline(farm);
   if (baseline === null) {
     baseline = await getFarmTrailingBaseline(farm._id);

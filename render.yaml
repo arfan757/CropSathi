@@ -16,5 +16,10 @@ services:
       # JWT_SECRET=your_secret_key
       # GEMINI_API_KEY=AIza...
       # CORS_ORIGIN=https://your-frontend.vercel.app
+      # COPENICUS_CLIENT_ID / COPENICUS_CLIENT_SECRET — free OAuth client
+      # credentials from Copernicus Data Space (register at
+      # dataspace.copernicus.eu, then create an OAuth client). REQUIRED for
+      # real satellite data: Sentinel-2 NDVI/NDRE AND Landsat 8/9 thermal
+      # (LST). Without them the backend serves simulated/formula fallbacks.
     healthCheckPath: /api/health
     autoDeploy: true
