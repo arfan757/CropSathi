@@ -23,28 +23,30 @@ import { resolveDistrictFarmIds } from './thermalService.js';
 // should agree; requiring agreement avoids a single noisy read
 // wrongly invalidating a real, just-planted field (bare soil at sowing
 // stage can legitimately dip toward this NDVI range on its own).
-const NO_VEGETATION_NDVI = 0.15;
-const NO_VEGETATION_NDRE = 0.2;
+const NO_VEGETATION_NDVI = 0.20; // Standard remote sensing threshold for bare concrete/rock/water
+const NO_VEGETATION_NDRE = 0.20;
 
 export function isVegetationDetected(ndvi, ndre, sceneSource) {
-  // Only apply the no-vegetation gate to REAL satellite data. Simulated NDVI
-  // is generated FROM crop assumptions (type/stage), not actual pixels, so it
-  // can never detect a misdrawn boundary — it will produce plausible values
-  // even for a polygon over a rooftop. The gate exists to catch real-world
-  // data quality issues (boundary errors), not simulation artifacts.
-  //
-  // Additionally, mature/harvested crops can legitimately read very low on
-  // both indices (wheat at maturity: NDVI ~0.35 base, can drop to 0.05 with
-  // the anomaly-injection logic), so applying this threshold to simulated
-  // data causes false positives on late-stage crops.
-  if (sceneSource !== 'sentinel-2' && sceneSource !== 'landsat-8-9') {
-    return true; // simulated or unknown source — assume vegetation present
+  // If no readings are provided, fail closed
+  if (ndvi === null || ndvi === undefined) {
+    return false;
   }
 
-  const ndviBare = ndvi !== null && ndvi !== undefined && ndvi < NO_VEGETATION_NDVI;
-  const ndreBare = ndre !== null && ndre !== undefined && ndre < NO_VEGETATION_NDRE;
-  if (ndviBare && ndreBare) return false;
-  return true; // vegetation present, or insufficient data to say otherwise
+  // Reject simulated or fallback data over unverified land
+  if (sceneSource === 'simulated' || sceneSource === 'fallback') {
+    return false;
+  }
+
+  // Physical spectral gate: concrete, asphalt, rooftops, and water bodies fall below 0.20
+  if (ndvi < NO_VEGETATION_NDVI) {
+    return false;
+  }
+
+  if (ndre !== null && ndre !== undefined && ndre < NO_VEGETATION_NDRE) {
+    return false;
+  }
+
+  return true;
 }
 
 // ─── Crop-specific NDVI baselines (typical peak-season values) ─────────────

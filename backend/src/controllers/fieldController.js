@@ -1,14 +1,26 @@
 import Field from '../models/Field.js';
+import NdviReading from '../models/NdviReading.js';
 import { computeRiskScore } from '../services/riskService.js';
+import { fetchNdviForFarm, isVegetationDetected } from '../services/ndviService.js';
 
 // @desc    Create a new field
 // @route   POST /api/fields
 // @access  Private
 export const createField = async (req, res) => {
   try {
-    const { name, cropType, sowingDate, polygon, boundary, areaInHectares, areaInAcres, cropStage, soilType } = req.body;
+    const {
+      name,
+      cropType,
+      sowingDate,
+      polygon,
+      boundary,
+      areaInHectares,
+      areaInAcres,
+      cropStage,
+      soilType,
+    } = req.body;
 
-    // Accept polygon (legacy) or boundary (GeoJSON)
+    // 1. Boundary array check
     if (!polygon || polygon.length < 3) {
       return res.status(400).json({
         success: false,
@@ -16,8 +28,10 @@ export const createField = async (req, res) => {
       });
     }
 
-    const field = await Field.create({
-      userId: req.user.id,
+    // 2. Instantiate field in memory (generates field._id for Mongoose validation)
+    const userId = req.user?.id || req.user?._id;
+    const field = new Field({
+      userId,
       name,
       cropType,
       cropStage,
@@ -29,13 +43,35 @@ export const createField = async (req, res) => {
       soilType,
     });
 
+    // 3. Optical Spectral Baseline Verification
+    const ndviReading = await fetchNdviForFarm(field);
+
+    const isValidVegetation = isVegetationDetected(
+      ndviReading?.ndvi,
+      ndviReading?.ndre,
+      ndviReading?.sceneSource
+    );
+
+    if (!isValidVegetation) {
+      // Remove the temporary NDVI reading so no orphan records remain
+      await NdviReading.deleteMany({ farmId: field._id });
+
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid boundary: Non-agricultural land detected (NDVI < 0.20). Please select an active crop field.',
+      });
+    }
+
+    // 4. Save verified field to database
+    await field.save();
+
     res.status(201).json({
       success: true,
       data: field,
     });
 
-    // Trigger initial risk score computation in background (fire-and-forget)
-    computeRiskScore(field._id).catch(err => {
+    // 5. Initial background risk calculation
+    computeRiskScore(field._id).catch((err) => {
       console.error(`⚠️ Initial risk score failed for field ${field._id}:`, err.message);
     });
   } catch (error) {
@@ -51,7 +87,8 @@ export const createField = async (req, res) => {
 // @access  Private
 export const getFields = async (req, res) => {
   try {
-    const fields = await Field.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    const userId = req.user?.id || req.user?._id;
+    const fields = await Field.find({ userId, deletedAt: null }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -71,9 +108,11 @@ export const getFields = async (req, res) => {
 // @access  Private
 export const getField = async (req, res) => {
   try {
+    const userId = req.user?.id || req.user?._id;
     const field = await Field.findOne({
       _id: req.params.id,
-      userId: req.user.id,
+      userId,
+      deletedAt: null,
     });
 
     if (!field) {
@@ -100,8 +139,19 @@ export const getField = async (req, res) => {
 // @access  Private
 export const updateField = async (req, res) => {
   try {
-    // Whitelist allowed fields to prevent mass assignment
-    const allowedFields = ['name', 'cropType', 'cropStage', 'sowingDate', 'polygon', 'boundary', 'areaInHectares', 'areaInAcres', 'soilType', 'status'];
+    const allowedFields = [
+      'name',
+      'cropType',
+      'cropStage',
+      'sowingDate',
+      'polygon',
+      'boundary',
+      'areaInHectares',
+      'areaInAcres',
+      'soilType',
+      'status',
+    ];
+
     const updates = {};
     for (const key of allowedFields) {
       if (req.body[key] !== undefined) {
@@ -109,15 +159,15 @@ export const updateField = async (req, res) => {
       }
     }
 
-    // Auto-generate GeoJSON boundary from polygon if updating polygon
     if (updates.polygon && updates.polygon.length >= 3 && (!updates.boundary || !updates.boundary.coordinates?.length)) {
-      const ring = updates.polygon.map(p => [p.lng, p.lat]);
-      ring.push(ring[0]); // close the ring
+      const ring = updates.polygon.map((p) => [p.lng, p.lat]);
+      ring.push(ring[0]);
       updates.boundary = { type: 'Polygon', coordinates: [ring] };
     }
 
+    const userId = req.user?.id || req.user?._id;
     const field = await Field.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id, deletedAt: null },
+      { _id: req.params.id, userId, deletedAt: null },
       updates,
       { new: true, runValidators: true }
     );
@@ -134,9 +184,8 @@ export const updateField = async (req, res) => {
       data: field,
     });
 
-    // Re-compute risk score if crop-related fields changed
     if (updates.cropType || updates.cropStage) {
-      computeRiskScore(field._id).catch(err => {
+      computeRiskScore(field._id).catch((err) => {
         console.error(`⚠️ Risk score re-computation failed for field ${field._id}:`, err.message);
       });
     }
@@ -153,8 +202,9 @@ export const updateField = async (req, res) => {
 // @access  Private
 export const deleteField = async (req, res) => {
   try {
+    const userId = req.user?.id || req.user?._id;
     const field = await Field.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id, deletedAt: null },
+      { _id: req.params.id, userId, deletedAt: null },
       { deletedAt: new Date() },
       { new: true }
     );
@@ -183,9 +233,9 @@ export const deleteField = async (req, res) => {
 // @access  Private
 export const restoreField = async (req, res) => {
   try {
-    // Bypass soft-delete filter to find the deleted field
+    const userId = req.user?.id || req.user?._id;
     const field = await Field.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id, deletedAt: { $ne: null } },
+      { _id: req.params.id, userId, deletedAt: { $ne: null } },
       { deletedAt: null },
       { new: true }
     );
