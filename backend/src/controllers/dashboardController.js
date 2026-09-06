@@ -110,9 +110,10 @@ export async function getDashboardHealth(req, res) {
           previousScore: prevScore,
           trend,
           noVegetationDetected: latest.inputsSnapshot?.noVegetationDetected || false,
+          spatialAnomaly: latest.inputsSnapshot?.spatialAnomaly || null,
         });
 
-        totalScore += score;
+        if (score !== null) totalScore += score;
         if (latest.triggeredAlert) alertCount++;
       } else {
         // No risk score yet — show field with no data

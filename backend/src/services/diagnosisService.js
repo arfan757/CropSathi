@@ -1,15 +1,22 @@
 import DiagnosisCase from '../models/DiagnosisCase.js';
 import CasePhoto from '../models/CasePhoto.js';
 import Field from '../models/Field.js';
-import { generateAndSaveAdvisory } from './advisoryService.js';
+import { generateAdvisoryForCase } from './advisoryService.js';
 import { recalibrateThreshold } from './riskService.js';
+import { isSupportedCrop, buildCnnResult } from '../config/modelClassMap.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { classifyDisease, structureCnnResult } from './minimaxService.js';
+import axios from 'axios';
 import sharp from 'sharp';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const DIAGNOSIS_MODEL = 'gemini-3.6-flash';
 const GEMINI_TIMEOUT_MS = 90000;
+
+// Plant disease CNN microservice (ml-service/). Used first for crops the
+// 38-class model supports; Gemini vision is the fallback for everything else.
+const ML_SERVICE_URL = (process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000').trim().replace(/\/+$/, '');
 
 const DIAGNOSIS_SCHEMA = {
   type: 'object',
@@ -41,7 +48,8 @@ const DIAGNOSIS_SCHEMA = {
 };
 
 function routeDiagnosis(result) {
-  if (!result.image_quality_ok) return 'retry';
+  // Only retry if image quality is poor AND no disease was detected (uncertain)
+  if (!result.image_quality_ok && (result.detected_issue || '').toLowerCase() === 'unknown') return 'retry';
   if ((result.detected_issue || '').trim().toLowerCase() === 'healthy') return 'false_alarm';
   if (result.confidence >= 0.75 && result.matches_risk_signal) return 'confirmed';
   return 'expert_review';
@@ -88,8 +96,8 @@ export async function uploadPhotos(caseId, files) {
   }
   diagnosisCase.status = 'diagnosing';
   await diagnosisCase.save();
-  diagnoseWithGemini(caseId).catch(async (err) => {
-    console.error('Gemini failed:', caseId, err.message);
+  diagnoseCase(caseId).catch(async (err) => {
+    console.error('Diagnosis failed:', caseId, err.message);
     try {
       const dc = await DiagnosisCase.findById(caseId);
       if (dc && dc.status === 'diagnosing') {
@@ -101,6 +109,89 @@ export async function uploadPhotos(caseId, files) {
   });
   return { diagnosisCase, photos };
 }
+/**
+ * Orchestrator: CNN first for supported crops, Gemini vision as fallback.
+ */
+async function diagnoseCase(caseId) {
+  const dc = await DiagnosisCase.findById(caseId);
+  if (!dc || dc.status !== 'diagnosing') return;
+  const farm = await Field.findById(dc.farmId);
+  if (farm && isSupportedCrop(farm.cropType)) {
+    const usedCnn = await diagnoseWithCnn(caseId, dc, farm);
+    if (usedCnn) return;
+  }
+  await diagnoseWithGemini(caseId);
+}
+
+/**
+ * PlantVillage CNN path (ml-service /predict). Returns true when the ML
+ * service produced a result; false falls through to Gemini vision.
+ */
+async function diagnoseWithCnn(caseId, dc, farm) {
+  const photos = await CasePhoto.find({ caseId }).sort({ uploadedAt: 1 });
+  const fsPromises = (await import('fs')).promises;
+  const pathMod = await import('path');
+  let imageB64 = null;
+  for (const photo of photos) {
+    const filePath = pathMod.join(process.cwd(), 'uploads', photo.storageKey);
+    try {
+      const bytes = await fsPromises.readFile(filePath);
+      imageB64 = await sharp(bytes)
+        .resize({ width: 128, height: 128, fit: 'inside' })
+        .jpeg({ quality: 90 })
+        .toBuffer()
+        .then((b) => b.toString('base64'));
+      break;
+    } catch (e) {
+      console.error('Could not process photo for CNN:', photo.storageKey, e.message);
+    }
+  }
+  if (!imageB64) return false;
+
+  let prediction;
+  try {
+    const resp = await axios.post(
+      `${ML_SERVICE_URL}/predict`,
+      { image_b64: imageB64 },
+      { timeout: 30000 }
+    );
+    prediction = resp.data;
+  } catch (err) {
+    console.warn(`ML service unavailable (${ML_SERVICE_URL}): ${err.message} — falling back to Gemini vision`);
+    return false;
+  }
+  if (!prediction || !prediction.class_name) return false;
+
+  // 1. Try to structure CNN result with Minimax (better formatted output)
+  try {
+    const topKNames = (prediction.top_k || []).map(t => t.class_name);
+    const minimaxResult = await structureCnnResult(
+      prediction.class_name,
+      prediction.confidence,
+      topKNames,
+      farm.cropType || ''
+    );
+    if (minimaxResult && minimaxResult.detected_issue) {
+      // Merge Minimax's structured output with CNN confidence
+      minimaxResult.confidence = Math.round((prediction.confidence || 0.5) * 1000) / 1000;
+      minimaxResult.matches_risk_signal = minimaxResult.confidence >= 0.75;
+      minimaxResult.modelVersion = minimaxResult.modelVersion || 'plant-disease-cnn-38';
+      minimaxResult._modelSource = 'cnn+minimax';
+      console.log('CNN+Minimax diagnosis:', JSON.stringify(minimaxResult).substring(0, 300));
+      await saveGeminiResult(dc, minimaxResult, farm);
+      return true;
+    }
+  } catch (minimaxErr) {
+    console.warn('[diagnosisService] Minimax CNN structuring failed, using direct mapping:', minimaxErr.message);
+  }
+
+  // 2. Fallback: use local buildCnnResult (no external call)
+  const result = buildCnnResult(prediction, farm);
+  console.log('CNN diagnosis (direct):', JSON.stringify(result).substring(0, 300));
+  await saveGeminiResult(dc, result, farm);
+  return true;
+}
+
 async function diagnoseWithGemini(caseId) {
   const dc = await DiagnosisCase.findById(caseId);
   if (!dc || dc.status !== 'diagnosing') return;
@@ -148,10 +239,10 @@ async function diagnoseWithGemini(caseId) {
   if (imageParts.length === 0) {
     await saveGeminiResult(dc, {
       image_quality_ok: false, crop_identified: cropType,
-      detected_issue: 'unknown', confidence: 0, severity: 'none',
+      detected_issue: 'unknown', confidence: 0, severity: normalizeSeverity('none'),
       symptoms_observed: [], matches_risk_signal: false,
-      disease_description: '', treatment: { immediate_actions: [], chemical: '', biological: '', cultural: '', application_schedule: '' },
-      prevention: [], notes: 'No image files found on disk',
+      disease_description: '', treatment: { immediate_actions: [], chemical: '', biological: '', cultural: '', application_schedule: '', withholding_period: '' },
+      prevention: [], notes: 'No image files found on disk or image files are empty (0 bytes).',
     }, farm);
     return;
   }
@@ -183,7 +274,7 @@ Output ONLY raw JSON with these exact root-level keys: image_quality_ok, crop_id
     try {
       // Strip markdown fences before parsing
       text = text.replace(new RegExp('^[>```json\r?\n'), '').replace(new RegExp('\r?\n```$'), '').trim();
-      const jsonMatch = text.match(/{[sS]*}/);
+      const jsonMatch = text.match(/{[\s\S]*}/);
       if (!jsonMatch) throw new Error('No JSON payload found in response');
       parsed = JSON.parse(jsonMatch[0]);
     } catch (parseErr) {
@@ -212,11 +303,71 @@ Output ONLY raw JSON with these exact root-level keys: image_quality_ok, crop_id
   } catch (err) {
     clearTimeout(timeoutId);
     console.error('Gemini error:', err.message);
+
+    // FALLBACK: Try Minimax via OpenRouter for image-based diagnosis
+    try {
+      console.log('[diagnosisService] Falling back to Minimax M3 for disease classification');
+      const imageBase64 = imageParts.length > 0
+        ? imageParts[0].inlineData.data
+        : null;
+      if (imageBase64) {
+        const minimaxResult = await classifyDisease(
+          imageBase64,
+          cropType,
+          cropStage,
+          riskContext
+        );
+        if (minimaxResult && minimaxResult.detected_issue) {
+          // If response seems truncated/incomplete, retry with structural prompt
+          if (!minimaxResult.treatment || !Array.isArray(minimaxResult.treatment.immediate_actions) || minimaxResult.treatment.immediate_actions.length === 0) {
+            console.warn('[diagnosisService] Minimax result incomplete; retrying for structured output');
+            const retryResult = await classifyDisease(
+              imageBase64,
+              cropType,
+              cropStage,
+              'IMPORTANT: Respond ONLY with the complete JSON object. Do not truncate. Include all keys: image_quality_ok, crop_identified, detected_issue, confidence, severity, symptoms_observed, matches_risk_signal, disease_description, treatment (with immediate_actions, chemical, biological, cultural, application_schedule, withholding_period), prevention, notes.'
+            );
+            if (retryResult && retryResult.treatment && retryResult.treatment.immediate_actions) {
+              await saveGeminiResult(dc, retryResult, farm);
+              console.log('Minimax fallback diagnosis (retry) saved:', JSON.stringify(retryResult).substring(0, 200));
+              return;
+            }
+            await saveGeminiResult(dc, minimaxResult, farm);
+            console.log('Minimax fallback diagnosis saved:', JSON.stringify(minimaxResult).substring(0, 200));
+            return;
+          }
+          await saveGeminiResult(dc, minimaxResult, farm);
+          console.log('Minimax fallback diagnosis saved:', JSON.stringify(minimaxResult).substring(0, 200));
+          return;
+        }
+      }
+    } catch (minimaxErr) {
+      console.warn('Minimax fallback also failed:', minimaxErr.message);
+    }
+
+    // Both models failed — save failure state
     await DiagnosisCase.updateOne(
       { _id: caseId },
-      { $set: { status: 'retry_failed', geminiResult: { notes: err.message } } }
+      { $set: { status: 'retry_failed', geminiResult: { notes: err.message + ' | Minimax fallback also failed' } } }
     );
   }
+}
+
+const SEVERITY_MAP = {
+  high: 'severe', severe: 'severe', 'high': 'severe', 'severe': 'severe',
+  moderate: 'moderate', 'moderate': 'moderate',
+  low: 'mild', mild: 'mild', 'low': 'mild', 'mild': 'mild',
+  none: 'none', 'none': 'none',
+};
+function normalizeSeverity(s) {
+  if (!s || typeof s !== 'string') return 'moderate';
+  const key = s.toString().toLowerCase().trim();
+  // Handle compound like "Moderate to Severe" -> take highest
+  if (key.includes('severe') || key.includes('high')) return 'severe';
+  if (key.includes('moderate')) return 'moderate';
+  if (key.includes('mild') || key.includes('low')) return 'mild';
+  if (key.includes('none')) return 'none';
+  return SEVERITY_MAP[key] || 'moderate';
 }
 
 async function saveGeminiResult(dc, parsed, farm) {
@@ -226,17 +377,20 @@ async function saveGeminiResult(dc, parsed, farm) {
     cropIdentified: parsed.crop_identified || parsed.plant_name || 'unknown',
     detectedIssue: parsed.detected_issue || parsed.disease_name || parsed.primary_diagnosis?.name || 'unknown',
     confidence: Math.round(((parsed.confidence ?? parsed.confidence_score ?? parsed.primary_diagnosis?.confidence) || 0.5) * 1000) / 1000,
-    severity: ({ high: 'severe', moderate: 'moderate', low: 'mild', mild: 'mild', severe: 'severe', none: 'none' })[parsed.severity] || parsed.severity || 'moderate',
+    severity: normalizeSeverity(parsed.severity),
     symptomsObserved: parsed.symptoms_observed || parsed.primary_diagnosis?.symptoms || [],
     matchesRiskSignal: parsed.matches_risk_signal,
     diseaseDescription: parsed.disease_description || parsed.primary_diagnosis?.causal_agent || parsed.causal_agent || '',
     treatment: parsed.treatment || {},
     prevention: parsed.prevention || [],
     notes: parsed.notes || '',
-    modelVersion: DIAGNOSIS_MODEL,
+    modelVersion: parsed.modelVersion || DIAGNOSIS_MODEL,
   };
   dc.confidence = isNaN(dc.geminiResult.confidence) ? 0.5 : dc.geminiResult.confidence;
-  dc.finalSeverity = dc.geminiResult.severity;
+  dc.finalSeverity = dc.geminiResult.severity; // already normalized above
+  if (!['none', 'mild', 'moderate', 'severe'].includes(dc.finalSeverity)) {
+    dc.finalSeverity = 'moderate';
+  }
   if (route === 'retry') {
     dc.status = 'retry_failed'; dc.outcome = 'retry';
   } else if (route === 'false_alarm') {
@@ -256,12 +410,13 @@ async function saveGeminiResult(dc, parsed, farm) {
   } else if (route === 'confirmed') {
     dc.status = 'report_ready'; dc.outcome = 'confirmed';
     dc.finalDiseaseCode = dc.geminiResult.detectedIssue;
-    try { 
-      await generateAndSaveAdvisory(
+    try {
+      await generateAdvisoryForCase(
         dc._id,
         parsed.detected_issue,
         severityForAdvisory(parsed.severity),
-        farm?.cropStage || 'vegetative'
+        farm?.cropStage || 'vegetative',
+        farm?.cropType || ''
       );
     } catch (advisoryErr) {
       console.warn('Advisory generation failed:', advisoryErr.message);

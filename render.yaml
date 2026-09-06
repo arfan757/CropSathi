@@ -16,10 +16,31 @@ services:
       # JWT_SECRET=your_secret_key
       # GEMINI_API_KEY=AIza...
       # CORS_ORIGIN=https://your-frontend.vercel.app
+      # ML_SERVICE_URL=http://<host>:<port> — plant disease CNN service
+      # (cropsathi-ml below). Internal host + port 10000, e.g.
+      # http://cropsathi-ml:10000, or the public https://cropsathi-ml.onrender.com.
+      - key: ML_SERVICE_URL
+        sync: false
       # COPENICUS_CLIENT_ID / COPENICUS_CLIENT_SECRET — free OAuth client
       # credentials from Copernicus Data Space (register at
       # dataspace.copernicus.eu, then create an OAuth client). REQUIRED for
       # real satellite data: Sentinel-2 NDVI/NDRE AND Landsat 8/9 thermal
       # (LST). Without them the backend serves simulated/formula fallbacks.
     healthCheckPath: /api/health
+    autoDeploy: true
+
+  # Plant disease detection CNN (TensorFlow/Keras, 38 PlantVillage classes).
+  # The 94 MB model is downloaded at build time from the pinned upstream
+  # commit; the Node backend calls it via ML_SERVICE_URL.
+  - type: web
+    name: cropsathi-ml
+    runtime: python
+    region: oregon
+    rootDir: ml-service
+    buildCommand: >
+      pip install -r requirements.txt &&
+      curl -L -o trained_plant_disease_model.keras
+      https://raw.githubusercontent.com/goutam-dev/crop-disease-detection/7e405a6ea149009b63e2421533ff3ee9d0a6e9bf/trained_plant_disease_model.keras
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     autoDeploy: true

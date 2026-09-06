@@ -1,6 +1,7 @@
 import NdviReading from '../models/NdviReading.js';
 import Field from '../models/Field.js';
 import { fetchSentinelNdvi } from './sentinelService.js';
+import { resolveDistrictFarmIds } from './thermalService.js';
 
 // ─── Field validity gate ────────────────────────────────────────────────
 // This answers a DIFFERENT question than computeNdviComponent below:
@@ -341,7 +342,7 @@ export async function getRecentNdvi(farmId, limit = 10) {
  *
  * Returns 0.5 (neutral/unknown) only when there is no NDVI reading at all.
  */
-export async function computeNdviComponent(farmId, cropType = null, cropStage = null) {
+export async function computeNdviComponent(farmId, cropType = null, cropStage = null, farm = null) {
   const readings = await NdviReading.find({ farmId })
     .sort({ observedAt: -1 })
     .limit(1)
@@ -351,16 +352,7 @@ export async function computeNdviComponent(farmId, cropType = null, cropStage = 
 
   const latest = readings[0];
 
-  // 0. Universal bare-surface floor. This needs NEITHER cropType NOR
-  // reading history — just this one NDVI value — so it can never be
-  // silently bypassed the way absoluteComponent/trendComponent below
-  // both can be (unset/unrecognized cropType, or a farm's first-ever
-  // reading). NDVI this low reads as pavement, rooftop, water, or bare
-  // soil for essentially any crop at any stage; a value like -0.04 is
-  // not "unknown, assume neutral" — it is a direct, crop-agnostic signal
-  // that there's no live vegetation in the boundary at all. This is what
-  // catches a boundary mistakenly drawn over a building even when the
-  // field's crop type was never set.
+  // 0. Universal bare-surface floor.
   const UNIVERSAL_BARE_NDVI = 0.15;
   let universalComponent = 0;
   if (latest.ndvi < UNIVERSAL_BARE_NDVI) {
@@ -384,15 +376,176 @@ export async function computeNdviComponent(farmId, cropType = null, cropStage = 
       : Math.min(1, (trailingAvg - latest.ndvi) / trailingAvg);
   }
 
-  // 3. NDRE component — crop-agnostic, needs no history either. Only
-  // available when this reading actually has an NDRE value (real
-  // Sentinel-2 readings always do; older readings or a simulation branch
-  // that skips it won't).
-  let ndreComponent = null;
-  if (latest.ndre !== null && latest.ndre !== undefined) {
-    ndreComponent = ndreToStress(latest.ndre);
+  // 2b. District-relative trend component (§4c) — requires district farm resolution
+  let districtRelativeComponent = null;
+  try {
+    const farmObj = farm || await Field.findById(farmId).lean();
+    if (farmObj) {
+      const districtInfo = await resolveDistrictFarmIds(farmObj);
+      if (districtInfo && districtInfo.farmIds.length > 0) {
+        const twentyEightDaysAgo = new Date(new Date(latest.observedAt).getTime() - 28 * 24 * 60 * 60 * 1000);
+        const districtReadings = await NdviReading.find({
+          farmId: { $in: districtInfo.farmIds },
+          observedAt: { $gte: twentyEightDaysAgo, $lte: new Date(latest.observedAt) },
+          sceneSource: { $ne: 'simulated' },
+        }).select('ndvi').lean();
+
+        // Require at least 3 real satellite readings across the district to form a valid baseline
+        if (districtReadings.length >= 3) {
+          const districtMeanNdvi = districtReadings.reduce((sum, r) => sum + r.ndvi, 0) / districtReadings.length;
+          if (districtMeanNdvi > 0 && latest.ndvi < districtMeanNdvi) {
+            const deficit = districtMeanNdvi - latest.ndvi;
+            districtRelativeComponent = Math.min(1, Math.max(0, deficit / districtMeanNdvi));
+          } else {
+            districtRelativeComponent = 0;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('District relative NDVI calculation skipped:', err.message);
   }
 
-  const component = Math.max(universalComponent, absoluteComponent ?? 0, trendComponent ?? 0, ndreComponent ?? 0);
+  // 3. NDRE now lives as an independent weighted component in computeFusedHealthScore (§4a/4b).
+  // Keeping it here would double-count it against NDVI's weight. Removed.
+
+  const component = Math.max(
+    universalComponent,
+    absoluteComponent ?? 0,
+    trendComponent ?? 0,
+    districtRelativeComponent ?? 0
+  );
   return Math.round(component * 1000) / 1000;
+}
+
+/**
+ * Compute NDRE stress component for a farm (§4a/4b).
+ * NDRE is now an independent weighted signal in the fusion, not folded into NDVI.
+ *
+ * Uses ndreToStress() on the latest reading — no crop-specific baseline needed.
+ * Returns 0.5 (neutral/unknown) when no reading exists or ndre is null.
+ */
+export async function computeNdreComponent(farmId) {
+  const readings = await NdviReading.find({ farmId })
+    .sort({ observedAt: -1 })
+    .limit(1)
+    .lean();
+
+  if (readings.length === 0) return 0.5; // no data — genuinely unknown
+
+  const latest = readings[0];
+  if (latest.ndre === null || latest.ndre === undefined) return 0.5; // real reading without NDRE band (older entry)
+
+  return Math.round(ndreToStress(latest.ndre) * 1000) / 1000;
+}
+
+/**
+ * Analyze spatial heterogeneity across a field's 10x10 grid (§4d).
+ * Detects localized vigor drops and checks for thermal corroboration at the same physical pixels.
+ *
+ * All thresholds are documented, reasoned starting assumptions (unvalidated hypotheses):
+ * - NDVI stddev > 0.10 indicates significant spatial non-uniformity across the field.
+ * - Hotspot cells = cells with NDVI < (mean - 1.0 * stdDev).
+ * - Thermal corroboration = hotspot cells are > 1.5°C warmer than field average canopy temp.
+ *
+ * Returns structured result for risk assessment and dashboard visualization.
+ */
+export function computeSpatialHotspot(ndviGrid, ndreGrid = null, thermalGrid = null) {
+  const emptyResult = {
+    isHeterogeneous: false,
+    stdDev: 0,
+    hotspotCellsCount: 0,
+    hotspotCells: [],
+    thermalCorroboration: false,
+    fieldMeanTemp: null,
+    hotspotMeanTemp: null,
+    message: null,
+  };
+
+  if (!ndviGrid || !Array.isArray(ndviGrid)) {
+    return emptyResult;
+  }
+
+  // 1. Collect valid cell values and coordinates
+  const validCells = [];
+  for (let r = 0; r < ndviGrid.length; r++) {
+    for (let c = 0; c < (ndviGrid[r]?.length || 0); c++) {
+      const val = ndviGrid[r][c];
+      if (val !== null && val !== undefined && !isNaN(val)) {
+        validCells.push({ row: r, col: c, ndvi: val });
+      }
+    }
+  }
+
+  if (validCells.length < 5) {
+    return emptyResult;
+  }
+
+  // 2. Compute mean & standard deviation
+  const ndviSum = validCells.reduce((sum, cell) => sum + cell.ndvi, 0);
+  const meanNdvi = ndviSum / validCells.length;
+  const variance = validCells.reduce((sum, cell) => sum + (cell.ndvi - meanNdvi) ** 2, 0) / validCells.length;
+  const stdDev = Math.round(Math.sqrt(variance) * 1000) / 1000;
+
+  // Threshold assumption: stdDev > 0.10 signals spatial heterogeneity
+  const HETEROGENEITY_THRESHOLD_STDDEV = 0.10;
+  const isHeterogeneous = stdDev > HETEROGENEITY_THRESHOLD_STDDEV;
+
+  if (!isHeterogeneous) {
+    return { ...emptyResult, stdDev };
+  }
+
+  // 3. Identify hotspot cells (cells falling below mean - 1.0 * stdDev)
+  const hotspotCutoff = meanNdvi - 1.0 * stdDev;
+  const hotspotCells = validCells
+    .filter(cell => cell.ndvi < hotspotCutoff)
+    .map(cell => ({ row: cell.row, col: cell.col, ndvi: cell.ndvi }));
+
+  // 4. Thermal corroboration check (if thermalGrid is available)
+  let thermalCorroboration = false;
+  let fieldMeanTemp = null;
+  let hotspotMeanTemp = null;
+
+  if (thermalGrid && Array.isArray(thermalGrid)) {
+    const validThermalCells = [];
+    const hotspotThermalValues = [];
+
+    for (let r = 0; r < thermalGrid.length; r++) {
+      for (let c = 0; c < (thermalGrid[r]?.length || 0); c++) {
+        const temp = thermalGrid[r][c];
+        if (temp !== null && temp !== undefined && !isNaN(temp)) {
+          validThermalCells.push(temp);
+          if (hotspotCells.some(h => h.row === r && h.col === c)) {
+            hotspotThermalValues.push(temp);
+          }
+        }
+      }
+    }
+
+    if (validThermalCells.length > 0) {
+      fieldMeanTemp = Math.round((validThermalCells.reduce((a, b) => a + b, 0) / validThermalCells.length) * 10) / 10;
+    }
+
+    if (hotspotThermalValues.length > 0 && fieldMeanTemp !== null) {
+      hotspotMeanTemp = Math.round((hotspotThermalValues.reduce((a, b) => a + b, 0) / hotspotThermalValues.length) * 10) / 10;
+      // Thermal corroboration threshold: hotspot patch is > 1.5°C warmer than field mean
+      const THERMAL_HOTSPOT_DELTA_C = 1.5;
+      if (hotspotMeanTemp - fieldMeanTemp > THERMAL_HOTSPOT_DELTA_C) {
+        thermalCorroboration = true;
+      }
+    }
+  }
+
+  const message = 'Localized anomaly detected — pattern consistent with root/vascular stress — recommend inspection.';
+
+  return {
+    isHeterogeneous: true,
+    stdDev,
+    hotspotCellsCount: hotspotCells.length,
+    hotspotCells,
+    thermalCorroboration,
+    fieldMeanTemp,
+    hotspotMeanTemp,
+    message,
+  };
 }

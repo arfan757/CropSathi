@@ -1,0 +1,4 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+tensorflow-cpu==2.19.0
+Pillow==11.1.0

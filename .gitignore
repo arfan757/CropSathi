@@ -2,4 +2,7 @@
 node_modules 
 .freebuff
 .agents
+ml-service/trained_plant_disease_model.keras
+ml-service/.venv/
+ml-service/__pycache__/
 

@@ -15,7 +15,7 @@ const riskScoreSchema = new mongoose.Schema({
   ndreComponent: { type: Number, default: 0, min: 0, max: 1 },
   thermalComponent: { type: Number, default: 0.5, min: 0, max: 1 },
   pestHistoryComponent: { type: Number, default: 0, min: 0, max: 1 },
-  compositeScore: { type: Number, default: 0, min: 0, max: 100 },
+  compositeScore: { type: Number, default: null, min: 0, max: 100 },
   healthLevel: { type: String, enum: ['healthy', 'watch', 'elevated', 'high', null], default: null },
   staleSignals: [{ type: String }],
   weightsUsed: { type: mongoose.Schema.Types.Mixed },

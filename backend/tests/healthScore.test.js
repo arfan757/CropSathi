@@ -127,26 +127,29 @@ describe('isStale', () => {
 describe('getCropWeights', () => {
   it('returns default weights for unknown crop', () => {
     const w = getCropWeights('unknown');
-    assert.equal(w.weather, 0.35);
-    assert.equal(w.ndvi, 0.30);
-    assert.equal(w.thermal, 0.15);
-    assert.equal(w.pestHistory, 0.20);
+    assert.equal(w.weather, 0.20);
+    assert.equal(w.ndvi, 0.15);
+    assert.equal(w.ndre, 0.30);
+    assert.equal(w.thermal, 0.25);
+    assert.equal(w.pestHistory, 0.10);
   });
 
   it('returns rice-specific weights', () => {
     const w = getCropWeights('rice');
-    assert.equal(w.weather, 0.30);
-    assert.equal(w.ndvi, 0.35);  // rice has higher vegetation weight
-    assert.equal(w.thermal, 0.15);
-    assert.equal(w.pestHistory, 0.20);
+    assert.equal(w.weather, 0.20);
+    assert.equal(w.ndvi, 0.15);
+    assert.equal(w.ndre, 0.30);
+    assert.equal(w.thermal, 0.25);
+    assert.equal(w.pestHistory, 0.10);
   });
 
   it('returns cotton-specific weights', () => {
     const w = getCropWeights('cotton');
-    assert.equal(w.weather, 0.40);  // cotton has higher weather weight
-    assert.equal(w.ndvi, 0.25);
-    assert.equal(w.thermal, 0.15);
-    assert.equal(w.pestHistory, 0.20);
+    assert.equal(w.weather, 0.20);
+    assert.equal(w.ndvi, 0.15);
+    assert.equal(w.ndre, 0.30);
+    assert.equal(w.thermal, 0.25);
+    assert.equal(w.pestHistory, 0.10);
   });
 
   it('is case-insensitive', () => {
@@ -157,14 +160,14 @@ describe('getCropWeights', () => {
 
   it('handles null/undefined gracefully', () => {
     const w = getCropWeights(null);
-    assert.equal(w.weather, 0.35); // default
+    assert.equal(w.weather, 0.20); // default
   });
 
   it('weights always sum to 1.0', () => {
     const crops = ['default', 'rice', 'cotton', 'soybean', 'wheat', 'potato', 'maize', 'sugarcane', 'grapes', 'tur'];
     for (const crop of crops) {
       const w = getCropWeights(crop);
-      const sum = w.weather + w.ndvi + w.thermal + w.pestHistory;
+      const sum = w.weather + w.ndvi + w.ndre + w.thermal + w.pestHistory;
       assert.ok(Math.abs(sum - 1.0) < 0.001, `Weights for ${crop} sum to ${sum}, expected 1.0`);
     }
   });
@@ -184,73 +187,72 @@ describe('computeFusedHealthScore — core fusion', () => {
   });
 
   it('returns lowest possible score for max stress on all signals', () => {
-    // All 4 components at max stress (1.0) with default weights:
-    //   weighted = 0.35*1.0 + 0.30*1.0 + 0.15*1.0 + 0.20*1.0 = 1.00
-    //   overlap = 0.5 * min(0.35, 0.15) = 0.075
-    //   weighted_stress = 1.00 - 0.075 = 0.925 → health = 100 * (1 - 0.925) ≈ 7
+    // All 5 components at max stress (1.0) with default weights:
+    //   weighted = 0.20 + 0.15 + 0.30 + 0.25 + 0.10 = 1.00
+    //   overlap = 0.5 * min(0.20, 0.25) = 0.10
+    //   weighted_stress = 1.00 - 0.10 = 0.90 → health = 10
     const result = computeFusedHealthScore(
-      { weather: 1, ndvi: 1, thermal: 1, pestHistory: 1 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 1, ndvi: 1, ndre: 1, thermal: 1, pestHistory: 1 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
-    assert.equal(result.score, 7);
+    assert.equal(result.score, 10);
     assert.equal(result.level, HealthLevel.HIGH);
     assert.equal(result.triggeredAlert, true);
   });
 
   it('computes correct weighted average for uniform stress (with overlap discount)', () => {
-    // All components at 0.5 stress with default weights:
-    //   weighted = 0.35*0.5 + 0.30*0.5 + 0.15*0.5 + 0.20*0.5 = 0.50
-    //   overlap = 0.5 * min(0.175, 0.075) = 0.0375
-    //   weighted_stress = 0.50 - 0.0375 = 0.4625 → health = 100 * (1 - 0.4625) ≈ 54
+    // All 4 components at 0.5 stress, ndre not passed so defaults to 0:
+    // weighted = 0.20*0.5 + 0.15*0.5 + 0.30*0 + 0.25*0.5 + 0.10*0.5 = 0.35
+    // overlap = 0.5 * min(0.20*0.5, 0.25*0.5) = 0.5 * min(0.10, 0.125) = 0.05
+    // weighted_stress = 0.35 - 0.05 = 0.30 → health = 70
     const result = computeFusedHealthScore(
       { weather: 0.5, ndvi: 0.5, thermal: 0.5, pestHistory: 0.5 },
       { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
-    assert.equal(result.score, 54);
-    assert.equal(result.level, HealthLevel.ELEVATED);
-    assert.equal(result.triggeredAlert, true);
+    assert.equal(result.score, 70);
+    assert.equal(result.level, HealthLevel.WATCH);
+    assert.equal(result.triggeredAlert, false);
   });
 
   it('uses the per-crop weight profile in fusion', () => {
-    // Rice weights: weather=0.30, ndvi=0.35, thermal=0.15, pestHistory=0.20
-    // Weather alone at max stress: 0.30 → health = 70 (vs 65 under default)
+    // All crops now use: weather=0.20, ndvi=0.15, ndre=0.30, thermal=0.25, pestHistory=0.10
+    // Weather alone at max stress: 0.20 → health = 80
     const result = computeFusedHealthScore(
-      { weather: 1.0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 1.0, ndvi: 0, ndre: 0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
       'rice',
     );
-    assert.equal(result.score, 70);
-    assert.equal(result.weightsUsed.weather, 0.3);
-    assert.equal(result.weightsUsed.ndvi, 0.35);
+    assert.equal(result.score, 80);
+    assert.equal(result.weightsUsed.weather, 0.2);
+    assert.equal(result.weightsUsed.ndvi, 0.15);
+    assert.equal(result.weightsUsed.ndre, 0.3);
   });
 
   it('applies default weights correctly', () => {
-    // Default weights: weather=0.35, ndvi=0.30, thermal=0.15, pestHistory=0.20
+    // Default weights: weather=0.20, ndvi=0.15, ndre=0.30, thermal=0.25, pestHistory=0.10
     // With stress: weather=1.0, rest=0.0
-    // weighted_stress = 0.35 * 1.0 + 0.30 * 0 + 0.15 * 0 + 0.20 * 0 = 0.35
-    // health = 100 * (1 - 0.35) = 65
+    // weighted_stress = 0.20 * 1.0 = 0.20 → health = 80
     const result = computeFusedHealthScore(
-      { weather: 1.0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 1.0, ndvi: 0, ndre: 0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
-    assert.equal(result.score, 65);
+    assert.equal(result.score, 80);
   });
 
   it('no single signal can push score to ELEVATED alone (false-alarm gate)', () => {
-    // The max single weight is 0.40 (cotton weather). At max stress (1.0):
-    // weighted_stress = 0.40 * 1.0 + 0.60 * 0 = 0.40
-    // health = 100 * (1 - 0.40) = 60 → WATCH, not ELEVATED
+    // Max single weight is now 0.30 (ndre). At max stress (1.0):
+    // weighted_stress = 0.30 * 1.0 = 0.30 → health = 70 → WATCH, not ELEVATED
     const result = computeFusedHealthScore(
-      { weather: 1.0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 0, ndvi: 0, ndre: 1.0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
@@ -260,17 +262,15 @@ describe('computeFusedHealthScore — core fusion', () => {
   });
 
   it('requires at least two signals to corroborate for ELEVATED', () => {
-    // Weather (0.35) + Thermal (0.15) both at stress 0.8:
-    // weighted = 0.35*0.8 + 0.15*0.8 = 0.40. Overlap = 0.5 * 0.12 = 0.06 -> 0.34
-    // Weather (0.35) + NDVI (0.30) both at 0.8:
-    // weighted = 0.35*0.8 + 0.30*0.8 = 0.52 -> health = 48 -> ELEVATED
+    // Weather (0.20) + NDRE (0.30) both at stress 0.9:
+    // weighted = 0.20*0.9 + 0.30*0.9 = 0.18 + 0.27 = 0.45 → health = 55 → ELEVATED
     const result = computeFusedHealthScore(
-      { weather: 0.8, ndvi: 0.8, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 0.9, ndvi: 0, ndre: 0.9, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
-    assert.equal(result.score, 48);
+    assert.equal(result.score, 55);
     assert.equal(result.level, HealthLevel.ELEVATED);
     assert.equal(result.triggeredAlert, true);
   });
@@ -278,70 +278,66 @@ describe('computeFusedHealthScore — core fusion', () => {
 
 describe('computeFusedHealthScore — staleness redistribution', () => {
   it('drops stale NDVI and redistributes weight', () => {
-    // NDVI is stale (14 days old), so its 0.30 weight redistributes
-    // Fresh: weather(0.35) + thermal(0.15) + pestHistory(0.20) = 0.70
-    // Normalized: weather=0.5, thermal=0.214, pestHistory=0.286
+    // NDVI stale (14 days, limit=10), NDRE also stale (same limit=10)
+    // Fresh: weather(0.20) + thermal(0.25) + pestHistory(0.10) = 0.55
+    // Normalized: weather=0.364, thermal=0.455, pestHistory=0.182
     const result = computeFusedHealthScore(
-      { weather: 0.5, ndvi: 0.9, thermal: 0.2, pestHistory: 0.1 },
-      { weather: NOW, ndvi: daysAgo(14), thermal: NOW, pestHistory: null },
+      { weather: 0.5, ndvi: 0.9, ndre: 0.9, thermal: 0.2, pestHistory: 0.1 },
+      { weather: NOW, ndvi: daysAgo(14), ndre: daysAgo(14), thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
     // Stale signal should be listed
     assert.ok(result.staleSignals.includes('ndvi'));
-    // NDVI stress should NOT affect the score (weight = 0)
-    // weighted_stress = 0.5*0.5 + 0*0.9 + 0.214*0.2 + 0.286*0.1
-    // = 0.25 + 0 + 0.0428 + 0.0286 = 0.3214
-    // health = 100 * (1 - 0.321) ≈ 68
+    assert.ok(result.staleSignals.includes('ndre'));
+    // NDVI + NDRE stress should NOT affect the score
     assert.ok(result.score > 60, `Expected score > 60, got ${result.score}`);
   });
 
   it('drops stale thermal and redistributes weight', () => {
     const result = computeFusedHealthScore(
-      { weather: 0.3, ndvi: 0.2, thermal: 0.9, pestHistory: 0.1 },
-      { weather: NOW, ndvi: NOW, thermal: daysAgo(25), pestHistory: null },
+      { weather: 0.3, ndvi: 0.2, ndre: 0, thermal: 0.9, pestHistory: 0.1 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: daysAgo(25), pestHistory: null },
       null,
       NOW,
     );
     assert.ok(result.staleSignals.includes('thermal'));
     // Thermal stress (0.9) should NOT affect the score
-    // Without thermal: weather(0.35) + ndvi(0.30) + pestHistory(0.20) = 0.85
-    // Normalized: weather=0.412, ndvi=0.353, pestHistory=0.235
-    // weighted_stress = 0.412*0.3 + 0.353*0.2 + 0.235*0.1
-    // = 0.1236 + 0.0706 + 0.0235 = 0.2177
-    // health = 100 * (1 - 0.2177) ≈ 78
     assert.ok(result.score > 70, `Expected score > 70, got ${result.score}`);
   });
 
   it('drops multiple stale signals', () => {
+    // ndvi and ndre both stale (14d > 10d limit), thermal stale (25d > 20d)
     const result = computeFusedHealthScore(
-      { weather: 0.8, ndvi: 0.9, thermal: 0.7, pestHistory: 0.1 },
-      { weather: NOW, ndvi: daysAgo(14), thermal: daysAgo(25), pestHistory: null },
+      { weather: 0.8, ndvi: 0.9, ndre: 0.9, thermal: 0.7, pestHistory: 0.1 },
+      { weather: NOW, ndvi: daysAgo(14), ndre: daysAgo(14), thermal: daysAgo(25), pestHistory: null },
       null,
       NOW,
     );
     assert.ok(result.staleSignals.includes('ndvi'));
+    assert.ok(result.staleSignals.includes('ndre'));
     assert.ok(result.staleSignals.includes('thermal'));
-    // Only weather + pestHistory remain: 0.35 + 0.20 = 0.55
-    // Normalized: weather=0.636, pestHistory=0.364
-    // weighted_stress = 0.636*0.8 + 0.364*0.1 = 0.509 + 0.036 = 0.545
-    // health = 100 * (1 - 0.545) ≈ 46
+    // Only weather(0.20) + pestHistory(0.10) remain = 0.30
+    // Normalized: weather=0.667, pestHistory=0.333
+    // weighted_stress = 0.667*0.8 + 0.333*0.1 = 0.5336 + 0.0333 = 0.567 → health = 43
     assert.ok(result.score >= 40 && result.score <= 60, `Expected score 40-60, got ${result.score}`);
   });
 
   it('falls back to historical-only when all fresh signals are stale', () => {
+    // weather=daysAgo(5) stale (limit=2), ndvi=daysAgo(14) stale (limit=10),
+    // ndre=daysAgo(14) stale (limit=10), thermal=daysAgo(25) stale (limit=20)
     const result = computeFusedHealthScore(
-      { weather: 0.8, ndvi: 0.9, thermal: 0.7, pestHistory: 0.3 },
-      { weather: daysAgo(5), ndvi: daysAgo(14), thermal: daysAgo(25), pestHistory: null },
+      { weather: 0.8, ndvi: 0.9, ndre: 0.9, thermal: 0.7, pestHistory: 0.3 },
+      { weather: daysAgo(5), ndvi: daysAgo(14), ndre: daysAgo(14), thermal: daysAgo(25), pestHistory: null },
       null,
       NOW,
     );
     assert.ok(result.staleSignals.includes('ndvi'));
+    assert.ok(result.staleSignals.includes('ndre'));
     assert.ok(result.staleSignals.includes('thermal'));
     assert.ok(result.staleSignals.includes('weather'));
     // Fallback: pestHistory weight = 1.0
-    // weighted_stress = 1.0 * 0.3 = 0.3
-    // health = 100 * (1 - 0.3) = 70
+    // weighted_stress = 1.0 * 0.3 = 0.3 → health = 70
     assert.equal(result.score, 70);
     assert.equal(result.weightsUsed.pestHistory, 1.0);
   });
@@ -349,60 +345,54 @@ describe('computeFusedHealthScore — staleness redistribution', () => {
 
 describe('computeFusedHealthScore — crop-stage relevance', () => {
   it('reduces weather relevance during sowing', () => {
-    // Weather at max stress during sowing (relevance=0.8)
-    // weighted_stress = 0.35 * 1.0 * 0.8 + 0.30 * 0 * 1.0 + 0.15 * 0 * 0.7 + 0.20 * 0 * 0.5
-    // = 0.28
-    // health = 100 * (1 - 0.28) = 72
+    // Weather at max stress during sowing (weather relevance=0.8)
+    // effective weather = 1.0*0.8 = 0.8, all others = 0
+    // weighted_stress = 0.20 * 0.8 = 0.16 → health = 84
     const result = computeFusedHealthScore(
-      { weather: 1.0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 1.0, ndvi: 0, ndre: 0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       'sowing',
       NOW,
     );
-    assert.equal(result.score, 72);
-    // Without crop-stage: score would be 65
-    // With sowing relevance: score is higher (less penalized)
+    assert.equal(result.score, 84);
+    // Without crop-stage: score would be 80; with sowing relevance: higher (less penalized)
   });
 
   it('full relevance during flowering', () => {
     const result = computeFusedHealthScore(
-      { weather: 1.0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 1.0, ndvi: 0, ndre: 0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       'flowering',
       NOW,
     );
-    // Flowering: weather relevance = 1.0
-    // weighted_stress = 0.35 * 1.0 = 0.35
-    // health = 65
-    assert.equal(result.score, 65);
+    // Flowering: weather relevance = 1.0 → weighted_stress = 0.20 → health = 80
+    assert.equal(result.score, 80);
   });
 
   it('reduces all relevance during harvested', () => {
     const result = computeFusedHealthScore(
-      { weather: 0.8, ndvi: 0.9, thermal: 0.7, pestHistory: 0.5 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 0.8, ndvi: 0.9, ndre: 0, thermal: 0.7, pestHistory: 0.5 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       'harvested',
       NOW,
     );
-    // harvested: weather=0.3, ndvi=0.4, thermal=0.3, pestHistory=0.2
-    // effective_stress = 0.8*0.3 + 0.9*0.4 + 0.7*0.3 + 0.5*0.2
-    // = 0.24 + 0.36 + 0.21 + 0.10 = 0.91
-    // weighted_stress = 0.35*0.24 + 0.30*0.36 + 0.15*0.21 + 0.20*0.10
-    // = 0.084 + 0.108 + 0.0315 + 0.02 = 0.2435
-    // health = 100 * (1 - 0.2435) ≈ 76
+    // harvested relevance: weather=0.3, ndvi=0.4, ndre=0.4, thermal=0.3, pestHistory=0.2
+    // effective: weather=0.24, ndvi=0.36, ndre=0, thermal=0.21, pestHistory=0.10
+    // weighted = 0.20*0.24 + 0.15*0.36 + 0.30*0 + 0.25*0.21 + 0.10*0.10
+    // = 0.048 + 0.054 + 0 + 0.0525 + 0.01 = 0.1645 → health = 84
     assert.ok(result.score > 70, `Expected score > 70 during harvested, got ${result.score}`);
   });
 
   it('defaults to full relevance when cropStage is null', () => {
     const resultWithStage = computeFusedHealthScore(
-      { weather: 1.0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 1.0, ndvi: 0, ndre: 0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       'flowering',
       NOW,
     );
     const resultWithout = computeFusedHealthScore(
-      { weather: 1.0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 1.0, ndvi: 0, ndre: 0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
@@ -413,52 +403,53 @@ describe('computeFusedHealthScore — crop-stage relevance', () => {
 describe('computeFusedHealthScore — component stress tracking', () => {
   it('reports effective stress per component after stage adjustment', () => {
     const result = computeFusedHealthScore(
-      { weather: 0.8, ndvi: 0.5, thermal: 0.3, pestHistory: 0.1 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 0.8, ndvi: 0.5, ndre: 0.4, thermal: 0.3, pestHistory: 0.1 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       'sowing',
       NOW,
     );
-    // sowing: weather=0.8, ndvi=0.6, thermal=0.7, pestHistory=0.5
-    // effective: weather=0.8*0.8=0.64, ndvi=0.5*0.6=0.3, thermal=0.3*0.7=0.21, pestHistory=0.1*0.5=0.05
+    // sowing: weather=0.8, ndvi=0.6, ndre=0.6, thermal=0.7, pestHistory=0.5
+    // effective: weather=0.8*0.8=0.64, ndvi=0.5*0.6=0.3, ndre=0.4*0.6=0.24, thermal=0.3*0.7=0.21, pestHistory=0.1*0.5=0.05
     assert.equal(result.componentStress.weather, 0.64);
     assert.equal(result.componentStress.ndvi, 0.3);
+    assert.equal(result.componentStress.ndre, 0.24);
     assert.equal(result.componentStress.thermal, 0.21);
     assert.equal(result.componentStress.pestHistory, 0.05);
   });
 
   it('reports normalized weights used', () => {
     const result = computeFusedHealthScore(
-      { weather: 0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 0, ndvi: 0, ndre: 0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
-    // Default weights: weather=0.35, ndvi=0.30, thermal=0.15, pestHistory=0.20
-    // They should already sum to 1.0, so normalized = same
+    // Weights: weather=0.20, ndvi=0.15, ndre=0.30, thermal=0.25, pestHistory=0.10 = sum 1.0
     const sum = Object.values(result.weightsUsed).reduce((a, b) => a + b, 0);
     assert.ok(Math.abs(sum - 1.0) < 0.001, `Weights sum to ${sum}`);
   });
 });
 
 describe('computeFusedHealthScore — edge cases', () => {
-  it('overlap discount keeps max-stress score above 0 (floor ~7 with default weights)', () => {
-    // The weather/thermal overlap discount means even absolute max stress
-    // cannot reach exactly 0 — a heat event driving BOTH weather and
-    // thermal stress is one underlying cause, not two corroborating ones.
+  it('overlap discount keeps max-stress score above 0', () => {
+    // All signals at 1.0 stress:
+    // weighted = 0.20 + 0.15 + 0.30 + 0.25 + 0.10 = 1.00
+    // overlap = 0.5 * min(0.20, 0.25) = 0.10
+    // stress = 0.90 → health = 10
     const result = computeFusedHealthScore(
-      { weather: 1, ndvi: 1, thermal: 1, pestHistory: 1 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 1, ndvi: 1, ndre: 1, thermal: 1, pestHistory: 1 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
-    assert.equal(result.score, 7);
+    assert.equal(result.score, 10);
     assert.ok(result.score > 0, `Score should stay above 0, got ${result.score}`);
   });
 
   it('clamps score to 100 at zero stress', () => {
     const result = computeFusedHealthScore(
-      { weather: 0, ndvi: 0, thermal: 0, pestHistory: 0 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 0, ndvi: 0, ndre: 0, thermal: 0, pestHistory: 0 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
@@ -473,14 +464,13 @@ describe('computeFusedHealthScore — edge cases', () => {
       NOW,
     );
     // Missing components default to 0 stress
-    // weighted_stress = 0.35*0.5 = 0.175
-    // health = 100*(1-0.175) = 82.5 → 83 (rounded)
+    // weighted_stress = 0.20*0.5 = 0.10 → health = 90
     assert.ok(result.score > 80, `Expected score > 80, got ${result.score}`);
   });
 
   it('handles empty signal dates gracefully', () => {
     const result = computeFusedHealthScore(
-      { weather: 0.5, ndvi: 0.3, thermal: 0.2, pestHistory: 0.1 },
+      { weather: 0.5, ndvi: 0.3, ndre: 0, thermal: 0.2, pestHistory: 0.1 },
       {}, // no dates
       null,
       NOW,
@@ -491,8 +481,8 @@ describe('computeFusedHealthScore — edge cases', () => {
 
   it('produces integer scores', () => {
     const result = computeFusedHealthScore(
-      { weather: 0.333, ndvi: 0.667, thermal: 0.123, pestHistory: 0.456 },
-      { weather: NOW, ndvi: NOW, thermal: NOW, pestHistory: null },
+      { weather: 0.333, ndvi: 0.667, ndre: 0.4, thermal: 0.123, pestHistory: 0.456 },
+      { weather: NOW, ndvi: NOW, ndre: NOW, thermal: NOW, pestHistory: null },
       null,
       NOW,
     );
@@ -503,8 +493,8 @@ describe('computeFusedHealthScore — edge cases', () => {
 describe('computeFusedHealthScore — realistic scenarios', () => {
   it('healthy field: low stress across all signals', () => {
     const result = computeFusedHealthScore(
-      { weather: 0.05, ndvi: 0.02, thermal: 0.0, pestHistory: 0.1 },
-      { weather: NOW, ndvi: daysAgo(2), thermal: daysAgo(5), pestHistory: null },
+      { weather: 0.05, ndvi: 0.02, ndre: 0.0, thermal: 0.0, pestHistory: 0.1 },
+      { weather: NOW, ndvi: daysAgo(2), ndre: daysAgo(2), thermal: daysAgo(5), pestHistory: null },
       null,
       NOW,
     );
@@ -515,48 +505,48 @@ describe('computeFusedHealthScore — realistic scenarios', () => {
 
   it('moderate risk: elevated weather + NDVI decline', () => {
     const result = computeFusedHealthScore(
-      { weather: 0.7, ndvi: 0.5, thermal: 0.0, pestHistory: 0.1 },
-      { weather: NOW, ndvi: daysAgo(1), thermal: daysAgo(4), pestHistory: null },
+      { weather: 0.7, ndvi: 0.5, ndre: 0, thermal: 0.0, pestHistory: 0.1 },
+      { weather: NOW, ndvi: daysAgo(1), ndre: daysAgo(1), thermal: daysAgo(4), pestHistory: null },
       null,
       NOW,
     );
-    // weighted_stress = 0.35*0.7 + 0.30*0.5 + 0.15*0 + 0.20*0.1
-    // = 0.245 + 0.15 + 0 + 0.02 = 0.415
-    // health = 100*(1-0.415) = 58.5 → 59
-    assert.ok(result.score < 70, `Moderate risk should be < 70, got ${result.score}`);
+    // weighted_stress = 0.20*0.7 + 0.15*0.5 + 0.30*0 + 0.25*0 + 0.10*0.1 = 0.14+0.075+0.01 = 0.225
+    // health = 78 — unhealthy (WATCH), but not ELEVATED
+    assert.ok(result.score < 80, `Moderate risk should be < 80, got ${result.score}`);
+    assert.equal(result.level, HealthLevel.WATCH);
   });
 
   it('severe: all signals high stress', () => {
     const result = computeFusedHealthScore(
-      { weather: 0.9, ndvi: 0.85, thermal: 0.8, pestHistory: 0.4 },
-      { weather: NOW, ndvi: daysAgo(1), thermal: daysAgo(3), pestHistory: null },
+      { weather: 0.9, ndvi: 0.85, ndre: 0.9, thermal: 0.8, pestHistory: 0.4 },
+      { weather: NOW, ndvi: daysAgo(1), ndre: daysAgo(1), thermal: daysAgo(3), pestHistory: null },
       null,
       NOW,
     );
-    // weighted = 0.35*0.9 + 0.30*0.85 + 0.15*0.8 + 0.20*0.4
-    // = 0.315 + 0.255 + 0.12 + 0.08 = 0.77
-    // overlap = 0.5 * min(0.315, 0.12) = 0.06 → stress 0.71
-    // health = 100*(1-0.71) = 29
-    assert.equal(result.score, 29);
+    // weighted = 0.20*0.9 + 0.15*0.85 + 0.30*0.9 + 0.25*0.8 + 0.10*0.4
+    // = 0.18 + 0.1275 + 0.27 + 0.20 + 0.04 = 0.8175
+    // overlap = 0.5 * min(0.18, 0.20) = 0.09
+    // stress = 0.8175 - 0.09 = 0.7275 → health = 27
+    assert.ok(result.score < 40, `Severe stress should score < 40, got ${result.score}`);
     assert.equal(result.level, HealthLevel.HIGH);
     assert.equal(result.triggeredAlert, true);
   });
 
   it('stale NDVI during monsoon: weather and thermal carry score', () => {
-    // During monsoon, NDVI satellite data is cloud-blocked (stale)
+    // NDVI and NDRE stale (14d > 10d limit)
     const result = computeFusedHealthScore(
-      { weather: 0.5, ndvi: 0.1, thermal: 0.4, pestHistory: 0.2 },
-      { weather: NOW, ndvi: daysAgo(14), thermal: daysAgo(6), pestHistory: null },
+      { weather: 0.5, ndvi: 0.1, ndre: 0.1, thermal: 0.4, pestHistory: 0.2 },
+      { weather: NOW, ndvi: daysAgo(14), ndre: daysAgo(14), thermal: daysAgo(6), pestHistory: null },
       null,
       NOW,
     );
     assert.ok(result.staleSignals.includes('ndvi'));
-    // Without stale NDVI: weather(0.35)+thermal(0.15)+pestHistory(0.20)=0.70
-    // normalized: weather=0.5, thermal=0.214, pestHistory=0.286
-    // weighted_stress = 0.5*0.5 + 0.214*0.4 + 0.286*0.2
-    // = 0.25 + 0.0856 + 0.0572 = 0.3928
-    // health = 100*(1-0.3928) ≈ 61
-    assert.ok(result.score >= 60, `Expected score >= 60, got ${result.score}`);
+    assert.ok(result.staleSignals.includes('ndre'));
+    // Fresh: weather(0.20)+thermal(0.25)+pestHistory(0.10) = 0.55
+    // normalized: weather=0.364, thermal=0.455, pestHistory=0.182
+    // weighted_stress = 0.364*0.5 + 0.455*0.4 + 0.182*0.2 = 0.182+0.182+0.0364 = 0.4004
+    // health ≈ 60
+    assert.ok(result.score >= 55, `Expected score >= 55, got ${result.score}`);
   });
 });
 

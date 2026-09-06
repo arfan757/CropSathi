@@ -266,6 +266,17 @@ export async function getRecentThermal(farmId, limit = 10) {
 }
 
 /**
+ * Get latest thermal grid for spatial analysis.
+ */
+export async function getLatestThermalGrid(farmId) {
+  const latest = await ThermalReading.findOne({ farmId })
+    .sort({ observedAt: -1 })
+    .select('thermalGrid sceneSource observedAt')
+    .lean();
+  return latest?.thermalGrid || null;
+}
+
+/**
  * Compute thermal risk component for a farm.
  *
  * Two signals feed in, and the WORSE wins:

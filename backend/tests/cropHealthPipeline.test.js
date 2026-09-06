@@ -15,6 +15,7 @@ import NdviReading from '../src/models/NdviReading.js';
 import ThermalReading from '../src/models/ThermalReading.js';
 import {
   computeNdviComponent,
+  computeNdreComponent,
   ndreToStress,
   getExpectedNdvi,
 } from '../src/services/ndviService.js';
@@ -85,7 +86,7 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
       });
       try {
         const stress = await computeNdviComponent('dummyFarmId', null, null);
-        assert.ok(stress >= 0.45 && stress <= 0.65, `Expected high stress ~0.52, got ${stress}`);
+        assert.ok(stress >= 0.35 && stress <= 0.45, `Expected universal floor stress ~0.40, got ${stress}`);
       } finally {
         restore();
       }
@@ -99,8 +100,8 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
         observedAt: new Date(),
       });
       try {
-        const stress = await computeNdviComponent('dummyFarmId', null, null);
-        assert.ok(Math.abs(stress - 0.313) <= 0.02, `Expected stress ~0.313 driven by NDRE, got ${stress}`);
+        const ndreStress = await computeNdreComponent('dummyFarmId');
+        assert.ok(Math.abs(ndreStress - 0.313) <= 0.02, `Expected stress ~0.313 driven by NDRE, got ${ndreStress}`);
       } finally {
         restore();
       }
@@ -240,6 +241,7 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
   describe('End-to-End Pipeline Cases (12 - 13)', () => {
     it('Case 12: Recreate original failing rooftop field (NDVI=-0.04, NDRE=-0.04, cropType=null) → compositeScore is concerning (<75), NOT 100', () => {
       const ndviStress = 0.76;
+      const ndreStress = 0.60;
       const weatherStress = 0.2;
       const thermalStress = 0.0;
       const pestHistoryStress = 0.0;
@@ -248,6 +250,7 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
         {
           weather: weatherStress,
           ndvi: ndviStress,
+          ndre: ndreStress,
           thermal: thermalStress,
           pestHistory: pestHistoryStress,
         },
@@ -270,6 +273,7 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
 
     it('Case 13: Same field with valid cropType="cotton", vegetative stage → score is at least as concerning as Case 12', () => {
       const ndviStressWithCrop = 1.0;
+      const ndreStressWithCrop = 0.60;
       const weatherStress = 0.2;
       const thermalStress = 0.0;
       const pestHistoryStress = 0.0;
@@ -278,6 +282,7 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
         {
           weather: weatherStress,
           ndvi: ndviStressWithCrop,
+          ndre: ndreStressWithCrop,
           thermal: thermalStress,
           pestHistory: pestHistoryStress,
         },
@@ -291,6 +296,7 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
         {
           weather: weatherStress,
           ndvi: 0.76,
+          ndre: 0.60,
           thermal: thermalStress,
           pestHistory: pestHistoryStress,
         },

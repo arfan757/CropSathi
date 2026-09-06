@@ -2,8 +2,8 @@ import RiskScore from '../models/RiskScore.js';
 import Field from '../models/Field.js';
 import DiagnosisCase from '../models/DiagnosisCase.js';
 import { evaluateWeatherForFarm } from './weatherService.js';
-import { fetchNdviForFarm, computeNdviComponent, ndreToStress, isVegetationDetected } from './ndviService.js';
-import { computeThermalReading, computeThermalComponent, resolveDistrictFarmIds } from './thermalService.js';
+import { fetchNdviForFarm, computeNdviComponent, computeNdreComponent, ndreToStress, isVegetationDetected, computeSpatialHotspot } from './ndviService.js';
+import { computeThermalReading, computeThermalComponent, resolveDistrictFarmIds, getLatestThermalGrid } from './thermalService.js';
 
 // ─── Health Levels (from risk_fusion.py) ────────────────────────────────────
 // score >= 80  → healthy  (no action)
@@ -18,39 +18,49 @@ export const HealthLevel = Object.freeze({
 });
 
 // ─── Per-crop configurable weights (spec §7.4) ─────────────────────────────
+// HYPOTHESIS — NOT empirically calibrated (see §4a/4b of the scoring review).
+// Proposed weights: Weather 20%, NDRE 30%, Thermal 25%, NDVI 15%, PestHistory 10%.
+// Rationale:
+//   • NDRE promoted to top weight: most sensitive early-disease/chlorophyll signal.
+//   • NDVI demoted: canopy structure lags NDRE in early stress.
+//   • PestHistory reduced: ambient context, not direct plant observation.
+// Must be recalibrated from real outcome data before production confidence.
 const CROP_WEIGHTS = {
-  default:  { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
-  rice:     { weather: 0.30, ndvi: 0.35, thermal: 0.15, pestHistory: 0.20 },
-  cotton:   { weather: 0.40, ndvi: 0.25, thermal: 0.15, pestHistory: 0.20 },
-  soybean:  { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
-  wheat:    { weather: 0.40, ndvi: 0.25, thermal: 0.15, pestHistory: 0.20 },
-  potato:   { weather: 0.35, ndvi: 0.30, thermal: 0.20, pestHistory: 0.15 },
-  maize:    { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
-  sugarcane:{ weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
-  grapes:   { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
-  tur:      { weather: 0.35, ndvi: 0.30, thermal: 0.15, pestHistory: 0.20 },
+  default:  { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  rice:     { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  cotton:   { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  soybean:  { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  wheat:    { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  potato:   { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  maize:    { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  sugarcane:{ weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  grapes:   { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
+  tur:      { weather: 0.20, ndvi: 0.15, ndre: 0.30, thermal: 0.25, pestHistory: 0.10 },
 };
 
 // ─── Staleness limits (days) ────────────────────────────────────────────────
-// A signal older than this is dropped and its weight redistributes to fresh
-// signals, rather than being trusted as current or zeroed out.
 const STALENESS_LIMIT_DAYS = {
-  weather: 2,      // should essentially never trigger — no satellite gap
+  weather: 2,
   ndvi: 10,         // ~2 missed Sentinel-2 revisits
-  thermal: 20,      // Landsat/MODIS revisit is already slow; extra slack
+  ndre: 10,         // same revisit cadence — same Sentinel-2 image as ndvi
+  thermal: 20,      // Landsat/MODIS revisit is slow; extra slack
   pestHistory: null, // never goes stale — historical baseline
 };
 
 // ─── Crop-stage relevance multipliers ───────────────────────────────────────
-// Per-signal relevance (0-1) for the crop's current stage. A disease that
-// only strikes at flowering shouldn't penalize the score during vegetative.
-// Defaults to 1.0 (full relevance) when stage is unknown.
 const STAGE_RELEVANCE = {
   weather: {
     sowing: 0.8, vegetative: 1.0, flowering: 1.0,
     fruiting: 0.9, maturity: 0.7, harvested: 0.3,
   },
   ndvi: {
+    sowing: 0.6, vegetative: 1.0, flowering: 1.0,
+    fruiting: 0.9, maturity: 0.8, harvested: 0.4,
+  },
+  // NDRE tracks chlorophyll closely, so it is particularly relevant during
+  // vegetative and early-stress phases, and starts to naturally decline
+  // toward maturity/harvest (senescence) — mirrors ndvi profile.
+  ndre: {
     sowing: 0.6, vegetative: 1.0, flowering: 1.0,
     fruiting: 0.9, maturity: 0.8, harvested: 0.4,
   },
@@ -247,7 +257,7 @@ async function computePestHistoryComponent(farm) {
  */
 export function computeFusedHealthScore(stressComponents, signalDates = {}, cropStage = null, now = null, cropType = null, diseaseHypothesis = null) {
   now = now || new Date();
-  const signalNames = ['weather', 'ndvi', 'thermal', 'pestHistory'];
+  const signalNames = ['weather', 'ndvi', 'ndre', 'thermal', 'pestHistory'];
   const baseWeights = getCropWeights(cropType);
 
   // 1. Detect stale signals
@@ -258,7 +268,7 @@ export function computeFusedHealthScore(stressComponents, signalDates = {}, crop
   // 2. Compute active weights (drop stale, redistribute proportionally)
   const activeWeights = {};
   for (const name of signalNames) {
-    activeWeights[name] = staleSignals.includes(name) ? 0.0 : baseWeights[name];
+    activeWeights[name] = staleSignals.includes(name) ? 0.0 : (baseWeights[name] || 0);
   }
   let activeTotal = Object.values(activeWeights).reduce((sum, w) => sum + w, 0);
 
@@ -266,6 +276,7 @@ export function computeFusedHealthScore(stressComponents, signalDates = {}, crop
   if (activeTotal === 0) {
     activeWeights.weather = 0;
     activeWeights.ndvi = 0;
+    activeWeights.ndre = 0;
     activeWeights.thermal = 0;
     activeWeights.pestHistory = 1.0;
     activeTotal = 1.0;
@@ -279,22 +290,11 @@ export function computeFusedHealthScore(stressComponents, signalDates = {}, crop
 
   // 3. Apply crop-stage relevance, then compute weighted stress.
   //
-  // Weather and thermal stress are NOT independent evidence: a heatwave
-  // (high temp / low humidity) tends to raise both simultaneously — the
-  // weather rule fires on the conditions, and the same conditions push
-  // canopy temp above baseline. Summing both at full weight double-counts
-  // that one underlying event as if two separate signals had corroborated
-  // each other, inflating the score during ordinary hot spells that may
-  // have nothing to do with disease. NDVI and pestHistory don't share this
-  // problem — they reflect the plant's actual state, not ambient
-  // conditions — so only weather/thermal get an overlap discount.
-  //
-  // WEATHER_THERMAL_OVERLAP_DISCOUNT is a documented, tunable assumption
-  // (0.5 = "half of whichever is smaller is redundant evidence"), not a
-  // measured constant. Before finals, if time allows, this should be
-  // recalibrated from real RiskScore history — e.g. the empirical
-  // correlation between stored weatherComponent and thermalComponent
-  // values — rather than left as an assumption.
+  // Weather and thermal are NOT independent: a heatwave raises both simultaneously.
+  // NDVI and NDRE measure the plant's actual state so are more independent of each
+  // other (NDRE measures chlorophyll, NDVI canopy structure — they can diverge in
+  // early stress when chlorophyll drops before canopy closes). Only weather/thermal
+  // get the overlap discount.
   const WEATHER_THERMAL_OVERLAP_DISCOUNT = 0.5;
 
   const componentStress = {};
@@ -309,30 +309,19 @@ export function computeFusedHealthScore(stressComponents, signalDates = {}, crop
   const weightedWeather = normalizedWeights.weather * effectiveStress.weather;
   const weightedThermal = normalizedWeights.thermal * effectiveStress.thermal;
   const weightedNdvi = normalizedWeights.ndvi * effectiveStress.ndvi;
+  const weightedNdre = normalizedWeights.ndre * effectiveStress.ndre;
   const weightedPest = normalizedWeights.pestHistory * effectiveStress.pestHistory;
 
-  // Discount is naturally 0 whenever either signal is stale/absent
-  // (weight 0 → that weighted term is 0 → min is 0), so this only ever
-  // reduces stress when BOTH weather and thermal are actually agreeing.
   const weatherThermalOverlap = WEATHER_THERMAL_OVERLAP_DISCOUNT * Math.min(weightedWeather, weightedThermal);
 
-  let weightedStress = weightedWeather + weightedThermal + weightedNdvi + weightedPest - weatherThermalOverlap;
+  let weightedStress = weightedWeather + weightedThermal + weightedNdvi + weightedNdre + weightedPest - weatherThermalOverlap;
   weightedStress = Math.max(0, weightedStress);
 
   // 4. Convert to health score (0-100, higher = healthier)
   const score = Math.max(0, Math.min(Math.round(100 * (1 - weightedStress)), 100));
   let level = healthLevelForScore(score);
 
-  // 5. Adaptive stress threshold (spec §7.4): the fixed 40/60/80 score
-  // bands above are a coarse global cutoff. The per-crop, per-disease
-  // threshold (nudged up over time by recalibrateThreshold after
-  // confirmed false alarms) applies to the intermediate stress score
-  // directly, so it can catch cases the fixed band misses — e.g. a crop
-  // whose false-alarm-tuned threshold is more sensitive than 40/100 would
-  // otherwise cover. It is applied as an upgrade-only override: it can
-  // escalate WATCH to ELEVATED, never downgrade a level the fixed bands
-  // already flagged (recalibration exists to reduce false *alarms*, not
-  // to suppress genuine ones).
+  // 5. Adaptive stress threshold (spec §7.4)
   const alertThreshold = getAlertThreshold(cropType, diseaseHypothesis);
   if (level === HealthLevel.WATCH && weightedStress >= alertThreshold) {
     level = HealthLevel.ELEVATED;
@@ -393,14 +382,17 @@ export async function computeRiskScore(farmId) {
 
   // ── 3. Compute all 4 component stress scores (0-1, 1 = max stress) ──
   const weatherStress = weatherEval.score;
-  const ndviStress = await computeNdviComponent(farmId, farm.cropType, farm.cropStage);
+  const ndviStress = await computeNdviComponent(farmId, farm.cropType, farm.cropStage, farm);
   const thermalStress = await computeThermalComponent(farmId, weatherEval.weatherReading || null, farm.cropType || null);
   const pestHistoryStress = await computePestHistoryComponent(farm);
 
   // ── 4. Staleness-aware weighted fusion → health score (0-100) ──
+  const ndreStress = await computeNdreComponent(farmId);
+
   const stressComponents = {
     weather: weatherStress,
     ndvi: ndviStress,
+    ndre: ndreStress,
     thermal: thermalStress,
     pestHistory: pestHistoryStress,
   };
@@ -408,6 +400,7 @@ export async function computeRiskScore(farmId) {
   const signalDates = {
     weather: weatherEval.weatherReading?.observedAt || new Date(),
     ndvi: ndviReading?.observedAt || new Date(),
+    ndre: ndviReading?.observedAt || new Date(),  // same Sentinel-2 image as ndvi
     thermal: thermalReading?.observedAt || null,
     pestHistory: null, // historical never goes stale
   };
@@ -438,34 +431,40 @@ export async function computeRiskScore(farmId) {
   // prompt.
   const vegetationDetected = isVegetationDetected(ndviReading?.ndvi, ndviReading?.ndre, ndviReading?.sceneSource);
   if (!vegetationDetected) {
-    fusionResult.score = 0;
-    fusionResult.level = HealthLevel.HIGH;
+    // "No vegetation detected" is a distinct field STATUS, not a health score.
+    // Setting score=0/level='high' conflates a misdrawn/fallow/unplanted
+    // boundary with a genuinely diseased crop — both would look identical in
+    // the UI ("0/100 — High Risk"), eroding farmer trust with false alarms.
+    // null correctly signals "not applicable right now": no score exists because
+    // the scoring question ("how stressed is the crop") can't be answered when
+    // there's no crop visible. The noVegetationDetected flag is what the
+    // frontend uses to render a neutral "Fallow / Unplanted / No Vegetation
+    // Detected" badge — not a red alert. triggeredAlert stays false (already set).
+    fusionResult.score = null;
+    fusionResult.level = null;
     fusionResult.triggeredAlert = false;
   }
 
-  // ── 5. Save ──
-  // Compute NDRE stress separately for observability — it's already
-  // folded into ndviStress via Math.max() in computeNdviComponent, but
-  // persisting it individually lets the dashboard show it and lets us
-  // verify the signal is actually influencing scores.
-  const ndreStressValue = ndreToStress(ndviReading?.ndre) ?? 0;
+  // ── 4c. Spatial Hotspot Analysis (§4d) ──
+  const spatialAnomaly = computeSpatialHotspot(
+    ndviReading?.ndviGrid || null,
+    ndviReading?.ndreGrid || null,
+    thermalReading?.thermalGrid || null
+  );
 
+  // ── 5. Save ──
   const riskScore = await RiskScore.create({
     farmId,
     computedAt: new Date(),
     weatherComponent: Math.round(weatherStress * 1000) / 1000,
     ndviComponent: Math.round(ndviStress * 1000) / 1000,
-    ndreComponent: Math.round(ndreStressValue * 1000) / 1000,
+    ndreComponent: Math.round(ndreStress * 1000) / 1000,  // now an independent signal, not a folded sub-score
     thermalComponent: Math.round(thermalStress * 1000) / 1000,
     pestHistoryComponent: Math.round(pestHistoryStress * 1000) / 1000,
     compositeScore: fusionResult.score,   // 0-100 health score
     triggeredAlert: fusionResult.triggeredAlert,
     healthLevel: fusionResult.level,
     staleSignals: fusionResult.staleSignals,
-    // RiskScore schema has a thresholdUsed field (default 0.6) that was
-    // never populated here, even before the getAlertThreshold key-mismatch
-    // fix — the adaptive per-crop/disease threshold was computed and used
-    // to decide the alert but never actually recorded on the document.
     thresholdUsed: fusionResult.alertThresholdUsed,
     diseaseHypothesis: weatherEval.diseaseHypothesis,
     matchedWeatherRules: weatherEval.matchedRules || [],
@@ -478,22 +477,13 @@ export async function computeRiskScore(farmId) {
       cropType: farm.cropType,
       cropStage: farm.cropStage,
       source: 'riskService',
-      // Whether each signal came from real satellite data or a fabricated
-      // fallback (see generateSimulatedNdvi / the formula-based thermal
-      // path). This matters a lot: simulated NDVI is generated FROM the
-      // farm's cropType/stage assumption, not from actual pixels of that
-      // location — it will read as a plausible healthy crop even if the
-      // drawn boundary sits over a rooftop or bare ground, because it
-      // never looks at the real imagery at all. A "100, healthy" score
-      // built entirely on simulated signals is not a verified reading and
-      // should be shown to the user as such, not with the same confidence
-      // as a real Sentinel-2/Landsat-derived score.
       dataSources: {
         ndvi: ndviReading?.sceneSource || 'unknown',
         thermal: thermalReading?.sceneSource || 'unknown',
       },
       groundTruthVerified: ndviReading?.sceneSource === 'sentinel-2' || thermalReading?.sceneSource === 'landsat-8-9',
       noVegetationDetected: !vegetationDetected,
+      spatialAnomaly,
     },
   });
 

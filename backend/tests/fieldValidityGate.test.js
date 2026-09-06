@@ -82,6 +82,7 @@ describe('Field Validity Gate', () => {
       const stressComponents = {
         weather: 0.0,      // regional weather is fine
         ndvi: 1.0,         // maximal NDVI stress (bare surface detected)
+        ndre: 0.6,         // NDRE stress from bare surface
         thermal: 0.0,      // ambient temp is fine
         pestHistory: 0.0,  // no disease history in district
       };
@@ -161,6 +162,7 @@ describe('Field Validity Gate', () => {
       const stressComponents = {
         weather: 0.0,
         ndvi: 0.95,  // high stress from bare surface
+        ndre: 0.60,  // NDRE stress from bare surface
         thermal: 0.0,
         pestHistory: 0.0,
       };
@@ -180,14 +182,14 @@ describe('Field Validity Gate', () => {
 
       // Step 3: Override applies (simulating lines 439-444 in riskService.js)
       if (!vegetationDetected) {
-        fusionResult.score = 0;
-        fusionResult.level = HealthLevel.HIGH;
+        fusionResult.score = null;
+        fusionResult.level = null;
         fusionResult.triggeredAlert = false;
       }
 
-      // Step 4: Final result
-      assert.strictEqual(fusionResult.score, 0);
-      assert.strictEqual(fusionResult.level, HealthLevel.HIGH);
+      // Step 4: Final result - null indicates "not applicable" / "unplanted", not a 0/100 panic
+      assert.strictEqual(fusionResult.score, null);
+      assert.strictEqual(fusionResult.level, null);
       assert.strictEqual(fusionResult.triggeredAlert, false,
         'No alert - this is a boundary problem, not a disease signal');
     });
