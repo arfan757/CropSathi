@@ -75,13 +75,11 @@ $$\text{Crop Health (\%)} = \text{clamp}\left( \frac{\text{NDVI} - 0.20}{0.85 - 
 
 ---
 
-## Project Status & Roadmap
+## Project Status
 
-* [x] **Phase 1 (Completed):** Interactive polygon field mapping and spatial coordinate capture.
-* [x] **Phase 2 (Completed):** Multi-spectral satellite data ingestion with automated non-vegetative surface rejection.
-* [x] **Phase 3 (Current MVP):** End-to-end advisory flow from boundary selection to health assessment.
-* [ ] **Phase 4 (Next Milestone):** Ingestion of ESA WorldCover 10m LULC raster masks for regional land classification and multi-temporal growth-stage trend tracking.
-
+* [x] **Field Mapping:** Interactive polygon boundary selection and spatial coordinate capture.
+* [x] **Satellite Processing:** Multi-spectral data ingestion with built-in non-crop surface rejection (NDVI < 0.20).
+* [x] **End-to-End Workflow:** Working MVP pipeline from farm boundary selection to canopy health scoring and disease advisory.
 ---
 
 ## Team & Presentation
