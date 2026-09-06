@@ -48,6 +48,9 @@ const advisorySchema = new mongoose.Schema({
     },
     default: null,
   },
+  prevention: [{
+    type: String,
+  }],
   generatedAt: {
     type: Date,
     default: Date.now,

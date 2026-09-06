@@ -411,7 +411,7 @@ async function saveGeminiResult(dc, parsed, farm) {
     dc.status = 'report_ready'; dc.outcome = 'confirmed';
     dc.finalDiseaseCode = dc.geminiResult.detectedIssue;
     try {
-      await generateAdvisoryForCase(
+      const advisory = await generateAdvisoryForCase(
         dc._id,
         parsed.detected_issue,
         severityForAdvisory(parsed.severity),
@@ -423,7 +423,7 @@ async function saveGeminiResult(dc, parsed, farm) {
         const { createNotification } = await import('./notificationService.js');
         await createNotification(dc.userId, 'advisory_ready', {
           caseId: dc._id,
-          advisoryId: null,
+          advisoryId: advisory?._id || null,
           deepLink: `/advisory?caseId=${dc._id}`
         });
       } catch (notifErr) {
@@ -432,15 +432,62 @@ async function saveGeminiResult(dc, parsed, farm) {
       // NOTIFICATION TRIGGER: schedule follow-up reminder
       try {
         const { scheduleFollowUp } = await import('./followupService.js');
-        await scheduleFollowUp(dc._id, null); // advisoryId passed later
+        await scheduleFollowUp(dc._id, advisory?._id || null);
       } catch (fuErr) {
         console.warn('Follow-up scheduling failed:', fuErr.message);
       }
     } catch (advisoryErr) {
       console.warn('Advisory generation failed:', advisoryErr.message);
     }
-  } else {
+  } else if (route === 'expert_review') {
     dc.status = 'report_ready'; dc.outcome = 'expert_review';
+    dc.finalDiseaseCode = dc.geminiResult.detectedIssue;
+    dc.requiresExpertReview = true;
+    // Still generate advisory for expert_review — farmer gets interim guidance
+    try {
+      const advisory = await generateAdvisoryForCase(
+        dc._id,
+        parsed.detected_issue,
+        severityForAdvisory(parsed.severity),
+        farm?.cropStage || 'vegetative',
+        farm?.cropType || ''
+      );
+      // NOTIFICATION: advisory_ready (with expert review caveat)
+      try {
+        const { createNotification } = await import('./notificationService.js');
+        await createNotification(dc.userId, 'advisory_ready', {
+          caseId: dc._id,
+          advisoryId: advisory?._id || null,
+          deepLink: `/advisory?caseId=${dc._id}`
+        });
+      } catch (notifErr) {
+        console.warn('Notification creation failed:', notifErr.message);
+      }
+      // Also send escalation_alert for expert review
+      try {
+        const { createNotification } = await import('./notificationService.js');
+        await createNotification(dc.userId, 'escalation_alert', {
+          caseId: dc._id,
+          advisoryId: advisory?._id || null,
+          deepLink: `/advisory?caseId=${dc._id}`
+        });
+      } catch (notifErr) {
+        console.warn('Escalation notification failed:', notifErr.message);
+      }
+      // Schedule follow-up
+      try {
+        const { scheduleFollowUp } = await import('./followupService.js');
+        await scheduleFollowUp(dc._id, advisory?._id || null);
+      } catch (fuErr) {
+        console.warn('Follow-up scheduling failed:', fuErr.message);
+      }
+    } catch (advisoryErr) {
+      console.warn('Advisory generation failed for expert_review:', advisoryErr.message);
+    }
+  } else {
+    // retry or unknown route — mark as retry_failed
+    dc.status = 'retry_failed';
+    dc.outcome = 'retry';
     dc.finalDiseaseCode = dc.geminiResult.detectedIssue;
   }
   await dc.save();

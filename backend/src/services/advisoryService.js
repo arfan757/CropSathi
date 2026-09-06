@@ -185,8 +185,20 @@ async function persistAdvisory(caseId, diseaseCode, severity, cropStage, content
   const version = existing ? existing.version + 1 : 1;
 
   const toActions = (items, prefix) => (items || []).map((text, i) => {
-    const t = typeof text === 'string' ? text : (text && text.en) || '';
-    return { actionKey: `${prefix}_${i + 1}`, en: t, hi: '', mr: '' };
+    // If input is a string, use it as English text
+    if (typeof text === 'string') {
+      return { actionKey: `${prefix}_${i + 1}`, en: text, hi: '', mr: '' };
+    }
+    // If input is an object with language keys, preserve all translations
+    if (text && typeof text === 'object') {
+      return {
+        actionKey: text.actionKey || `${prefix}_${i + 1}`,
+        en: text.en || '',
+        hi: text.hi || '',
+        mr: text.mr || '',
+      };
+    }
+    return { actionKey: `${prefix}_${i + 1}`, en: '', hi: '', mr: '' };
   });
 
   const advisory = await Advisory.create({
@@ -198,6 +210,7 @@ async function persistAdvisory(caseId, diseaseCode, severity, cropStage, content
     ipmCulturalActions: toActions(content.cultural, 'cultural'),
     ipmBiologicalActions: toActions(content.biological, 'biological'),
     chemicalRecommendation: content.chemical || null,
+    prevention: Array.isArray(content.prevention) ? content.prevention : [],
     generatedAt: new Date(),
   });
   console.log(`Advisory v${version} saved for case ${caseId} (source: ${source})`);

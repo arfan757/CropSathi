@@ -255,7 +255,7 @@ function openCaseDetail(caseId) {
     if(notes) notesHtml='<div class="mt-3 bg-[#fae8d5]/50 rounded-xl p-3 text-xs text-[#c05621]">'+notes+'</div>';
     var nextStepsHtml="";
     if(outcome==="confirmed"||outcome==="expert_review"){
-      nextStepsHtml='<button onclick="closeCaseDetail()" class="mt-5 w-full px-4 py-3 bg-[#006038] text-white font-semibold rounded-full hover:bg-[#1a7a4c] transition flex items-center justify-center gap-2">Next Steps <i data-lucide="arrow-right" class="w-4 h-4"></i></button>';
+      nextStepsHtml='<button onclick="window.location.href=\'advisory.html?caseId='+c._id+'\'" class="mt-5 w-full px-4 py-3 bg-[#006038] text-white font-semibold rounded-full hover:bg-[#1a7a4c] transition flex items-center justify-center gap-2">Next Steps <i data-lucide="arrow-right" class="w-4 h-4"></i></button>';
     }
     var expertHtml=c.requiresExpertReview?'<div class="mt-3 bg-[#933302]/10 rounded-xl p-3 text-xs text-[#933302] font-semibold flex items-center gap-2"><i data-lucide="alert-circle" class="w-4 h-4"></i> Requires Expert Review</div>':"";
     document.getElementById("caseDetailContent").innerHTML=

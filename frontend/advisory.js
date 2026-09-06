@@ -128,7 +128,7 @@ function renderAdvisoryCard(advisory) {
         ${renderActionSection('cultural', advisory.ipmCulturalActions, checked, c._id)}
         ${renderActionSection('biological', advisory.ipmBiologicalActions, checked, c._id)}
         ${renderChemicalSection(advisory.chemicalRecommendation, checked, c._id)}
-        ${renderPreventionSection(checked, c._id)}
+        ${renderPreventionSection(advisory.prevention, checked, c._id)}
       </div>
     </div>
   `;
@@ -208,14 +208,21 @@ function renderChemicalSection(chemical, checked, caseId) {
   `;
 }
 
-function renderPreventionSection(checked, caseId) {
-  const preventionTips = [
-    { text: { en: 'Maintain proper plant spacing for air circulation', hi: 'हवा के संचार के लिए उचित पौध दूरी बनाए रखें', mr: 'हवा वाहून येण्यासाठी योग्य रोप अंतर ठेवा' } },
-    { text: { en: 'Scout field regularly for early symptoms', hi: 'शीघ्र लक्षणों के लिए नियमित रूप से खेत की जांच करें', mr: 'लवकर लक्षणांसाठी नियमितपणे शेत तपासा' } },
-    { text: { en: 'Remove crop debris after harvest', hi: 'फसल की कटाई के बाद फसल अवशेष हटाएं', mr: 'पिक कापणीनंतर पिक अवशेष काढून टाका' } },
-    { text: { en: 'Practice crop rotation with non-host crops', hi: 'गैर-मेजबान फसलों के साथ फसल चक्र का अभ्यास करें', mr: 'गैर-यजमान पिकांसह पिक फेरबदल करा' } },
-    { text: { en: 'Use certified disease-free seeds', hi: 'प्रमाणित रोग-मुक्त बीज का उपयोग करें', mr: 'प्रमाणित रोगमुक्त बियाणे वापरा' } },
-  ];
+function renderPreventionSection(preventionData, checked, caseId) {
+  // Use advisory-specific prevention tips if available, otherwise fall back to generic
+  const preventionTips = (Array.isArray(preventionData) && preventionData.length > 0)
+    ? preventionData.map(tip => {
+        if (typeof tip === 'string') return { text: { en: tip, hi: '', mr: '' } };
+        if (tip && typeof tip === 'object') return { text: { en: tip.en || tip.text || '', hi: tip.hi || '', mr: tip.mr || '' } };
+        return { text: { en: String(tip), hi: '', mr: '' } };
+      })
+    : [
+        { text: { en: 'Maintain proper plant spacing for air circulation', hi: 'हवा के संचार के लिए उचित पौध दूरी बनाए रखें', mr: 'हवा वाहून येण्यासाठी योग्य रोप अंतर ठेवा' } },
+        { text: { en: 'Scout field regularly for early symptoms', hi: 'शीघ्र लक्षणों के लिए नियमित रूप से खेत की जांच करें', mr: 'लवकर लक्षणांसाठी नियमितपणे शेत तपासा' } },
+        { text: { en: 'Remove crop debris after harvest', hi: 'फसल की कटाई के बाद फसल अवशेष हटाएं', mr: 'पिक कापणीनंतर पिक अवशेष काढून टाका' } },
+        { text: { en: 'Practice crop rotation with non-host crops', hi: 'गैर-मेजबान फसलों के साथ फसल चक्र का अभ्यास करें', mr: 'गैर-यजमान पिकांसह पिक फेरबदल करा' } },
+        { text: { en: 'Use certified disease-free seeds', hi: 'प्रमाणित रोग-मुक्त बीज का उपयोग करें', mr: 'प्रमाणित रोगमुक्त बियाणे वापरा' } },
+      ];
 
   const config = ACTION_TYPES.prevention;
   const label = config.label[currentLang] || config.label.en;
