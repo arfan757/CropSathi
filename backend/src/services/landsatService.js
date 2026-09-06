@@ -51,22 +51,48 @@ async function getToken() {
 /**
  * Compute LST grid for a farm from Landsat thermal data.
  *
+ * Uses progressive retry: 90 → 120 → 180 day windows.
+ *
  * @param {Object} farm - Farm document with boundary/centroid
- * @param {Object} options - { startDate, endDate, maxCloudCover }
+ * @param {Object} options - { startDate, endDate, maxCloudCoverage }
  * @returns {Promise<Object>} { thermalGrid, sceneInfo, observedAt }
  */
 export async function fetchLandsatLst(farm, options = {}) {
   const {
-    // 90-day lookback (was 45): Maharashtra's monsoon (Jun-Sep) leaves many
-    // 45-day windows with zero cloud-free pixels, which silently degraded
-    // thermal to the formula path for months. 90 days still picks the most
-    // recent clear scene; its acquisition date becomes observedAt and the
-    // existing staleness rules (thermal stale after 20 days) keep old scenes
-    // from inflating current risk scores.
-    startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
     endDate = new Date(),
-    maxCloudCoverage = 30,
+    maxCloudCoverage = 40,
   } = options;
+
+  // Progressive retry: 90 → 120 → 180 days
+  const RETRY_WINDOWS = [90, 120, 180];
+
+  for (const days of RETRY_WINDOWS) {
+    const startDate = options.startDate || new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    try {
+      const result = await fetchLandsatLstOnce(farm, { startDate, endDate, maxCloudCoverage });
+      if (result.sceneInfo?.source !== 'formula') {
+        console.log(`Landsat: found clear scene in ${days}-day window`);
+        return result;
+      }
+      console.warn(`Landsat: ${days}-day window fully cloud-masked, trying wider window...`);
+    } catch (e) {
+      console.warn(`Landsat: ${days}-day window failed: ${e.message}, trying wider...`);
+    }
+  }
+
+  // All windows exhausted — return formula fallback
+  console.warn('Landsat: all search windows exhausted, using formula fallback');
+  return {
+    thermalGrid: generateFallbackThermalGrid(),
+    sceneInfo: { sceneId: null, sceneName: 'Simulated', cloudCover: 0, source: 'formula' },
+    observedAt: new Date(),
+  };
+}
+
+/**
+ * Single attempt at fetching Landsat LST. Throws on API error.
+ */
+async function fetchLandsatLstOnce(farm, { startDate, endDate, maxCloudCoverage }) {
 
   const bbox = computeBBox(farm);
   if (!bbox) throw new Error('Farm has no boundary geometry for satellite query');
@@ -180,12 +206,8 @@ function evaluatePixel(sample) {
       observedAt: new Date(sceneDate),
     };
   } catch (error) {
-    console.warn('Landsat Processing API failed, using fallback:', error.message);
-    return {
-      thermalGrid: generateFallbackThermalGrid(),
-      sceneInfo: { sceneId: null, sceneName: 'Simulated', cloudCover: 0, source: 'formula' },
-      observedAt: new Date(),
-    };
+    // Re-throw so the outer retry loop can try a wider window or fall back
+    throw error;
   }
 }
 

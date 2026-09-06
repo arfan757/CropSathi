@@ -213,3 +213,79 @@ export async function pollThermalEndpoint(req, res) {
     res.status(500).json({ success: false, message: error.message });
   }
 }
+
+// ─── Satellite Sync (Force Refresh) ──────────────────────────────────────
+
+/**
+ * POST /api/monitoring/sync-satellite
+ * Force-refresh satellite data (NDVI + thermal) and recompute risk scores
+ * for all of the authenticated user's fields. This is the endpoint the
+ * "Sentinel Sync" button in the dashboard calls.
+ *
+ * Unlike poll-weather (single-farm), this processes ALL farms in one call
+ * and returns per-farm results so the frontend can show progress.
+ */
+export async function syncSatelliteEndpoint(req, res) {
+  try {
+    const userId = req.user.id;
+    const farms = await Field.find({ userId, status: 'active', deletedAt: null }).lean();
+
+    if (farms.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: { synced: 0, failed: 0, results: [] },
+      });
+    }
+
+    const results = [];
+
+    for (const farm of farms) {
+      const startMs = Date.now();
+      try {
+        // 1. Fetch fresh weather
+        const weatherReading = await pollWeatherForFarm(farm);
+
+        // 2. Fetch fresh NDVI (re-fetches from Sentinel-2, bypasses any stale cache)
+        const ndviReading = await fetchNdviForFarm(farm);
+
+        // 3. Compute fresh thermal reading
+        let thermalReading = null;
+        try {
+          thermalReading = await computeThermalReading(farm, weatherReading);
+        } catch (_) { /* thermal optional */ }
+
+        // 4. Full risk score recomputation (uses the fresh readings above)
+        const riskScore = await computeRiskScore(farm._id);
+
+        results.push({
+          farmId: farm._id,
+          farmName: farm.name,
+          success: true,
+          compositeScore: riskScore.compositeScore,
+          sceneSource: ndviReading?.sceneSource || 'unknown',
+          ndvi: ndviReading?.ndvi ?? null,
+          durationMs: Date.now() - startMs,
+        });
+      } catch (err) {
+        console.error(`Sync failed for farm ${farm._id} (${farm.name}):`, err.message);
+        results.push({
+          farmId: farm._id,
+          farmName: farm.name,
+          success: false,
+          error: err.message,
+          durationMs: Date.now() - startMs,
+        });
+      }
+    }
+
+    const synced = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+
+    res.status(200).json({
+      success: true,
+      data: { synced, failed, results },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+}

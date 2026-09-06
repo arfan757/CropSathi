@@ -52,6 +52,8 @@ export const createField = async (req, res) => {
       ndviReading?.sceneSource
     );
 
+    console.log(`Field creation NDVI check: source=${ndviReading?.sceneSource}, ndvi=${ndviReading?.ndvi}, ndre=${ndviReading?.ndre}, valid=${isValidVegetation}`);
+
     if (!isValidVegetation) {
       // Remove the temporary NDVI reading so no orphan records remain
       await NdviReading.deleteMany({ farmId: field._id });

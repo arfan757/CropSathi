@@ -2,318 +2,164 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Notifications — CropSathi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="ui.css">
   <style>
-    body { font-family: 'Noto Sans', sans-serif; background: #fbf9f8; }
+    body { font-family: 'Noto Sans', sans-serif; }
     .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
-
-    /* Page layout */
-    .np-wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 100px; }
-
-    /* Page header */
-    .np-page-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 0 16px;
-      gap: 12px;
-    }
-    .np-page-title { font-family: 'Be Vietnam Pro', sans-serif; font-size: 22px; font-weight: 700; color: #1b1c1c; }
-    .np-badge-chip {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 22px; height: 22px;
-      border-radius: 11px;
-      background: #dc2626;
-      color: white;
-      font-size: 11px; font-weight: 700;
-      padding: 0 6px;
-    }
-    .np-btn-clear {
-      font-size: 13px; font-weight: 600;
-      color: #dc2626;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      padding: 6px 10px;
-      border-radius: 8px;
-      transition: background 0.15s;
-    }
-    .np-btn-clear:hover { background: #fee2e2; }
-
-    /* Section label */
-    .section-label {
-      font-size: 11px; font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: #9ca3a2;
-      margin: 20px 0 10px;
-    }
-
-    /* Notification card */
-    .np-card {
-      background: white;
-      border: 1px solid #e4e2e1;
-      border-radius: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      overflow: hidden;
-      margin-bottom: 10px;
-      transition: transform 0.15s, box-shadow 0.15s;
-      cursor: pointer;
-    }
-    .np-card:active { transform: scale(0.985); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    .np-card.unread { border-left: 4px solid #006038; }
-    .np-card-inner { padding: 14px 16px; }
-
-    /* Card header row */
-    .np-card-row { display: flex; align-items: flex-start; gap: 12px; }
-    .np-icon-wrap {
-      width: 42px; height: 42px;
-      border-radius: 12px;
-      background: #f0f3f2;
-      display: flex; align-items: center; justify-content: center;
-      color: #006038;
-      flex-shrink: 0;
-    }
-    .np-icon-wrap.is-urgent { background: #fee2e2; color: #dc2626; }
-    .np-icon-wrap.is-high { background: #fef3c7; color: #b45309; }
-    .np-meta { flex: 1; min-width: 0; }
-    .np-title { font-weight: 600; font-size: 14.5px; color: #1b1c1c; line-height: 1.3; }
-    .np-sub { font-size: 11.5px; color: #9ca3a2; margin-top: 1px; }
-    .np-time { font-size: 11px; color: #9ca3a2; white-space: nowrap; margin-left: auto; flex-shrink: 0; }
-
-    /* Card body */
-    .np-message { font-size: 13px; color: #3f4941; margin-top: 6px; line-height: 1.45; }
-
-    /* Action row */
-    .np-action-row {
-      display: flex; gap: 8px;
-      margin-top: 12px; padding-top: 12px;
-      border-top: 1px solid #f0f0f0;
-    }
-    .np-btn {
-      flex: 1;
-      padding: 8px 12px;
-      border-radius: 10px;
-      border: 1px solid #e4e2e1;
-      background: #f6f3f2;
-      font-size: 12px; font-weight: 600;
-      color: #3f4941;
-      text-align: center;
-      cursor: pointer;
-      transition: background 0.15s;
-      text-decoration: none;
-      display: block;
-    }
-    .np-btn:active { background: #eae8e7; }
-    .np-btn.is-primary {
-      background: #006038;
-      color: white;
-      border-color: #006038;
-    }
-    .np-btn.is-primary:active { background: #1a7a4c; }
-
-    /* Priority pill */
-    .np-priority {
-      font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.06em;
-      padding: 2px 7px;
-      border-radius: 6px;
-      flex-shrink: 0;
-    }
-    .np-priority.is-urgent { background: #fee2e2; color: #dc2626; }
-    .np-priority.is-high { background: #fef3c7; color: #b45309; }
-    .np-priority.is-medium { background: #f0fdf4; color: #16a34a; }
-    .np-priority.is-low { background: #f6f3f2; color: #9ca3a2; }
-
-    /* Empty state */
-    .np-empty {
-      text-align: center;
-      padding: 60px 20px;
-    }
-    .np-empty-icon {
-      width: 64px; height: 64px;
-      border-radius: 50%;
-      background: #f0f0f0;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 16px;
-    }
-    .np-empty h3 { font-family: 'Be Vietnam Pro', sans-serif; font-size: 18px; font-weight: 700; color: #1b1c1c; margin-bottom: 6px; }
-    .np-empty p { font-size: 13.5px; color: #6f7a71; }
-
-    /* Loading spinner */
-    .np-loading { text-align: center; padding: 80px 20px; }
-    .np-spinner {
-      width: 36px; height: 36px;
-      border: 3px solid #e4e2e1;
-      border-top-color: #006038;
-      border-radius: 50%;
-      animation: np-spin 0.7s linear infinite;
-      margin: 0 auto 12px;
-    }
-    @keyframes np-spin { to { transform: rotate(360deg); } }
-    .np-loading p { font-size: 13px; color: #6f7a71; }
-
-    /* Swipe hint */
-    .swipe-hint { text-align: center; font-size: 11px; color: #c0c0c0; padding: 4px 0 12px; }
+    .tactile-card { box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="min-h-screen">
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
 
-  <!-- ======= Shared top bar (matches other pages) ======= -->
-  <header class="np-header-bar">
-    <a href="dashboard.html" class="np-back-btn" aria-label="Back to Dashboard">
-      <i data-lucide="arrow-left" class="w-5 h-5"></i>
-    </a>
-    <h1 class="np-page-title">Notifications</h1>
-    <span id="np-badge-top" class="np-badge-chip hidden"></span>
-    <button onclick="clearAllNotifications()" class="np-btn-clear">Clear all</button>
-  </header>
+  <!-- Sidebar Navigation -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-white font-bold shadow-md">
+          <i data-lucide="sprout" class="w-6 h-6"></i>
+        </div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+      <nav class="space-y-2">
+        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="layout-grid" class="w-5 h-5"></i><span data-i18n="nav_dashboard">Dashboard</span></a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="map-pin" class="w-5 h-5"></i><span data-i18n="nav_my_fields">My Fields</span></a>
+        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="camera" class="w-5 h-5"></i><span data-i18n="nav_diagnose">Diagnose</span></a>
+        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="lightbulb" class="w-5 h-5"></i><span data-i18n="nav_advisory">Advisory</span></a>
+      </nav>
+    </div>
+    <div class="pt-6 border-t border-[#e4e2e1]">
+      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="settings" class="w-5 h-5"></i><span data-i18n="nav_settings">Settings</span></a>
+    </div>
+  </aside>
 
-  <!-- ======= Page body ======= -->
-  <div class="np-wrap">
+  <!-- Main Content -->
+  <main class="flex-1 w-full overflow-x-hidden p-4 pb-24 md:p-10 md:pb-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
+    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6 md:mb-8">
 
-    <!-- Loading -->
-    <div id="np-loading" class="np-loading">
-      <div class="np-spinner"></div>
-      <p>Loading notifications...</p>
+      <!-- Brand lockup — mobile top app bar -->
+      <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi">
+        <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
+        <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
+      </a>
+
+      <!-- Title -->
+      <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
+        <h1 class="text-2xl md:text-3xl font-bold font-headline">Notifications</h1>
+        <p class="text-[#3f4941] text-sm mt-1">Stay updated on your fields and advisories</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
+        <button type="button" id="clearAllBtn" class="text-sm font-semibold text-[#dc2626] hover:text-white hover:bg-[#dc2626] border border-[#dc2626]/30 hover:border-[#dc2626] px-4 py-2 rounded-xl transition hidden">Clear all</button>
+        <div class="user-menu">
+          <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+            <span id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
+              <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+            </span>
+            <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
+          </button>
+          <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
+            <div class="user-menu-head">
+              <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
+              <span class="user-menu-head-meta">
+                <span class="user-menu-head-name" id="userMenuName">Farmer</span>
+                <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
+              </span>
+            </div>
+            <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
+            <span class="user-menu-sep" role="separator"></span>
+            <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Loading skeleton -->
+    <div id="notif-loading" class="space-y-4">
+      <div class="bg-white border border-[#e4e2e1] rounded-2xl p-5 animate-pulse">
+        <div class="flex items-start gap-4">
+          <div class="w-11 h-11 rounded-xl bg-[#f0eded] shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-4 bg-[#f0eded] rounded w-3/4"></div>
+            <div class="h-3 bg-[#f0eded] rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white border border-[#e4e2e1] rounded-2xl p-5 animate-pulse">
+        <div class="flex items-start gap-4">
+          <div class="w-11 h-11 rounded-xl bg-[#f0eded] shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-4 bg-[#f0eded] rounded w-2/3"></div>
+            <div class="h-3 bg-[#f0eded] rounded w-2/5"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Today's section -->
-    <div id="np-today-wrap" class="hidden">
-      <div class="section-label">Today</div>
-      <div id="np-today"></div>
+    <!-- Today section -->
+    <div id="section-today" class="hidden">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-[#9ca3a2] mb-3">Today</h2>
+      <div id="list-today" class="space-y-3 mb-6"></div>
     </div>
 
     <!-- Earlier section -->
-    <div id="np-earlier-wrap" class="hidden">
-      <div class="section-label">Earlier</div>
-      <div id="np-earlier"></div>
+    <div id="section-earlier" class="hidden">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-[#9ca3a2] mb-3">Earlier</h2>
+      <div id="list-earlier" class="space-y-3 mb-6"></div>
     </div>
 
     <!-- Empty state -->
-    <div id="np-empty" class="np-empty hidden">
-      <div class="np-empty-icon">
+    <div id="notif-empty" class="hidden text-center py-16">
+      <div class="w-16 h-16 rounded-full bg-[#f0eded] flex items-center justify-center mx-auto mb-4">
         <i data-lucide="bell-off" class="w-7 h-7 text-[#9ca3a2]"></i>
       </div>
-      <h3>All caught up</h3>
-      <p>No notifications right now. You're all set!</p>
+      <h3 class="font-headline font-bold text-lg text-[#1b1c1c] mb-1">All caught up</h3>
+      <p class="text-sm text-[#6f7a71]">No notifications right now. You're all set!</p>
     </div>
 
-  </div>
+  </main>
 
-  <!-- ======= Bottom tab bar (matches other pages) ======= -->
+  <!-- Bottom navigation (mobile only) -->
   <nav class="cs-tabbar md:hidden" aria-label="Primary">
     <a class="cs-tab" href="dashboard.html">
       <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
-      <span class="cs-tab-label">Dashboard</span>
+      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
     </a>
     <a class="cs-tab" href="my-fields.html">
       <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
-      <span class="cs-tab-label">My Fields</span>
+      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
     </a>
     <a class="cs-tab" href="diagnose.html">
       <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
-      <span class="cs-tab-label">Diagnose</span>
+      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
     </a>
     <a class="cs-tab" href="advisory.html">
       <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
-      <span class="cs-tab-label">Advisory</span>
+      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
     </a>
     <a class="cs-tab" href="settings.html">
       <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
-      <span class="cs-tab-label">Settings</span>
+      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
     </a>
   </nav>
 
-  <!-- Desktop sidebar (matches other pages) -->
-  <aside class="np-sidebar">
-    <div class="flex items-center gap-3 mb-8">
-      <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-white shadow-md">
-        <i data-lucide="sprout" class="w-5 h-5"></i>
-      </div>
-      <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
-    </div>
-    <nav class="space-y-1">
-      <a href="dashboard.html" class="np-nav-item"><i data-lucide="layout-grid" class="w-5 h-5"></i><span>Dashboard</span></a>
-      <a href="my-fields.html" class="np-nav-item"><i data-lucide="map-pin" class="w-5 h-5"></i><span>My Fields</span></a>
-      <a href="diagnose.html" class="np-nav-item"><i data-lucide="camera" class="w-5 h-5"></i><span>Diagnose</span></a>
-      <a href="advisory.html" class="np-nav-item"><i data-lucide="lightbulb" class="w-5 h-5"></i><span>Advisory</span></a>
-      <a href="notifications.html" class="np-nav-item is-active"><i data-lucide="bell" class="w-5 h-5"></i><span>Notifications</span></a>
-      <a href="analytics.html" class="np-nav-item"><i data-lucide="bar-chart-2" class="w-5 h-5"></i><span>Analytics</span></a>
-      <a href="settings.html" class="np-nav-item"><i data-lucide="settings" class="w-5 h-5"></i><span>Settings</span></a>
-    </nav>
-  </aside>
-
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="config.js"></script>
-
-  <style>
-    /* Header bar (mobile) */
-    .np-header-bar {
-      position: sticky; top: 0; z-index: 10;
-      background: rgba(251,249,248,0.92);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      display: flex; align-items: center; gap: 10px;
-      padding: 14px 16px 12px;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .np-back-btn {
-      width: 38px; height: 38px;
-      display: flex; align-items: center; justify-content: center;
-      border-radius: 10px;
-      color: #006038;
-      text-decoration: none;
-      transition: background 0.15s;
-      flex-shrink: 0;
-    }
-    .np-back-btn:hover { background: #f0f3f2; }
-
-    /* Nav sidebar (desktop) */
-    .np-sidebar {
-      display: none;
-    }
-    @media (min-width: 768px) {
-      body { display: grid; grid-template-columns: 240px 1fr; }
-      .np-header-bar { display: none; }
-      .cs-tabbar { display: none; }
-      .np-sidebar {
-        display: flex;
-        flex-direction: column;
-        padding: 24px 16px;
-        border-right: 1px solid #e4e2e1;
-        background: #f6f3f2;
-        height: 100vh;
-        position: sticky; top: 0;
-        overflow-y: auto;
-      }
-      .np-wrap { padding-top: 16px; }
-    }
-    .np-nav-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px;
-      border-radius: 10px;
-      color: #3f4941;
-      font-size: 14px; font-weight: 500;
-      text-decoration: none;
-      transition: background 0.15s, color 0.15s;
-    }
-    .np-nav-item:hover { background: #eae8e7; }
-    .np-nav-item.is-active { background: #006038; color: white; }
-  </style>
+  <script src="preferences.js"></script>
+  <script src="ui.js"></script>
 
   <script>
-    const API = (window.CROPSATHI_API_URL || 'https://cropsathi-x5fe.onrender.com');
+    const API = window.CROPSATHI_API_URL || 'https://cropsathi-x5fe.onrender.com';
     const token = localStorage.getItem('token');
-
     let notificationsData = [];
 
     // ---- fetch ----
@@ -322,7 +168,8 @@
         const res = await fetch(API + '/api/notifications?limit=50', {
           headers: { Authorization: 'Bearer ' + token }
         });
-        notificationsData = res.ok ? await res.json() : [];
+        const body = res.ok ? await res.json() : {};
+        notificationsData = body.notifications || body.data || [];
       } catch (e) {
         notificationsData = [];
       }
@@ -335,11 +182,10 @@
         });
         if (res.ok) {
           const data = await res.json();
-          const badge = document.getElementById('np-badge-top');
-          if (badge) {
-            badge.textContent = data.count || 0;
-            badge.classList.toggle('hidden', !(data.count > 0));
-          }
+          const count = data.count || 0;
+          // Update clear all button visibility
+          const clearBtn = document.getElementById('clearAllBtn');
+          if (clearBtn) clearBtn.classList.toggle('hidden', count === 0 && notificationsData.length === 0);
         }
       } catch (e) {}
     }
@@ -352,13 +198,17 @@
       const todayNotifs = list.filter(n => new Date(n.createdAt).toISOString().split('T')[0] === todayStr);
       const earlierNotifs = list.filter(n => new Date(n.createdAt).toISOString().split('T')[0] !== todayStr);
 
-      document.getElementById('np-loading').classList.add('hidden');
-      document.getElementById('np-today-wrap').classList.toggle('hidden', todayNotifs.length === 0);
-      document.getElementById('np-earlier-wrap').classList.toggle('hidden', earlierNotifs.length === 0);
-      document.getElementById('np-empty').classList.toggle('hidden', list.length > 0);
+      document.getElementById('notif-loading')?.classList.add('hidden');
+      document.getElementById('section-today')?.classList.toggle('hidden', todayNotifs.length === 0);
+      document.getElementById('section-earlier')?.classList.toggle('hidden', earlierNotifs.length === 0);
+      document.getElementById('notif-empty')?.classList.toggle('hidden', list.length > 0);
 
-      document.getElementById('np-today').innerHTML = todayNotifs.map(renderCard).join('');
-      document.getElementById('np-earlier').innerHTML = earlierNotifs.map(renderCard).join('');
+      document.getElementById('list-today').innerHTML = todayNotifs.map(renderCard).join('');
+      document.getElementById('list-earlier').innerHTML = earlierNotifs.map(renderCard).join('');
+
+      // Show clear all button if there are notifications
+      const clearBtn = document.getElementById('clearAllBtn');
+      if (clearBtn) clearBtn.classList.toggle('hidden', list.length === 0);
 
       lucide.createIcons();
     }
@@ -375,35 +225,49 @@
       };
       const iconName = iconMap[n.type] || 'bell';
 
-      const priorityClass = n.priority === 'urgent' ? 'is-urgent'
-        : n.priority === 'high' ? 'is-high'
-        : n.priority === 'medium' ? 'is-medium' : 'is-low';
+      const priorityColors = {
+        urgent: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', iconBg: 'bg-red-100', iconText: 'text-red-600' },
+        high: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', iconBg: 'bg-amber-100', iconText: 'text-amber-600' },
+        medium: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200', iconBg: 'bg-[#f0f3f2]', iconText: 'text-[#006038]' },
+        low: { bg: 'bg-[#f0eded]', text: 'text-[#6f7a71]', border: 'border-[#e4e2e1]', iconBg: 'bg-[#f0eded]', iconText: 'text-[#6f7a71]' },
+      };
+      const pc = priorityColors[n.priority] || priorityColors.low;
 
-      const iconWrapClass = n.priority === 'urgent' ? 'is-urgent'
-        : n.priority === 'high' ? 'is-high' : '';
-
-      const unreadClass = n.read ? '' : 'unread';
+      const unreadBorder = n.read ? 'border-[#e4e2e1]' : 'border-l-4 border-l-[#006038] border-[#e4e2e1]';
+      const unreadDot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-[#006038] shrink-0 mt-1.5"></span>';
       const timeStr = formatTime(new Date(n.createdAt));
       const deepLink = n.deepLink || '#';
 
       return `
-        <div class="np-card ${unreadClass}" onclick="handleNotificationClick('${n._id}', '${deepLink}')">
-          <div class="np-card-inner">
-            <div class="np-card-row">
-              <div class="np-icon-wrap ${iconWrapClass}">
-                <i data-lucide="${iconName}" class="w-5 h-5"></i>
-              </div>
-              <div class="np-meta">
-                <div class="np-title">${escapeHtml(n.title || n.type.replace(/_/g, ' '))}</div>
-                <div class="np-sub">${escapeHtml((n.type || '').replace(/_/g, ' '))} · ${timeStr}</div>
-              </div>
-              <span class="np-priority ${priorityClass}">${n.priority || 'low'}</span>
+        <div class="bg-white border ${unreadBorder} rounded-2xl p-4 tactile-card cursor-pointer hover:shadow-md transition-shadow"
+             onclick="handleNotificationClick('${n._id}', '${deepLink}')">
+          <div class="flex items-start gap-3.5">
+            <div class="w-11 h-11 rounded-xl ${pc.iconBg} flex items-center justify-center ${pc.iconText} shrink-0">
+              <i data-lucide="${iconName}" class="w-5 h-5"></i>
             </div>
-            ${n.body ? `<div class="np-message">${escapeHtml(n.body)}</div>` : ''}
-            <div class="np-action-row">
-              <button onclick="event.stopPropagation(); markRead('${n._id}')" class="np-btn">Mark read</button>
-              <a href="${deepLink}" onclick="event.stopPropagation()" class="np-btn is-primary">Open</a>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-0.5">
+                ${unreadDot}
+                <h3 class="font-semibold text-sm text-[#1b1c1c] leading-snug truncate">${escapeHtml(n.title || n.type?.replace(/_/g, ' ') || 'Notification')}</h3>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-[#6f7a71]">
+                <span class="capitalize">${escapeHtml((n.type || '').replace(/_/g, ' '))}</span>
+                <span>·</span>
+                <span>${timeStr}</span>
+              </div>
+              ${n.body ? `<p class="text-[13px] text-[#3f4941] mt-2 leading-relaxed" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(n.body)}</p>` : ''}
+              <div class="flex items-center gap-2 mt-3 pt-3 border-t border-[#f0eded]">
+                <button onclick="event.stopPropagation(); markRead('${n._id}')"
+                        class="flex-1 text-center text-xs font-semibold py-2 px-3 rounded-xl border border-[#e4e2e1] bg-[#f6f3f2] text-[#3f4941] hover:bg-[#eae8e7] transition">
+                  Mark read
+                </button>
+                <a href="${deepLink}" onclick="event.stopPropagation()"
+                   class="flex-1 text-center text-xs font-semibold py-2 px-3 rounded-xl bg-[#006038] text-white hover:bg-[#1a7a4c] transition">
+                  Open
+                </a>
+              </div>
             </div>
+            <span class="text-[10px] font-bold uppercase tracking-wide ${pc.text} ${pc.bg} px-2 py-1 rounded-lg shrink-0">${n.priority || 'low'}</span>
           </div>
         </div>
       `;
@@ -457,10 +321,13 @@
 
     // ---- boot ----
     document.addEventListener('DOMContentLoaded', async () => {
+      if (!token) { window.location.href = 'login.html'; return; }
+
+      document.getElementById('clearAllBtn')?.addEventListener('click', clearAllNotifications);
+
       await fetchNotifications();
       await fetchUnreadCount();
       renderNotifications();
-      lucide.createIcons();
     });
   </script>
 </body>

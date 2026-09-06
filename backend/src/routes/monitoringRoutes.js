@@ -9,12 +9,16 @@ import {
   pollNdviEndpoint,
   getThermalEndpoint,
   pollThermalEndpoint,
+  syncSatelliteEndpoint,
 } from '../controllers/monitoringController.js';
 
 const router = express.Router();
 
 // All monitoring routes require authentication
 router.use(protect);
+
+// Satellite sync (force refresh all fields)
+router.post('/sync-satellite', syncSatelliteEndpoint);
 
 // Risk endpoints
 router.get('/farms/:farmId/risk-history', getRiskHistoryEndpoint);

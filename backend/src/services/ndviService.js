@@ -27,26 +27,46 @@ const NO_VEGETATION_NDVI = 0.20; // Standard remote sensing threshold for bare c
 const NO_VEGETATION_NDRE = 0.20;
 
 export function isVegetationDetected(ndvi, ndre, sceneSource) {
-  // If no readings are provided, fail closed
-  if (ndvi === null || ndvi === undefined) {
-    return false;
+  // Only apply the no-vegetation gate to REAL satellite data. Simulated NDVI
+  // is generated FROM crop assumptions (type/stage), not actual pixels, so it
+  // can never detect a misdrawn boundary — it will produce plausible values
+  // even for a polygon over a rooftop. The gate exists to catch real-world
+  // data quality issues (boundary errors), not simulation artifacts.
+  //
+  // Additionally, mature/harvested crops can legitimately read very low on
+  // both indices (wheat at maturity: NDVI ~0.35 base, can drop to 0.05 with
+  // the anomaly-injection logic), so applying this threshold to simulated
+  // data causes false positives on late-stage crops.
+  if (sceneSource !== 'sentinel-2' && sceneSource !== 'landsat-8-9') {
+    return true; // simulated or unknown source — assume vegetation present
   }
 
-  // Reject simulated or fallback data over unverified land
-  if (sceneSource === 'simulated' || sceneSource === 'fallback') {
-    return false;
+  const NDVI_THRESHOLD = 0.20; // enforce spectral vegetation gate on real imagery
+  const NDRE_THRESHOLD = 0.20;
+
+  // If readings are missing, fail open (insufficient data to reject)
+  if (ndvi === null || ndvi === undefined || ndre === null || ndre === undefined) {
+    return true;
   }
 
-  // Physical spectral gate: concrete, asphalt, rooftops, and water bodies fall below 0.20
-  if (ndvi < NO_VEGETATION_NDVI) {
-    return false;
-  }
+  // Physical spectral gate: concrete, asphalt, rooftops, and water bodies fall below 0.20.
+  // Require BOTH to agree (they're derived from the same averaged pixel grid)
+  // so a single noisy read doesn't wrongly invalidate a real, just-planted field.
+  const ndviLow = ndvi < NDVI_THRESHOLD;
+  const ndreLow = ndre < NDRE_THRESHOLD;
+  if (ndviLow && ndreLow) return false;
 
-  if (ndre !== null && ndre !== undefined && ndre < NO_VEGETATION_NDRE) {
-    return false;
-  }
+  // Secondary gate: pixel-mixing edge case.
+  // For small fields (< 1ha), the 10x10 grid at 10m resolution (100mx100m)
+  // extends beyond the polygon boundary. A tree or bush on an adjacent plot
+  // can pull NDVI slightly above 0.20 while NDRE (more sensitive to actual
+  // canopy chlorophyll) remains clearly low. If NDVI is marginal and NDRE
+  // is unambiguously bare, treat as non-vegetation.
+  const NDRE_CLEARLY_LOW = 0.15;
+  const NDVI_MARGINAL = 0.25;
+  if (ndvi < NDVI_MARGINAL && ndre < NDRE_CLEARLY_LOW) return false;
 
-  return true;
+  return true; // vegetation present, or insufficient agreement to say otherwise
 }
 
 // ─── Crop-specific NDVI baselines (typical peak-season values) ─────────────

@@ -44,16 +44,57 @@ async function getToken() {
 /**
  * Compute NDVI/NDRE grids for a farm from Sentinel-2 data.
  *
+ * Uses a progressive retry strategy: tries a 90-day window first, then
+ * widens to 120 and 180 days if all pixels are cloud-masked. This handles
+ * monsoon regions (e.g. Maharashtra Jun–Sep) where 45-day windows can
+ * have every scene fully cloudy.
+ *
  * @param {Object} farm - Farm document with boundary/centroid
  * @param {Object} options - { startDate, endDate, maxCloudCover }
  * @returns {Promise<Object>} { ndviGrid, ndreGrid, sceneInfo, observedAt }
  */
 export async function fetchSentinelNdvi(farm, options = {}) {
   const {
-    startDate = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
     endDate = new Date(),
-    maxCloudCover = 80,
+    maxCloudCover = 90,
   } = options;
+
+  // Progressive retry: 90 → 120 → 180 days
+  const RETRY_WINDOWS = [90, 120, 180];
+  let lastError = null;
+
+  for (const days of RETRY_WINDOWS) {
+    const startDate = options.startDate || new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    try {
+      const result = await fetchSentinelNdviOnce(farm, { startDate, endDate, maxCloudCover });
+      if (result.sceneInfo?.source !== 'simulated') {
+        console.log(`Sentinel-2: found clear scene in ${days}-day window`);
+        return result;
+      }
+      // All pixels masked — store error and try wider window
+      lastError = new Error(`All ${days}-day window pixels cloud-masked`);
+      console.warn(`Sentinel-2: ${days}-day window fully cloud-masked, trying wider window...`);
+    } catch (e) {
+      lastError = e;
+      console.warn(`Sentinel-2: ${days}-day window failed: ${e.message}, trying wider...`);
+    }
+  }
+
+  // All windows exhausted — return simulated fallback
+  console.warn('Sentinel-2: all search windows exhausted, using simulated fallback');
+  return {
+    ndviGrid: generateFallbackGrid('NDVI'),
+    ndreGrid: generateFallbackGrid('NDRE'),
+    sceneInfo: { sceneId: null, sceneName: 'Simulated', cloudCover: 100, source: 'simulated' },
+    observedAt: new Date(),
+  };
+}
+
+/**
+ * Single attempt at fetching Sentinel-2 NDVI. Throws on API error or
+ * returns a simulated fallback if all pixels are cloud-masked.
+ */
+async function fetchSentinelNdviOnce(farm, { startDate, endDate, maxCloudCover }) {
 
   // computeBBox handles GeoJSON, [{lat,lng}], and farm documents
   const bbox = computeBBox(farm);
@@ -164,6 +205,7 @@ function evaluatePixel(samples) {
     }
 
     const cloudCover = Math.round((1 - validPixelCount / (GRID_SIZE * GRID_SIZE)) * 100);
+    console.log(`Sentinel-2: ${validPixelCount}/${GRID_SIZE * GRID_SIZE} valid pixels, ${cloudCover}% cloud-masked`);
     // Extract scene metadata from response headers (or use endDate = latest in window)
     const sceneDate = resp.headers['sentinel-data-date'] || endDate.toISOString();
 
@@ -179,13 +221,8 @@ function evaluatePixel(samples) {
       observedAt: new Date(sceneDate),
     };
   } catch (error) {
-    console.warn('Sentinel-2 Processing API failed, using fallback:', error.message);
-    return {
-      ndviGrid: generateFallbackGrid('NDVI'),
-      ndreGrid: generateFallbackGrid('NDRE'),
-      sceneInfo: { sceneId: null, sceneName: 'Simulated', cloudCover: 100, source: 'simulated' },
-      observedAt: new Date(),
-    };
+    // Re-throw so the outer retry loop can try a wider window or fall back
+    throw error;
   }
 }
 

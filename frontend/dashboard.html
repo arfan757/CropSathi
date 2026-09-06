@@ -287,6 +287,7 @@
           <div>
             <h2 class="text-lg font-bold text-[#1b1c1c] font-headline" data-i18n="dash_field_health">Field Health Score</h2>
             <p class="text-xs text-[#3f4941]" data-i18n="dash_field_health_sub">Real-time composite telemetry gauge score</p>
+            <p id="lastSyncLabel" class="text-[10px] text-[#6f7a71] mt-0.5 hidden"></p>
           </div>
           <button type="button" id="sentinelSyncBtn" class="text-xs font-bold px-3.5 py-2 sm:py-1.5 bg-[#006038] hover:bg-[#004d2b] active:scale-95 text-[#ffffff] rounded-full flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer select-none touch-manipulation transition-all shadow-sm" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;" title="Sync satellite data and recalculate health scores">
             <span id="sentinelSyncDot" class="w-2 h-2 rounded-full bg-[#abffc9]"></span>
@@ -595,12 +596,31 @@
 
     loadHealthScores();
 
+    // Show "last synced" label if we have a stored timestamp
+    function updateLastSyncLabel() {
+      const label = document.getElementById('lastSyncLabel');
+      const ts = localStorage.getItem('lastSentinelSync');
+      if (!label) return;
+      if (ts) {
+        const diff = Date.now() - new Date(ts).getTime();
+        let text;
+        if (diff < 60_000) text = 'Synced just now';
+        else if (diff < 3_600_000) text = `Synced ${Math.floor(diff / 60_000)}m ago`;
+        else if (diff < 86_400_000) text = `Synced ${Math.floor(diff / 3_600_000)}h ago`;
+        else text = `Synced ${new Date(ts).toLocaleDateString()}`;
+        label.textContent = text;
+        label.classList.remove('hidden');
+      }
+    }
+    updateLastSyncLabel();
+    setInterval(updateLastSyncLabel, 60_000);
+
     // Keep the health cards fresh: re-fetch the latest computed scores
     // every 5 minutes.
     setInterval(loadHealthScores, 5 * 60 * 1000);
 
-    // Sentinel Sync button: on click/tap, sync satellite data and recalculate
-    // the health score for every field, then refresh the cards.
+    // Sentinel Sync button: force-refresh satellite data (NDVI + thermal)
+    // and recompute risk scores for ALL fields in one server call.
     const sentinelSyncBtn = document.getElementById('sentinelSyncBtn');
     if (sentinelSyncBtn) {
       let toastTimer = null;
@@ -613,7 +633,25 @@
         toastEl.classList.toggle('err', !!isError);
         toastEl.classList.add('show');
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 4000);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
+      }
+
+      function setSyncUI(active, label) {
+        const dot = document.getElementById('sentinelSyncDot');
+        const labelEl = sentinelSyncBtn.querySelector('[data-i18n]');
+        if (active) {
+          isSyncing = true;
+          sentinelSyncBtn.disabled = true;
+          sentinelSyncBtn.classList.add('opacity-75');
+          dot?.classList.add('animate-pulse');
+          if (labelEl && label) labelEl.textContent = label;
+        } else {
+          isSyncing = false;
+          sentinelSyncBtn.disabled = false;
+          sentinelSyncBtn.classList.remove('opacity-75');
+          dot?.classList.remove('animate-pulse');
+          if (labelEl) labelEl.textContent = 'Sentinel Sync';
+        }
       }
 
       async function triggerSentinelSync(e) {
@@ -629,68 +667,69 @@
           return;
         }
 
-        isSyncing = true;
-        sentinelSyncBtn.disabled = true;
-        sentinelSyncBtn.classList.add('opacity-75');
-        const dot = document.getElementById('sentinelSyncDot');
-        dot?.classList.add('animate-pulse');
+        setSyncUI(true, 'Syncing…');
+        showSyncToast('Syncing satellite data for all fields…', false);
 
         try {
-          // Which farms? Pull the current list from the same endpoint the
-          // cards use, so newly added/removed fields are always covered.
-          const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
-            headers: { Authorization: `Bearer ${token}` },
+          const res = await fetch(`${CropSathiPrefs.api}/api/monitoring/sync-satellite`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
           });
-          const data = await res.json();
-          const farms = data.data?.fields || [];
 
-          if (farms.length === 0) {
-            showSyncToast('No fields to sync yet', false);
-            return;
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.message || `Server error ${res.status}`);
           }
 
-          let failures = 0;
-          // One call per farm: poll-weather recomputes the full fused risk
-          // score, and computeRiskScore refetches fresh Sentinel-2 NDVI/NDRE
-          // and Landsat thermal as part of that — so a single call both
-          // syncs the satellite data and recalculates the score.
-          for (const farm of farms) {
-            try {
-              const syncRes = await fetch(`${CropSathiPrefs.api}/api/monitoring/farms/${farm.farmId}/poll-weather`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!syncRes.ok) {
-                failures++;
-                console.warn(`Sentinel sync failed for ${farm.farmName}:`, syncRes.status);
-              }
-            } catch (err) {
-              failures++;
-              console.warn(`Sentinel sync network error for ${farm.farmName}:`, err.message);
-            }
-          }
+          const body = await res.json();
+          const { synced, failed, results } = body.data || {};
 
           // Refresh the cards so the freshly computed scores render now.
           await loadHealthScores();
-          showSyncToast(
-            failures === 0
-              ? `Synced ${farms.length} field${farms.length === 1 ? '' : 's'} — health scores updated`
-              : `Sync failed for ${failures} of ${farms.length} fields — try again`,
-            failures !== 0
-          );
+          updateLastSyncLabel();
+
+          if (failed === 0) {
+            showSyncToast(
+              `Synced ${synced} field${synced === 1 ? '' : 's'} — health scores updated`,
+              false
+            );
+          } else {
+            const failedNames = results
+              ?.filter(r => !r.success)
+              .map(r => r.farmName)
+              .join(', ') || '';
+            showSyncToast(
+              `Synced ${synced}/${synced + failed} fields` +
+              (failedNames ? ` — failed: ${failedNames}` : ''),
+              true
+            );
+          }
+
+          // Store last sync timestamp so cards can show it
+          localStorage.setItem('lastSentinelSync', new Date().toISOString());
         } catch (err) {
           console.error('Sentinel sync failed:', err);
           showSyncToast('Sync failed — check connection and try again', true);
         } finally {
-          isSyncing = false;
-          sentinelSyncBtn.disabled = false;
-          sentinelSyncBtn.classList.remove('opacity-75');
-          dot?.classList.remove('animate-pulse');
+          setSyncUI(false);
         }
       }
 
-      sentinelSyncBtn.addEventListener('click', triggerSentinelSync);
-      sentinelSyncBtn.addEventListener('touchend', triggerSentinelSync);
+      // Prevent double-fire on mobile: touchend fires before click on
+      // touch devices, so we gate with a short cooldown.
+      let lastTapTime = 0;
+      function handleInteraction(e) {
+        const now = Date.now();
+        if (now - lastTapTime < 300) return; // 300ms debounce
+        lastTapTime = now;
+        triggerSentinelSync(e);
+      }
+
+      sentinelSyncBtn.addEventListener('click', handleInteraction);
+      sentinelSyncBtn.addEventListener('touchend', handleInteraction);
     }
 
     if (localStorage.getItem('newFieldCreated')) {
