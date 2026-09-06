@@ -1,6 +1,7 @@
 import FollowUp from '../models/FollowUp.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
+import { createNotification } from './notificationService.js';
 
 const FOLLOWUP_DAYS = 7; // Default follow-up schedule
 
@@ -77,6 +78,20 @@ export async function markUnresponsive(followUpId) {
 }
 
 async function createEscalationNotification(followUp) {
-  // This would trigger a notification; kept as a hook for future
-  return { notified: true, escalationReason: 'Worse crop condition reported' };
+  try {
+    if (!followUp.userId) return { notified: false, reason: 'No userId on followUp' };
+
+    await createNotification(followUp.userId, 'escalation_alert', {
+      farmId: followUp.farmId,
+      caseId: followUp.caseId,
+      advisoryId: followUp.advisoryId,
+      followUpId: followUp._id,
+      deepLink: `/advisory?id=${followUp.advisoryId}`,
+    });
+
+    return { notified: true, escalationReason: 'Worse crop condition reported' };
+  } catch (err) {
+    console.error('Failed to create escalation notification:', err.message);
+    return { notified: false, reason: err.message };
+  }
 }

@@ -84,6 +84,10 @@ const fieldSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    lastPhotoPromptAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

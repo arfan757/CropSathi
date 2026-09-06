@@ -4,6 +4,7 @@ import { startFollowupScanCron, scanPendingFollowUps } from './followupScan.js';
 import { startRetrainTriggerCron, checkRetrainReady } from './retrainTrigger.js';
 import { startContinuousPollCron, pollActiveFarmsContinuously } from './pollContinuous.js';
 import { startNotificationDispatchCron, dispatchNotifications } from './notificationDispatch.js';
+import { startPhotoPromptScanCron, scanFieldsForPhotoPrompts } from './photoPromptScan.js';
 import { verifyCronSecret } from './middleware.js';
 
 /**
@@ -17,6 +18,7 @@ export function startCronJobs() {
   startRetrainTriggerCron();
   startContinuousPollCron(); // Every 10 minutes: keep data fresh
   startNotificationDispatchCron(); // Every 15 minutes 7AM-10PM
+  startPhotoPromptScanCron(); // Daily at 08:00 UTC: photo prompts every 2 days
 }
 
 /**
@@ -79,6 +81,15 @@ export function mountCronRoutes(app) {
   app.post('/api/cron/notification-dispatch', verifyCronSecret, async (req, res) => {
     try {
       const result = await dispatchNotifications();
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/cron/photo-prompt-scan', verifyCronSecret, async (req, res) => {
+    try {
+      const result = await scanFieldsForPhotoPrompts();
       res.json({ success: true, ...result });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

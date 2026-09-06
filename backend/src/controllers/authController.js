@@ -46,6 +46,7 @@ export const register = async (req, res) => {
         role: user.role,
         preferredLanguage: user.preferredLanguage,
         farmDetails: user.farmDetails,
+        notificationPreferences: user.notificationPreferences,
       },
     });
   } catch (error) {
@@ -98,6 +99,7 @@ export const login = async (req, res) => {
         role: user.role,
         preferredLanguage: user.preferredLanguage,
         farmDetails: user.farmDetails,
+        notificationPreferences: user.notificationPreferences,
       },
     });
   } catch (error) {
@@ -116,7 +118,10 @@ export const getMe = async (req, res) => {
     const user = await User.findById(req.user.id);
     res.status(200).json({
       success: true,
-      data: user,
+      data: {
+        ...user.toObject(),
+        notificationPreferences: user.notificationPreferences,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -177,13 +182,17 @@ export const changePassword = async (req, res) => {
 // @access  Private
 export const updateProfile = async (req, res) => {
   try {
-    const { name, profilePhoto } = req.body;
+    const { name, profilePhoto, notificationPreferences } = req.body;
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: 'Name is required' });
+    const updateFields = {};
+
+    // Only update name if provided
+    if (name !== undefined) {
+      if (!name || !name.trim()) {
+        return res.status(400).json({ success: false, message: 'Name cannot be empty' });
+      }
+      updateFields.name = name.trim();
     }
-
-    const updateFields = { name: name.trim() };
 
     // Handle photo: set if provided, clear if empty string
     if (profilePhoto !== undefined) {
@@ -195,6 +204,19 @@ export const updateProfile = async (req, res) => {
           return res.status(400).json({ success: false, message: 'Image too large. Max 500KB.' });
         }
         updateFields.profilePhoto = profilePhoto;
+      }
+    }
+
+    // Handle notification preferences
+    if (notificationPreferences && typeof notificationPreferences === 'object') {
+      if (typeof notificationPreferences.pushEnabled === 'boolean') {
+        updateFields['notificationPreferences.pushEnabled'] = notificationPreferences.pushEnabled;
+      }
+      if (typeof notificationPreferences.severeAlertsEnabled === 'boolean') {
+        updateFields['notificationPreferences.severeAlertsEnabled'] = notificationPreferences.severeAlertsEnabled;
+      }
+      if (typeof notificationPreferences.photoPromptsEnabled === 'boolean') {
+        updateFields['notificationPreferences.photoPromptsEnabled'] = notificationPreferences.photoPromptsEnabled;
       }
     }
 
@@ -215,6 +237,7 @@ export const updateProfile = async (req, res) => {
         name: user.name,
         phoneNumber: user.phoneNumber,
         profilePhoto: user.profilePhoto || '',
+        notificationPreferences: user.notificationPreferences,
       },
     });
   } catch (error) {

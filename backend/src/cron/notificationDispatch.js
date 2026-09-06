@@ -1,7 +1,14 @@
 import cron from 'node-cron';
-import Notification from '../models/Notification.js';
 import Reminder from '../models/Reminder.js';
-import FollowUp from '../models/FollowUp.js';
+import Advisory from '../models/Advisory.js';
+import DiagnosisCase from '../models/DiagnosisCase.js';
+import { createNotification } from '../services/notificationService.js';
+
+const REMINDER_TYPE_MAP = {
+  application: 'remedy_reminder',
+  reapplication: 'reapplication_reminder',
+  harvest_wait: 'harvest_safety_wait',
+};
 
 export async function dispatchNotifications() {
   const now = new Date();
@@ -16,30 +23,38 @@ export async function dispatchNotifications() {
 
   for (const reminder of dueReminders) {
     try {
+      // Look up Advisory → DiagnosisCase to get userId + farmId
+      const advisory = await Advisory.findById(reminder.advisoryId).lean();
+      if (!advisory) {
+        await Reminder.findByIdAndUpdate(reminder._id, { status: 'done' });
+        continue;
+      }
+
+      const diagnosisCase = await DiagnosisCase.findById(advisory.caseId).lean();
+      if (!diagnosisCase) {
+        await Reminder.findByIdAndUpdate(reminder._id, { status: 'done' });
+        continue;
+      }
+
+      const notificationType = REMINDER_TYPE_MAP[reminder.reminderType];
+      if (notificationType) {
+        await createNotification(diagnosisCase.userId, notificationType, {
+          farmId: diagnosisCase.farmId,
+          caseId: diagnosisCase._id,
+          advisoryId: advisory._id,
+          deepLink: `/advisory?id=${advisory._id}`,
+        });
+        notificationsCreated++;
+      }
+
       await Reminder.findByIdAndUpdate(reminder._id, { status: 'done' });
-      notificationsCreated++;
     } catch (err) {
       console.error('Failed to process reminder:', err.message);
     }
   }
 
-  // Find due follow-ups
-  const dueFollowUps = await FollowUp.find({
-    scheduledFor: { $lte: now },
-    status: 'pending',
-  }).lean();
-
-  for (const followUp of dueFollowUps) {
-    try {
-      await FollowUp.findByIdAndUpdate(followUp._id, { $inc: { reminderCount: 1 } });
-      notificationsCreated++;
-    } catch (err) {
-      console.error('Failed to process follow-up:', err.message);
-    }
-  }
-
-  console.log(`[notification-dispatch] Processed ${notificationsCreated} items`);
-  return { notificationsCreated, dueReminders: dueReminders.length, dueFollowUps: dueFollowUps.length };
+  console.log(`[notification-dispatch] Processed ${notificationsCreated} notifications`);
+  return { notificationsCreated, dueReminders: dueReminders.length };
 }
 
 export function startNotificationDispatchCron() {

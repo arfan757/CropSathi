@@ -3,7 +3,15 @@ import User from '../models/User.js';
 
 export async function createNotification(userId, type, data = {}) {
   const user = await User.findById(userId).lean();
-  const lang = user?.preferredLanguage || 'en';
+  if (!user) return null;
+
+  const prefs = user.notificationPreferences || {};
+  const lang = user.preferredLanguage || 'en';
+
+  // Check user preferences — skip notification if disabled
+  if (prefs.pushEnabled === false) return null;
+  if ((type === 'weather_alert' || type === 'escalation_alert') && prefs.severeAlertsEnabled === false) return null;
+  if (type === 'photo_prompt' && prefs.photoPromptsEnabled === false) return null;
 
   const template = getNotificationTemplate(type, lang);
 
@@ -118,7 +126,12 @@ function getNotificationTemplate(type, lang) {
     weather_alert: {
       en: { title: 'Weather Alert', body: 'Disease-conducive weather conditions detected for your farm.', priority: 'medium', deepLink: '/dashboard' },
       hi: { title: 'मौसम चेतावनी', body: 'आपके खेत में रोग अनुकूल मौसम की स्थिति पाई गई।', priority: 'medium', deepLink: '/dashboard' },
-      mr: { title: 'हweather इशारा', body: 'तुमच्या शेतात रोग अनुकूल हवामानाची स्थिती आढळली.', priority: 'medium', deepLink: '/dashboard' },
+      mr: { title: 'हवामान इशारा', body: 'तुमच्या शेतात रोग अनुकूल हवामानाची स्थिती आढळली.', priority: 'medium', deepLink: '/dashboard' },
+    },
+    photo_prompt: {
+      en: { title: 'Photo Check Reminder', body: 'Upload a photo of your crop for a health check. Early detection helps.', priority: 'medium', deepLink: '/diagnose' },
+      hi: { title: 'फोटो जांच अनुस्मारक', body: 'स्वास्थ्य जांच के लिए अपनी फसल की फोटो अपलोड करें।', priority: 'medium', deepLink: '/diagnose' },
+      mr: { title: 'फोटो तपासणी आठवण', body: 'आरोग्य तपासणीसाठी तुमच्या पिकाचा फोटो अपलोड करा.', priority: 'medium', deepLink: '/diagnose' },
     },
   };
 
@@ -137,6 +150,7 @@ function getDefaultTitle(type) {
     harvest_safety_wait: 'Safety Notice',
     escalation_alert: 'Escalation Alert',
     weather_alert: 'Weather Alert',
+    photo_prompt: 'Photo Check Reminder',
   };
   return titles[type] || 'Notification';
 }
@@ -150,6 +164,7 @@ function getDefaultBody(type) {
     harvest_safety_wait: 'Wait before harvest for safety.',
     escalation_alert: 'Your case has been escalated.',
     weather_alert: 'Weather conditions detected.',
+    photo_prompt: 'Upload a photo for a health check.',
   };
   return bodies[type] || 'You have a new notification.';
 }

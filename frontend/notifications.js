@@ -179,6 +179,7 @@ class NotificationPanel {
       harvest_safety_wait: 'alert-triangle',
       escalation_alert: 'alert-circle',
       weather_alert: 'cloud-rain',
+      photo_prompt: 'camera',
     };
     return icons[type] || 'bell';
   }

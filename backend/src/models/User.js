@@ -54,6 +54,11 @@ const userSchema = new mongoose.Schema(
       farmSizeInAcres: { type: Number, default: 0 },
       primaryCrops: [{ type: String }],
     },
+    notificationPreferences: {
+      pushEnabled: { type: Boolean, default: true },
+      severeAlertsEnabled: { type: Boolean, default: true },
+      photoPromptsEnabled: { type: Boolean, default: true },
+    },
     isActive: {
       type: Boolean,
       default: true,

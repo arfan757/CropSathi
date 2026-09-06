@@ -4,6 +4,7 @@ import DiagnosisCase from '../models/DiagnosisCase.js';
 import { evaluateWeatherForFarm } from './weatherService.js';
 import { fetchNdviForFarm, computeNdviComponent, computeNdreComponent, ndreToStress, isVegetationDetected, computeSpatialHotspot } from './ndviService.js';
 import { computeThermalReading, computeThermalComponent, resolveDistrictFarmIds, getLatestThermalGrid } from './thermalService.js';
+import { createNotification } from './notificationService.js';
 
 // ─── Health Levels (from risk_fusion.py) ────────────────────────────────────
 // score >= 80  → healthy  (no action)
@@ -489,6 +490,18 @@ export async function computeRiskScore(farmId) {
 
   // Update farm timestamps
   await Field.findByIdAndUpdate(farmId, { lastRiskScoreAt: new Date() });
+
+  // Create weather_alert notification when triggeredAlert is true
+  if (fusionResult.triggeredAlert && farm.userId) {
+    try {
+      await createNotification(farm.userId, 'weather_alert', {
+        farmId: farm._id,
+        deepLink: `/dashboard?farm=${farmId}`,
+      });
+    } catch (err) {
+      console.warn('Failed to create weather_alert notification:', err.message);
+    }
+  }
 
   return riskScore;
 }

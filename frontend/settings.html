@@ -247,7 +247,7 @@
               <span class="font-medium text-[#1b1c1c] truncate" data-i18n="settings_push_notifications">Push Notifications</span>
             </div>
             <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" class="sr-only peer" checked>
+              <input type="checkbox" id="togglePushNotifications" class="sr-only peer" checked onchange="saveNotificationPref('pushEnabled', this.checked)">
               <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
             </label>
           </div>
@@ -275,7 +275,7 @@
               </div>
             </div>
             <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" class="sr-only peer" checked>
+              <input type="checkbox" id="toggleSevereAlerts" class="sr-only peer" checked onchange="saveNotificationPref('severeAlertsEnabled', this.checked)">
               <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
             </label>
           </div>
@@ -891,6 +891,57 @@
     }
 
     document.addEventListener('DOMContentLoaded', syncSettingsProfile);
+
+    // ── Notification Preferences ──
+    async function loadNotificationPrefs() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const res = await fetch(`${CropSathiPrefs.api}/api/auth/me`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        if (data.success && data.data?.notificationPreferences) {
+          const prefs = data.data.notificationPreferences;
+          const pushToggle = document.getElementById('togglePushNotifications');
+          const severeToggle = document.getElementById('toggleSevereAlerts');
+          if (pushToggle) pushToggle.checked = prefs.pushEnabled !== false;
+          if (severeToggle) severeToggle.checked = prefs.severeAlertsEnabled !== false;
+        }
+      } catch (err) {
+        console.warn('Failed to load notification preferences:', err.message);
+      }
+    }
+
+    async function saveNotificationPref(key, value) {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const payload = {
+          notificationPreferences: { [key]: value }
+        };
+        const res = await fetch(`${CropSathiPrefs.api}/api/auth/update-profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          // Update cached user
+          const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          cachedUser.notificationPreferences = { ...(cachedUser.notificationPreferences || {}), [key]: value };
+          localStorage.setItem('user', JSON.stringify(cachedUser));
+          showToast('Preference saved');
+        }
+      } catch (err) {
+        console.warn('Failed to save notification preference:', err.message);
+      }
+    }
+
+    // Make saveNotificationPref globally accessible
+    window.saveNotificationPref = saveNotificationPref;
+
+    document.addEventListener('DOMContentLoaded', loadNotificationPrefs);
   </script>
 
   <script src="ui.js"></script>

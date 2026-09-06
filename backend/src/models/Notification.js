@@ -8,7 +8,7 @@ const notificationSchema = new mongoose.Schema({
   followUpId: { type: mongoose.Schema.Types.ObjectId, ref: 'FollowUp', index: true },
   type: {
     type: String,
-    enum: ['advisory_ready', 'remedy_reminder', 'reapplication_reminder', 'follow_up_check', 'harvest_safety_wait', 'escalation_alert', 'weather_alert'],
+    enum: ['advisory_ready', 'remedy_reminder', 'reapplication_reminder', 'follow_up_check', 'harvest_safety_wait', 'escalation_alert', 'weather_alert', 'photo_prompt'],
     required: true,
     index: true
   },
