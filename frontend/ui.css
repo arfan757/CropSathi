@@ -316,6 +316,189 @@ a {
   border: 1.5px solid var(--cs-bg);
 }
 
+/* Notification Panel */
+.cs-notification-panel {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  width: 360px;
+  max-width: calc(100vw - 40px);
+  max-height: 70vh;
+  background: var(--cs-bg, #ffffff);
+  border: 1px solid var(--cs-border, #e4e2e1);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  display: none;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.cs-notification-panel.cs-np-open {
+  display: flex;
+}
+
+.cs-np-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--cs-border, #e4e2e1);
+}
+
+.cs-np-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cs-np-mark-all {
+  background: none;
+  border: 0;
+  color: var(--cs-accent, #006038);
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.cs-np-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 50vh;
+}
+
+.cs-np-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--cs-text-secondary, #6f7a71);
+  font-size: 14px;
+}
+
+.cs-np-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--cs-border, #e4e2e1);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cs-np-item:hover {
+  background: var(--cs-surface-2, #f6f3f2);
+}
+
+.cs-np-item.cs-np-unread {
+  background: rgba(0, 96, 56, 0.04);
+}
+
+.cs-np-item-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--cs-surface-2, #f0eded);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cs-accent, #006038);
+}
+
+.cs-np-item-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cs-np-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cs-np-item-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 2px;
+  color: var(--cs-text, #1b1c1c);
+}
+
+.cs-np-item-body {
+  font-size: 13px;
+  color: var(--cs-text-secondary, #3f4941);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.cs-np-item-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cs-np-item-time {
+  font-size: 11px;
+  color: var(--cs-text-secondary, #6f7a71);
+}
+
+.cs-np-priority-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--cs-surface-2, #f0eded);
+  color: var(--cs-text-secondary, #6f7a71);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.cs-np-priority-urgent .cs-np-priority-badge {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.cs-np-priority-high .cs-np-priority-badge {
+  background: #fef3c7;
+  color: #a16207;
+}
+
+.cs-np-priority-medium .cs-np-priority-badge {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.cs-np-priority-low .cs-np-priority-badge {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.cs-np-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--cs-border, #e4e2e1);
+  text-align: center;
+}
+
+.cs-np-view-all {
+  font-size: 13px;
+  color: var(--cs-accent, #006038);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.cs-np-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #dc2626;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid var(--cs-bg, #ffffff);
+}
+
 /* Brand lockup (mobile only — element carries md:hidden) */
 .cs-brand {
   min-width: 0;

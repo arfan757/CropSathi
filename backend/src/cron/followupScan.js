@@ -1,50 +1,58 @@
 import cron from 'node-cron';
+import FollowUp from '../models/FollowUp.js';
+import { createNotification } from '../services/notificationService.js';
 
-/**
- * Daily follow-up scan.
- *
- * Finds follow_ups where scheduled_for <= today and status='pending',
- * and creates notification intent for farmers to complete follow-up.
- *
- * NOTE: FollowUp model not yet created. This cron is stubbed to log
- * when the model exists. Enable by creating backend/src/models/FollowUp.js
- * and uncommenting the query below.
- */
+const MAX_REMINDERS = 2; // After 2 reminders, mark as unresponsive
+
 async function scanPendingFollowUps() {
-  // TODO: Enable when FollowUp model is created
-  // import FollowUp from '../models/FollowUp.js';
-  //
-  // const today = new Date();
-  // today.setHours(23, 59, 59, 999);
-  //
-  // const pending = await FollowUp.find({
-  //   scheduledFor: { $lte: today },
-  //   status: 'pending',
-  // }).lean();
-  //
-  // if (pending.length === 0) {
-  //   console.log('⏱️  [followup-scan] No pending follow-ups');
-  //   return { scanned: 0 };
-  // }
-  //
-  // console.log(`📋 [followup-scan] Found ${pending.length} pending follow-ups`);
-  //
-  // // In production, this would trigger push notification delivery
-  // // (FCM/SMS integration is out of scope for v1 per spec §14)
-  // for (const followup of pending) {
-  //   console.log(`  → Follow-up ${followup._id} for case ${followup.caseId} due ${followup.scheduledFor}`);
-  // }
-  //
-  // return { scanned: pending.length };
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
 
-  console.log('⏱️  [followup-scan] Stubbed — FollowUp model not yet created');
-  return { scanned: 0 };
+  const pending = await FollowUp.find({
+    scheduledFor: { $lte: today },
+    status: 'pending',
+  }).lean();
+
+  if (pending.length === 0) {
+    console.log('⏱️  [followup-scan] No pending follow-ups');
+    return { scanned: 0, notificationsSent: 0, markedUnresponsive: 0 };
+  }
+
+  console.log(`📋 [followup-scan] Found ${pending.length} pending follow-ups`);
+
+  let notificationsSent = 0;
+  let markedUnresponsive = 0;
+
+  for (const followup of pending) {
+    try {
+      if (followup.reminderCount >= MAX_REMINDERS) {
+        await FollowUp.findByIdAndUpdate(followup._id, { status: 'unresponsive' });
+        markedUnresponsive++;
+        continue;
+      }
+
+      await createNotification(followup.userId, 'follow_up_check', {
+        farmId: followup.farmId,
+        caseId: followup.caseId,
+        advisoryId: followup.advisoryId,
+        followUpId: followup._id,
+        deepLink: `/followup?id=${followup._id}`,
+      });
+
+      await FollowUp.findByIdAndUpdate(followup._id, {
+        $inc: { reminderCount: 1 },
+        $set: { lastReminderSent: new Date() },
+      });
+
+      notificationsSent++;
+    } catch (err) {
+      console.error('Failed to process follow-up:', err.message);
+    }
+  }
+
+  return { scanned: pending.length, notificationsSent, markedUnresponsive };
 }
 
-/**
- * Schedule: daily at 07:00 UTC (12:30 PM IST).
- * Cron: 0 7 * * *
- */
 export function startFollowupScanCron() {
   cron.schedule('0 7 * * *', async () => {
     console.log('⏰ [cron] followup-scan triggered');
@@ -58,5 +66,4 @@ export function startFollowupScanCron() {
   console.log('📅 [cron] followup-scan scheduled: daily at 07:00 UTC');
 }
 
-// Allow manual trigger for testing
 export { scanPendingFollowUps };

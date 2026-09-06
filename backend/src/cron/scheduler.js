@@ -3,6 +3,7 @@ import { startPollSatelliteCron, pollSatelliteForActiveFarms } from './pollSatel
 import { startFollowupScanCron, scanPendingFollowUps } from './followupScan.js';
 import { startRetrainTriggerCron, checkRetrainReady } from './retrainTrigger.js';
 import { startContinuousPollCron, pollActiveFarmsContinuously } from './pollContinuous.js';
+import { startNotificationDispatchCron, dispatchNotifications } from './notificationDispatch.js';
 import { verifyCronSecret } from './middleware.js';
 
 /**
@@ -15,6 +16,7 @@ export function startCronJobs() {
   startFollowupScanCron();
   startRetrainTriggerCron();
   startContinuousPollCron(); // Every 10 minutes: keep data fresh
+  startNotificationDispatchCron(); // Every 15 minutes 7AM-10PM
 }
 
 /**
@@ -68,6 +70,15 @@ export function mountCronRoutes(app) {
   app.post('/api/cron/continuous-poll', verifyCronSecret, async (req, res) => {
     try {
       const result = await pollActiveFarmsContinuously();
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/cron/notification-dispatch', verifyCronSecret, async (req, res) => {
+    try {
+      const result = await dispatchNotifications();
       res.json({ success: true, ...result });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

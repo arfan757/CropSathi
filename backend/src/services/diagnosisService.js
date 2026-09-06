@@ -418,6 +418,24 @@ async function saveGeminiResult(dc, parsed, farm) {
         farm?.cropStage || 'vegetative',
         farm?.cropType || ''
       );
+      // NOTIFICATION TRIGGER 1: advisory_ready when case confirmed
+      try {
+        const { createNotification } = await import('./notificationService.js');
+        await createNotification(dc.userId, 'advisory_ready', {
+          caseId: dc._id,
+          advisoryId: null,
+          deepLink: `/advisory?caseId=${dc._id}`
+        });
+      } catch (notifErr) {
+        console.warn('Notification creation failed:', notifErr.message);
+      }
+      // NOTIFICATION TRIGGER: schedule follow-up reminder
+      try {
+        const { scheduleFollowUp } = await import('./followupService.js');
+        await scheduleFollowUp(dc._id, null); // advisoryId passed later
+      } catch (fuErr) {
+        console.warn('Follow-up scheduling failed:', fuErr.message);
+      }
     } catch (advisoryErr) {
       console.warn('Advisory generation failed:', advisoryErr.message);
     }
