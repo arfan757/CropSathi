@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import Advisory from '../models/Advisory.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { generateAdvisory as generateMinimaxAdvisory } from './minimaxService.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -96,17 +95,7 @@ export async function generateAdvisoryForCase(caseId, diseaseCode, severity, cro
     return persistAdvisory(caseId, diseaseCode, severity, cropStage, geminiContent, 'gemini');
   }
 
-  // 2. Fallback to Minimax via OpenRouter
-  try {
-    const minimaxContent = await generateMinimaxAdvisory(diseaseCode, severity, cropStage, cropType);
-    if (minimaxContent) {
-      return persistAdvisory(caseId, diseaseCode, severity, cropStage, minimaxContent, 'minimax');
-    }
-  } catch (minimaxErr) {
-    console.warn('[advisoryService] Minimax fallback failed:', minimaxErr.message);
-  }
-
-  // 3. Final fallback to rule-based advisoryRules.json
+  // 2. Fallback to rule-based advisoryRules.json
   const content = generateAdvisoryContent(diseaseCode, severity, cropStage);
   return persistAdvisory(caseId, diseaseCode, severity, cropStage, content, 'rules');
 }

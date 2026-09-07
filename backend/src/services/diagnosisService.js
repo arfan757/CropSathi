@@ -5,13 +5,12 @@ import { generateAdvisoryForCase } from './advisoryService.js';
 import { recalibrateThreshold } from './riskService.js';
 import { isSupportedCrop, buildCnnResult } from '../config/modelClassMap.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { classifyDisease, structureCnnResult } from './minimaxService.js';
 import axios from 'axios';
 import sharp from 'sharp';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const DIAGNOSIS_MODEL = 'gemini-2.5-flash';
+const DIAGNOSIS_MODEL = 'gemini-3.6-flash';
 const GEMINI_TIMEOUT_MS = 90000;
 
 // Plant disease CNN microservice (ml-service/). Used first for crops the
@@ -162,32 +161,9 @@ async function diagnoseWithCnn(caseId, dc, farm) {
   }
   if (!prediction || !prediction.class_name) return false;
 
-  // 1. Try to structure CNN result with Minimax (better formatted output)
-  try {
-    const topKNames = (prediction.top_k || []).map(t => t.class_name);
-    const minimaxResult = await structureCnnResult(
-      prediction.class_name,
-      prediction.confidence,
-      topKNames,
-      farm.cropType || ''
-    );
-    if (minimaxResult && minimaxResult.detected_issue) {
-      // Merge Minimax's structured output with CNN confidence
-      minimaxResult.confidence = Math.round((prediction.confidence || 0.5) * 1000) / 1000;
-      minimaxResult.matches_risk_signal = minimaxResult.confidence >= 0.75;
-      minimaxResult.modelVersion = minimaxResult.modelVersion || 'plant-disease-cnn-38';
-      minimaxResult._modelSource = 'cnn+minimax';
-      console.log('CNN+Minimax diagnosis:', JSON.stringify(minimaxResult).substring(0, 300));
-      await saveDiagnosisResult(dc, minimaxResult, farm);
-      return true;
-    }
-  } catch (minimaxErr) {
-    console.warn('[diagnosisService] Minimax CNN structuring failed, using direct mapping:', minimaxErr.message);
-  }
-
-  // 2. Fallback: use local buildCnnResult (no external call)
+  // Use local buildCnnResult (no external call needed)
   const result = buildCnnResult(prediction, farm);
-  console.log('CNN diagnosis (direct):', JSON.stringify(result).substring(0, 300));
+  console.log('CNN diagnosis:', JSON.stringify(result).substring(0, 300));
   await saveDiagnosisResult(dc, result, farm);
   return true;
 }
@@ -304,51 +280,10 @@ Output ONLY raw JSON with these exact root-level keys: image_quality_ok, crop_id
     clearTimeout(timeoutId);
     console.error('Gemini error:', err.message);
 
-    // FALLBACK: Try Minimax via OpenRouter for image-based diagnosis
-    try {
-      console.log('[diagnosisService] Falling back to Minimax M3 for disease classification');
-      const imageBase64 = imageParts.length > 0
-        ? imageParts[0].inlineData.data
-        : null;
-      if (imageBase64) {
-        const minimaxResult = await classifyDisease(
-          imageBase64,
-          cropType,
-          cropStage,
-          riskContext
-        );
-        if (minimaxResult && minimaxResult.detected_issue) {
-          // If response seems truncated/incomplete, retry with structural prompt
-          if (!minimaxResult.treatment || !Array.isArray(minimaxResult.treatment.immediate_actions) || minimaxResult.treatment.immediate_actions.length === 0) {
-            console.warn('[diagnosisService] Minimax result incomplete; retrying for structured output');
-            const retryResult = await classifyDisease(
-              imageBase64,
-              cropType,
-              cropStage,
-              'IMPORTANT: Respond ONLY with the complete JSON object. Do not truncate. Include all keys: image_quality_ok, crop_identified, detected_issue, confidence, severity, symptoms_observed, matches_risk_signal, disease_description, treatment (with immediate_actions, chemical, biological, cultural, application_schedule, withholding_period), prevention, notes.'
-            );
-            if (retryResult && retryResult.treatment && retryResult.treatment.immediate_actions) {
-              await saveDiagnosisResult(dc, retryResult, farm);
-              console.log('Minimax fallback diagnosis (retry) saved:', JSON.stringify(retryResult).substring(0, 200));
-              return;
-            }
-            await saveDiagnosisResult(dc, minimaxResult, farm);
-            console.log('Minimax fallback diagnosis saved:', JSON.stringify(minimaxResult).substring(0, 200));
-            return;
-          }
-          await saveDiagnosisResult(dc, minimaxResult, farm);
-          console.log('Minimax fallback diagnosis saved:', JSON.stringify(minimaxResult).substring(0, 200));
-          return;
-        }
-      }
-    } catch (minimaxErr) {
-      console.warn('Minimax fallback also failed:', minimaxErr.message);
-    }
-
-    // Both models failed — save failure state
+    // All diagnosis methods failed — save failure state
     await DiagnosisCase.updateOne(
       { _id: caseId },
-      { $set: { status: 'retry_failed', geminiResult: { notes: err.message + ' | Minimax fallback also failed' } } }
+      { $set: { status: 'retry_failed', geminiResult: { notes: err.message } } }
     );
   }
 }
