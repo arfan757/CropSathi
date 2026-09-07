@@ -243,6 +243,11 @@
             </div>
 
             <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
+              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Crop Stage</p>
+              <p id="detailStage" class="text-sm font-semibold text-[#1b1c1c] mt-0.5 capitalize">—</p>
+            </div>
+
+            <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
               <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Polygon Points</p>
               <p id="detailPoints" class="text-sm font-semibold text-[#1b1c1c] mt-0.5">0 points</p>
             </div>
@@ -298,15 +303,6 @@
       'Grapes': 'grape',
       'Other': 'sprout',
     };
-
-    // Random field images for demo
-    const fieldImages = [
-      'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=1200',
-      'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&q=80&w=1200',
-      'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&q=80&w=1200',
-      'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&q=80&w=1200',
-      'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&q=80&w=1200',
-    ];
 
     // Load user profile and fields
     async function loadData() {
@@ -367,60 +363,52 @@
       empty.classList.add('hidden');
       grid.classList.remove('hidden');
 
-      grid.innerHTML = fields.map((field, index) => `
-        <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl overflow-hidden tactile-card">
-          <!-- Field Image -->
-          <div class="relative h-48 overflow-hidden group">
-            <img src="${fieldImages[index % fieldImages.length]}" alt="${field.name}" loading="lazy" decoding="async"
-              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-
-            <!-- Status Badge -->
-            <div class="absolute top-3 right-3 bg-[#006038] text-[#ffffff] px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
+      grid.innerHTML = fields.map((field) => `
+        <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl tactile-card p-5">
+          <!-- Card Header -->
+          <div class="flex items-start justify-between gap-3 mb-4">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-11 h-11 rounded-xl bg-white border border-[#e4e2e1] flex items-center justify-center shrink-0 shadow-sm">
+                <i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-5 h-5 text-[#006038]"></i>
+              </div>
+              <div class="min-w-0">
+                <h3 class="font-bold text-[#1b1c1c] font-headline text-base leading-tight truncate">${CropSathiPrefs.escapeHtml(field.name)}</h3>
+                <p class="text-xs text-[#3f4941] mt-0.5 truncate">${CropSathiPrefs.escapeHtml(field.cropType)}${field.cropStage ? ' · ' + CropSathiPrefs.escapeHtml(field.cropStage) : ''} · ${field.areaInHectares.toFixed(1)} hectares</p>
+              </div>
+            </div>
+            <div class="bg-[#006038] text-[#ffffff] px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shrink-0">
               <span class="w-2 h-2 rounded-full bg-[#abffc9] animate-pulse"></span>
               Active
             </div>
-
-            <!-- Crop Info Overlay -->
-            <div class="absolute bottom-3 left-3 right-3">
-              <h3 class="font-bold text-[#ffffff] font-headline text-lg">${CropSathiPrefs.escapeHtml(field.name)}</h3>
-              <p class="text-xs text-[#ffffff]/90 flex items-center gap-1 mt-0.5">
-                <span class="text-base"><i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-4 h-4 text-[#006038]"></i></span> ${CropSathiPrefs.escapeHtml(field.cropType)} · ${field.areaInHectares.toFixed(1)} hectares
-              </p>
+          </div>
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
+              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Area</p>
+              <p class="text-lg font-bold text-[#006038] mt-0.5">${field.areaInHectares.toFixed(1)} ha</p>
+            </div>
+            <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
+              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Area (Acres)</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5">${field.areaInAcres.toFixed(1)} ac</p>
+            </div>
+            <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
+              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Crop Type</p>
+              <p class="text-sm font-semibold text-[#1b1c1c] mt-0.5">${CropSathiPrefs.escapeHtml(field.cropType)}</p>
+            </div>
+            <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
+              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Sowing Date</p>
+              <p class="text-sm font-semibold text-[#1b1c1c] mt-0.5">${new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
             </div>
           </div>
 
-          <!-- Field Details -->
-          <div class="p-5">
-            <!-- Stats Grid -->
-            <div class="grid grid-cols-2 gap-3 mb-4">
-              <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
-                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Area</p>
-                <p class="text-lg font-bold text-[#006038] mt-0.5">${field.areaInHectares.toFixed(1)} ha</p>
-              </div>
-              <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
-                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Area (Acres)</p>
-                <p class="text-lg font-bold text-[#1b1c1c] mt-0.5">${field.areaInAcres.toFixed(1)} ac</p>
-              </div>
-              <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
-                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Crop Type</p>
-                <p class="text-sm font-semibold text-[#1b1c1c] mt-0.5">${CropSathiPrefs.escapeHtml(field.cropType)}</p>
-              </div>
-              <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
-                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Sowing Date</p>
-                <p class="text-sm font-semibold text-[#1b1c1c] mt-0.5">${new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex gap-2">
-              <button onclick="viewField('${field._id}')" class="flex-1 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] text-sm font-semibold px-4 py-2.5 rounded-full transition">
-                ${CropSathiPrefs.t('mf_view_details')}
-              </button>
-              <button onclick="deleteField('${field._id}', '${field.name}')" class="w-10 h-10 bg-[#f0eded] hover:bg-red-50 rounded-full flex items-center justify-center transition" title="Delete field">
-                <i data-lucide="trash-2" class="w-4 h-4 text-[#933302]"></i>
-              </button>
-            </div>
+          <!-- Action Buttons -->
+          <div class="flex gap-2">
+            <button onclick="viewField('${field._id}')" class="flex-1 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] text-sm font-semibold px-4 py-2.5 rounded-full transition">
+              ${CropSathiPrefs.t('mf_view_details')}
+            </button>
+            <button onclick="deleteField('${field._id}', '${field.name}')" class="w-10 h-10 bg-[#f0eded] hover:bg-red-50 rounded-full flex items-center justify-center transition" title="Delete field">
+              <i data-lucide="trash-2" class="w-4 h-4 text-[#933302]"></i>
+            </button>
           </div>
         </div>
       `).join('');
@@ -460,6 +448,7 @@
       document.getElementById('detailSowing').textContent = field.sowingDate
         ? new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
         : '—';
+      document.getElementById('detailStage').textContent = field.cropStage || '—';
       document.getElementById('detailPoints').textContent = field.polygon ? `${field.polygon.length} points` : '0 points';
 
       // Show modal

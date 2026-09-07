@@ -2,6 +2,29 @@ import Field from '../models/Field.js';
 import NdviReading from '../models/NdviReading.js';
 import { computeRiskScore } from '../services/riskService.js';
 import { fetchNdviForFarm, isVegetationDetected } from '../services/ndviService.js';
+import { inferCropStage, daysSinceSowing, isValidCropStage } from '../services/cropStageService.js';
+
+// @desc    Infer growth stage from crop type + sowing date (single source of truth)
+// @route   GET /api/fields/infer-stage?cropType=Cotton&sowingDate=2026-06-01
+// @access  Private
+export const inferStage = async (req, res) => {
+  try {
+    const { cropType, sowingDate } = req.query;
+    const stage = inferCropStage(cropType, sowingDate);
+    if (!stage) {
+      return res.status(400).json({
+        success: false,
+        message: 'cropType and a valid sowingDate are required',
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      data: { stage, daysSinceSowing: daysSinceSowing(sowingDate) },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // @desc    Create a new field
 // @route   POST /api/fields
@@ -16,9 +39,21 @@ export const createField = async (req, res) => {
       boundary,
       areaInHectares,
       areaInAcres,
-      cropStage,
       soilType,
     } = req.body;
+    // Explicit farmer choice wins; otherwise infer from sowing date so the
+    // field does not silently score as 'vegetative' forever. Empty string
+    // (form "Auto" option) counts as "not provided".
+    let { cropStage } = req.body;
+    if (!cropStage && cropType && sowingDate) {
+      cropStage = inferCropStage(cropType, sowingDate) || undefined;
+    }
+    if (cropStage !== undefined && !isValidCropStage(cropStage)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid cropStage. Must be one of: sowing, vegetative, flowering, fruiting, maturity, harvested.',
+      });
+    }
 
     // 1. Boundary array check
     if (!polygon || polygon.length < 3) {
@@ -161,6 +196,32 @@ export const updateField = async (req, res) => {
       }
     }
 
+    // Empty-string stage (form "Auto") means "re-infer", not "store ''".
+    if (updates.cropStage === '') delete updates.cropStage;
+
+    if (updates.cropStage !== undefined && !isValidCropStage(updates.cropStage)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid cropStage. Must be one of: sowing, vegetative, flowering, fruiting, maturity, harvested.',
+      });
+    }
+
+    // Sowing date or crop changed without an explicit stage: re-infer so the
+    // stored stage stays consistent instead of going stale.
+    if (updates.cropStage === undefined && (updates.sowingDate || updates.cropType)) {
+      const userId = req.user?.id || req.user?._id;
+      const current = await Field.findOne(
+        { _id: req.params.id, userId, deletedAt: null },
+        { cropType: 1, sowingDate: 1 }
+      ).lean();
+      if (current) {
+        const effectiveCrop = updates.cropType ?? current.cropType;
+        const effectiveSowing = updates.sowingDate ?? current.sowingDate;
+        const inferred = inferCropStage(effectiveCrop, effectiveSowing);
+        if (inferred) updates.cropStage = inferred;
+      }
+    }
+
     if (updates.polygon && updates.polygon.length >= 3 && (!updates.boundary || !updates.boundary.coordinates?.length)) {
       const ring = updates.polygon.map((p) => [p.lng, p.lat]);
       ring.push(ring[0]);
@@ -186,7 +247,7 @@ export const updateField = async (req, res) => {
       data: field,
     });
 
-    if (updates.cropType || updates.cropStage) {
+    if (updates.cropType || updates.cropStage || updates.sowingDate) {
       computeRiskScore(field._id).catch((err) => {
         console.error(`⚠️ Risk score re-computation failed for field ${field._id}:`, err.message);
       });

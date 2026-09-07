@@ -26,6 +26,7 @@ import ThermalReading from '../models/ThermalReading.js';
 import CropBaseline from '../models/CropBaseline.js';
 import Field from '../models/Field.js';
 import User from '../models/User.js';
+import { inferCropStage } from './cropStageService.js';
 
 // ─── Health Levels ────────────────────────────────────────────────────────
 
@@ -570,8 +571,19 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
   }
 
   // ── 6. Select weights based on growth stage + context ──
+  // Persisted stage wins; when absent (pre-fix fields), derive from
+  // sowing date so scoring never silently pins to 'vegetative'.
+  // An *inferred* 'harvested' is treated as 'maturity' for weights:
+  // only an explicit farmer-set 'harvested' nulls the score (step 0),
+  // so stale sowing dates can't wipe scores unexpectedly.
+  const inferredStage = !farm.cropStage
+    ? inferCropStage(farm.cropType, farm.sowingDate, now)
+    : null;
+  const effectiveStage = farm.cropStage
+    || (inferredStage === 'harvested' ? 'maturity' : inferredStage)
+    || null;
   const droughtContext = isDroughtContext(weatherReading);
-  const weights = getWeights(farm.cropStage, { isDrought: droughtContext });
+  const weights = getWeights(effectiveStage, { isDrought: droughtContext });
 
   // ── 7. Compute VPD for CWSI ──
   let vpd = null;
@@ -754,7 +766,9 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
     level,
     triggeredAlert: level === HealthLevel.ELEVATED || level === HealthLevel.HIGH,
     weightsUsed: normalizedWeights,
-    growthScenario: droughtContext ? 'drought' : (STAGE_TO_SCENARIO[farm.cropStage] || 'balanced'),
+    growthScenario: droughtContext ? 'drought' : (STAGE_TO_SCENARIO[effectiveStage] || 'balanced'),
+    effectiveStage: effectiveStage || null,
+    stageSource: farm.cropStage ? 'stored' : (inferredStage ? 'inferred' : 'default'),
     staleSignals,
     maxSignalGapDays: Math.round(maxGapDays),
     baselineSource: baselines.source,

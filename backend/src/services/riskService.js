@@ -328,6 +328,8 @@ export async function computeRiskScore(farmId) {
       noVegetationDetected: !vegetationDetected,
       spatialAnomaly,
       growthScenario: vegetationResult.growthScenario,
+      effectiveStage: vegetationResult.effectiveStage || null,
+      stageSource: vegetationResult.stageSource || null,
       baselineSource: vegetationResult.baselineSource,
       thermalConfidence: vegetationResult.thermalConfidence,
     },

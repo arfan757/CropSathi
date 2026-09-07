@@ -9,6 +9,7 @@
     "dev": "nodemon server.js",
     "test": "node --test",
     "seed": "node scripts/seedCatalogs.js",
+    "backfill:crop-stage": "node scripts/backfillCropStage.js",
     "cron:test-weather": "node -e \"import('./src/cron/pollWeather.js').then(m => m.pollWeatherForActiveFarms()).then(console.log)\"",
     "cron:test-satellite": "node -e \"import('./src/cron/pollSatellite.js').then(m => m.pollSatelliteForActiveFarms()).then(console.log)\""
   },

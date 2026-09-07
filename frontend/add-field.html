@@ -138,6 +138,23 @@
                 <input type="date" id="sowingDate"
                   class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition bg-white">
               </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#3f4941] uppercase tracking-wider mb-1.5"><span>Crop Stage</span></label>
+                <div class="relative">
+                  <select id="cropStage"
+                    class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition appearance-none bg-white">
+                    <option value="" selected>Auto (based on sowing date)</option>
+                    <option value="sowing">Sowing</option>
+                    <option value="vegetative">Vegetative</option>
+                    <option value="flowering">Flowering</option>
+                    <option value="fruiting">Fruiting</option>
+                    <option value="maturity">Maturity</option>
+                    <option value="harvested">Harvested</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#6f7a71] pointer-events-none"></i>
+                </div>
+                <p id="cropStageHint" class="text-[11px] text-[#6f7a71] mt-1 hidden"></p>
+              </div>
               <div class="bg-[#f6f3f2] rounded-xl p-3.5 border border-[#e4e2e1]">
                 <p class="text-[11px] font-semibold text-[#3f4941] uppercase tracking-wider mb-2.5" data-i18n="af_polygon_summary">Polygon Summary</p>
                 <div class="grid grid-cols-2 gap-3">
@@ -160,7 +177,7 @@
           <div class="pt-5 border-t border-[#e4e2e1] mt-6 flex gap-3">
             <a href="my-fields.html" class="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-[#3f4941] bg-[#f0eded] hover:bg-[#eae8e7] rounded-full transition"><span data-i18n="af_cancel">Cancel</span></a>
             <button onclick="saveField()" id="saveBtn" disabled
-              class="flex-1 px-4 py-2.5 text-sm font-semibold bg-[#006038] text-white rounded-full transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#1a7a4c]"><span data-i18n="af_save">Save Field</span></button>
+              class="flex-1 px-4 py-2.5 text-sm font-semibold bg-[#006038] text-white rounded-full transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#1a7a4c] flex items-center justify-center gap-2"><span data-i18n="af_save">Save Field</span></button>
           </div>
         </div>
       </div>
@@ -185,6 +202,7 @@
     let centerLng = 78.9629;
     let editMode = false;
     let editFieldId = null;
+    let isSaving = false;
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async function() {
@@ -209,12 +227,14 @@
           document.getElementById('cropType').value = field.cropType || '';
           document.getElementById('sowingDate').value = field.sowingDate
             ? new Date(field.sowingDate).toISOString().split('T')[0] : '';
+          if (field.cropStage) document.getElementById('cropStage').value = field.cropStage;
           if (field.polygon && field.polygon.length >= 3) {
             setTimeout(() => loadPolygonOnMap(field.polygon, field), 300);
           }
           localStorage.removeItem('editField');
           document.getElementById('drawBtnText').textContent = CropSathiPrefs.t('af_start_drawing');
           validateForm();
+          if (typeof updateStageHint === 'function') updateStageHint();
         }
       }
     }
@@ -418,6 +438,8 @@
     }
 
     function validateForm() {
+      const saveBtn = document.getElementById('saveBtn');
+      if (isSaving) { if (saveBtn) saveBtn.disabled = true; return; }
       const valid = document.getElementById('fieldName').value.trim()
         && document.getElementById('cropType').value
         && document.getElementById('sowingDate').value
@@ -427,34 +449,87 @@
 
     // Save
     async function saveField() {
+      if (isSaving) return;
       const token = localStorage.getItem('token');
       if (!token) { window.location.href = 'login.html'; return; }
       const name = document.getElementById('fieldName').value.trim();
       const cropType = document.getElementById('cropType').value;
       const sowingDate = document.getElementById('sowingDate').value;
+      const cropStage = document.getElementById('cropStage').value || undefined;
       if (!name || !cropType || !sowingDate || polygonPoints.length < 3) {
         alert('Please fill all fields and draw a polygon with at least 3 points');
         return;
       }
+      const saveBtn = document.getElementById('saveBtn');
+      const origBtnHTML = saveBtn.innerHTML;
+      isSaving = true;
+      saveBtn.disabled = true;
+      saveBtn.classList.add('opacity-75');
+      saveBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Syncing…</span>';
+      if (window.lucide) lucide.createIcons();
       const areaInHectares = calculateArea();
       const polygon = polygonPoints.map(p => ({ lat: p.lat, lng: p.lng }));
       const url = editMode ? `${CropSathiPrefs.api}/api/fields/${editFieldId}` : `${CropSathiPrefs.api}/api/fields`;
       const method = editMode ? 'PUT' : 'POST';
       try {
+        const payload = { name, cropType, sowingDate, polygon, areaInHectares, areaInAcres: areaInHectares * 2.47105 };
+        // Omit stage when "Auto" is selected so the backend infers it from
+        // the sowing date; an explicit pick is sent through as-is.
+        if (cropStage) payload.cropStage = cropStage;
         const res = await fetch(url, {
           method,
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ name, cropType, sowingDate, polygon, areaInHectares, areaInAcres: areaInHectares * 2.47105 })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) { localStorage.setItem('newFieldCreated', 'true'); window.location.href = 'dashboard.html'; }
+        if (data.success) { localStorage.setItem('newFieldCreated', 'true'); window.location.href = 'dashboard.html'; return; }
         else { alert(data.message || 'Error saving field'); }
       } catch (e) { console.error('Error saving field:', e); alert('Error saving field. Please try again.'); }
+      isSaving = false;
+      saveBtn.classList.remove('opacity-75');
+      saveBtn.innerHTML = origBtnHTML;
+      if (window.lucide) lucide.createIcons();
+      validateForm();
     }
 
     document.getElementById('fieldName').addEventListener('input', validateForm);
     document.getElementById('cropType').addEventListener('change', validateForm);
     document.getElementById('sowingDate').addEventListener('change', validateForm);
+
+    // Crop-stage auto hint: when "Auto" is selected, show the stage the
+    // backend would infer from the current crop + sowing date. Best-effort
+    // (single source of truth stays server-side); failures hide the hint.
+    let stageHintTimer = null;
+    async function updateStageHint() {
+      const hint = document.getElementById('cropStageHint');
+      const stageSel = document.getElementById('cropStage');
+      const cropType = document.getElementById('cropType').value;
+      const sowingDate = document.getElementById('sowingDate').value;
+      if (!hint || !stageSel) return;
+      if (stageSel.value || !cropType || !sowingDate) { hint.classList.add('hidden'); return; }
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(
+          `${CropSathiPrefs.api}/api/fields/infer-stage?cropType=${encodeURIComponent(cropType)}&sowingDate=${encodeURIComponent(sowingDate)}`,
+          { headers: { 'Authorization': 'Bearer ' + token } }
+        );
+        const data = await res.json();
+        if (data.success && data.data?.stage) {
+          const label = data.data.stage.charAt(0).toUpperCase() + data.data.stage.slice(1);
+          hint.textContent = `Auto: ${label} (${data.data.daysSinceSowing} days since sowing)`;
+          hint.classList.remove('hidden');
+        } else {
+          hint.classList.add('hidden');
+        }
+      } catch (e) { hint.classList.add('hidden'); }
+    }
+    function scheduleStageHint() {
+      clearTimeout(stageHintTimer);
+      stageHintTimer = setTimeout(updateStageHint, 350);
+    }
+    document.getElementById('cropType').addEventListener('change', scheduleStageHint);
+    document.getElementById('sowingDate').addEventListener('change', scheduleStageHint);
+    document.getElementById('cropStage').addEventListener('change', updateStageHint);
   </script>
 
   <!-- Shared UI: user menu + mobile search -->

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { inferCropStage } from '../services/cropStageService.js';
 
 const fieldSchema = new mongoose.Schema(
   {
@@ -21,7 +22,12 @@ const fieldSchema = new mongoose.Schema(
     cropStage: {
       type: String,
       enum: ['sowing', 'vegetative', 'flowering', 'fruiting', 'maturity', 'harvested'],
-      default: 'vegetative',
+      // No default: the pre-save hook infers it from (cropType, sowingDate)
+      // on creation, and every consumer falls back to 'vegetative' or to
+      // read-time inference when it is absent. A former
+      // `default: 'vegetative'` silently pinned every field to vegetative
+      // forever because no UI ever sent a stage.
+      default: undefined,
     },
     sowingDate: {
       type: Date,
@@ -121,6 +127,16 @@ fieldSchema.index({ status: 1, deletedAt: 1 });
 
 // ─── Calculate center + sync GeoJSON boundary before saving ────────────────
 fieldSchema.pre('save', function (next) {
+  // Auto-infer growth stage on creation when the farmer did not pick one
+  // explicitly. An explicit stage always wins; this only fills the gap so
+  // scoring (weights, NDVI expectation, weather stage gating) uses a
+  // stage consistent with the sowing date instead of the 'vegetative'
+  // default forever.
+  if (this.isNew && !this.cropStage && this.cropType && this.sowingDate) {
+    const inferred = inferCropStage(this.cropType, this.sowingDate);
+    if (inferred) this.cropStage = inferred;
+  }
+
   // Compute centroid from polygon
   if (this.polygon && this.polygon.length > 0) {
     const sumLat = this.polygon.reduce((sum, p) => sum + p.lat, 0);
