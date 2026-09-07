@@ -3,8 +3,8 @@ import mongoose from 'mongoose';
 const followUpSchema = new mongoose.Schema({
   caseId: { type: mongoose.Schema.Types.ObjectId, ref: 'DiagnosisCase', required: true, index: true },
   advisoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Advisory', required: true, index: true },
-  farmId: { type: mongoose.Schema.Types.ObjectId, ref: 'Field', required: true, index: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  farmId: { type: mongoose.Schema.Types.ObjectId, ref: 'Field', index: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   scheduledFor: { type: Date, required: true, index: true },
   status: {
     type: String,

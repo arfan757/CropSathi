@@ -16,7 +16,7 @@ const GEMINI_TIMEOUT_MS = 90000;
 
 // Plant disease CNN microservice (ml-service/). Used first for crops the
 // 38-class model supports; Gemini vision is the fallback for everything else.
-const ML_SERVICE_URL = (process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000').trim().replace(/\/+$/, '');
+const ML_SERVICE_URL = (process.env.ML_SERVICE_URL || 'http://127.0.0.1:10000').trim().replace(/\/+$/, '');
 
 const DIAGNOSIS_SCHEMA = {
   type: 'object',
@@ -48,8 +48,8 @@ const DIAGNOSIS_SCHEMA = {
 };
 
 function routeDiagnosis(result) {
-  // Only retry if image quality is poor AND no disease was detected (uncertain)
-  if (!result.image_quality_ok && (result.detected_issue || '').toLowerCase() === 'unknown') return 'retry';
+  // Retry if image quality is poor and no confident disease was detected
+  if (!result.image_quality_ok && (!result.detected_issue || ['unknown', 'healthy'].includes((result.detected_issue || '').toLowerCase()))) return 'retry';
   if ((result.detected_issue || '').trim().toLowerCase() === 'healthy') return 'false_alarm';
   if (result.confidence >= 0.75 && result.matches_risk_signal) return 'confirmed';
   return 'expert_review';
@@ -178,7 +178,7 @@ async function diagnoseWithCnn(caseId, dc, farm) {
       minimaxResult.modelVersion = minimaxResult.modelVersion || 'plant-disease-cnn-38';
       minimaxResult._modelSource = 'cnn+minimax';
       console.log('CNN+Minimax diagnosis:', JSON.stringify(minimaxResult).substring(0, 300));
-      await saveGeminiResult(dc, minimaxResult, farm);
+      await saveDiagnosisResult(dc, minimaxResult, farm);
       return true;
     }
   } catch (minimaxErr) {
@@ -188,7 +188,7 @@ async function diagnoseWithCnn(caseId, dc, farm) {
   // 2. Fallback: use local buildCnnResult (no external call)
   const result = buildCnnResult(prediction, farm);
   console.log('CNN diagnosis (direct):', JSON.stringify(result).substring(0, 300));
-  await saveGeminiResult(dc, result, farm);
+  await saveDiagnosisResult(dc, result, farm);
   return true;
 }
 
@@ -209,7 +209,7 @@ async function diagnoseWithGemini(caseId) {
   } catch {}
 
   if (!genAI) {
-    await saveGeminiResult(dc, {
+    await saveDiagnosisResult(dc, {
       image_quality_ok: true, crop_identified: cropType,
       detected_issue: cropType + '_mock_disease', confidence: 0.88,
       severity: 'moderate', symptoms_observed: ['Leaf discoloration', 'Reduced vigor'],
@@ -237,7 +237,7 @@ async function diagnoseWithGemini(caseId) {
   }
 
   if (imageParts.length === 0) {
-    await saveGeminiResult(dc, {
+    await saveDiagnosisResult(dc, {
       image_quality_ok: false, crop_identified: cropType,
       detected_issue: 'unknown', confidence: 0, severity: normalizeSeverity('none'),
       symptoms_observed: [], matches_risk_signal: false,
@@ -299,7 +299,7 @@ Output ONLY raw JSON with these exact root-level keys: image_quality_ok, crop_id
       }
     }
     console.log('Gemini parsed result:', JSON.stringify(parsed).substring(0, 500));
-    await saveGeminiResult(dc, parsed, farm);
+    await saveDiagnosisResult(dc, parsed, farm);
   } catch (err) {
     clearTimeout(timeoutId);
     console.error('Gemini error:', err.message);
@@ -328,15 +328,15 @@ Output ONLY raw JSON with these exact root-level keys: image_quality_ok, crop_id
               'IMPORTANT: Respond ONLY with the complete JSON object. Do not truncate. Include all keys: image_quality_ok, crop_identified, detected_issue, confidence, severity, symptoms_observed, matches_risk_signal, disease_description, treatment (with immediate_actions, chemical, biological, cultural, application_schedule, withholding_period), prevention, notes.'
             );
             if (retryResult && retryResult.treatment && retryResult.treatment.immediate_actions) {
-              await saveGeminiResult(dc, retryResult, farm);
+              await saveDiagnosisResult(dc, retryResult, farm);
               console.log('Minimax fallback diagnosis (retry) saved:', JSON.stringify(retryResult).substring(0, 200));
               return;
             }
-            await saveGeminiResult(dc, minimaxResult, farm);
+            await saveDiagnosisResult(dc, minimaxResult, farm);
             console.log('Minimax fallback diagnosis saved:', JSON.stringify(minimaxResult).substring(0, 200));
             return;
           }
-          await saveGeminiResult(dc, minimaxResult, farm);
+          await saveDiagnosisResult(dc, minimaxResult, farm);
           console.log('Minimax fallback diagnosis saved:', JSON.stringify(minimaxResult).substring(0, 200));
           return;
         }
@@ -354,10 +354,12 @@ Output ONLY raw JSON with these exact root-level keys: image_quality_ok, crop_id
 }
 
 const SEVERITY_MAP = {
-  high: 'severe', severe: 'severe', 'high': 'severe', 'severe': 'severe',
-  moderate: 'moderate', 'moderate': 'moderate',
-  low: 'mild', mild: 'mild', 'low': 'mild', 'mild': 'mild',
-  none: 'none', 'none': 'none',
+  high: 'severe',
+  severe: 'severe',
+  moderate: 'moderate',
+  low: 'mild',
+  mild: 'mild',
+  none: 'none',
 };
 function normalizeSeverity(s) {
   if (!s || typeof s !== 'string') return 'moderate';
@@ -370,7 +372,7 @@ function normalizeSeverity(s) {
   return SEVERITY_MAP[key] || 'moderate';
 }
 
-async function saveGeminiResult(dc, parsed, farm) {
+async function saveDiagnosisResult(dc, parsed, farm) {
   const route = routeDiagnosis(parsed);
   dc.geminiResult = {
     imageQualityOk: parsed.image_quality_ok,
@@ -422,19 +424,35 @@ async function saveGeminiResult(dc, parsed, farm) {
       try {
         const { createNotification } = await import('./notificationService.js');
         await createNotification(dc.userId, 'advisory_ready', {
+          farmId: dc.farmId,
           caseId: dc._id,
           advisoryId: advisory?._id || null,
-          deepLink: `/advisory?caseId=${dc._id}`
+          deepLink: `/advisory-detail.html?caseId=${dc._id}`
         });
       } catch (notifErr) {
         console.warn('Notification creation failed:', notifErr.message);
       }
-      // NOTIFICATION TRIGGER: schedule follow-up reminder
+      // Schedule follow-up + remedy reminders so the cron jobs have
+      // something to dispatch (remedy_reminder, harvest_safety_wait,
+      // follow_up_check). Without these rows no post-advisory
+      // notification can ever appear.
       try {
         const { scheduleFollowUp } = await import('./followupService.js');
-        await scheduleFollowUp(dc._id, advisory?._id || null);
+        await scheduleFollowUp(dc._id, advisory?._id || null, { farmId: dc.farmId, userId: dc.userId });
       } catch (fuErr) {
         console.warn('Follow-up scheduling failed:', fuErr.message);
+      }
+      try {
+        const { scheduleApplication, scheduleHarvestWait } = await import('./reminderService.js');
+        if (advisory?._id) {
+          await scheduleApplication(advisory._id);
+          const phi = advisory?.chemicalRecommendation?.preHarvestIntervalDays;
+          if (phi && Number.isFinite(Number(phi))) {
+            await scheduleHarvestWait(advisory._id, Number(phi));
+          }
+        }
+      } catch (remErr) {
+        console.warn('Reminder scheduling failed:', remErr.message);
       }
     } catch (advisoryErr) {
       console.warn('Advisory generation failed:', advisoryErr.message);
@@ -452,34 +470,42 @@ async function saveGeminiResult(dc, parsed, farm) {
         farm?.cropStage || 'vegetative',
         farm?.cropType || ''
       );
-      // NOTIFICATION: advisory_ready (with expert review caveat)
+      // NOTIFICATION: advisory_ready + escalation_alert for expert review
       try {
         const { createNotification } = await import('./notificationService.js');
         await createNotification(dc.userId, 'advisory_ready', {
+          farmId: dc.farmId,
           caseId: dc._id,
           advisoryId: advisory?._id || null,
-          deepLink: `/advisory?caseId=${dc._id}`
+          deepLink: `/advisory-detail.html?caseId=${dc._id}`
+        });
+        await createNotification(dc.userId, 'escalation_alert', {
+          farmId: dc.farmId,
+          caseId: dc._id,
+          advisoryId: advisory?._id || null,
+          deepLink: `/advisory-detail.html?caseId=${dc._id}`
         });
       } catch (notifErr) {
         console.warn('Notification creation failed:', notifErr.message);
       }
-      // Also send escalation_alert for expert review
-      try {
-        const { createNotification } = await import('./notificationService.js');
-        await createNotification(dc.userId, 'escalation_alert', {
-          caseId: dc._id,
-          advisoryId: advisory?._id || null,
-          deepLink: `/advisory?caseId=${dc._id}`
-        });
-      } catch (notifErr) {
-        console.warn('Escalation notification failed:', notifErr.message);
-      }
-      // Schedule follow-up
+      // Schedule follow-up + remedy reminders (see confirmed path above)
       try {
         const { scheduleFollowUp } = await import('./followupService.js');
-        await scheduleFollowUp(dc._id, advisory?._id || null);
+        await scheduleFollowUp(dc._id, advisory?._id || null, { farmId: dc.farmId, userId: dc.userId });
       } catch (fuErr) {
         console.warn('Follow-up scheduling failed:', fuErr.message);
+      }
+      try {
+        const { scheduleApplication, scheduleHarvestWait } = await import('./reminderService.js');
+        if (advisory?._id) {
+          await scheduleApplication(advisory._id);
+          const phi = advisory?.chemicalRecommendation?.preHarvestIntervalDays;
+          if (phi && Number.isFinite(Number(phi))) {
+            await scheduleHarvestWait(advisory._id, Number(phi));
+          }
+        }
+      } catch (remErr) {
+        console.warn('Reminder scheduling failed:', remErr.message);
       }
     } catch (advisoryErr) {
       console.warn('Advisory generation failed for expert_review:', advisoryErr.message);

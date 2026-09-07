@@ -5,12 +5,12 @@ import { createNotification } from './notificationService.js';
 
 const FOLLOWUP_DAYS = 7; // Default follow-up schedule
 
-export async function scheduleFollowUp(caseId, advisoryId) {
+export async function scheduleFollowUp(caseId, advisoryId, opts = {}) {
   const followUp = await FollowUp.create({
     caseId,
     advisoryId,
-    farmId: null,
-    userId: null,
+    farmId: opts.farmId || null,
+    userId: opts.userId || null,
     scheduledFor: new Date(Date.now() + FOLLOWUP_DAYS * 24 * 60 * 60 * 1000),
     status: 'pending',
     reminderCount: 0,
@@ -86,7 +86,7 @@ async function createEscalationNotification(followUp) {
       caseId: followUp.caseId,
       advisoryId: followUp.advisoryId,
       followUpId: followUp._id,
-      deepLink: `/advisory?id=${followUp.advisoryId}`,
+      deepLink: `/advisory-detail.html?caseId=${followUp.caseId}`,
     });
 
     return { notified: true, escalationReason: 'Worse crop condition reported' };

@@ -105,7 +105,7 @@ describe('CNN-first diagnosis', () => {
 
   it('reads ML_SERVICE_URL from env with a local default', () => {
     assert.ok(serviceSource.includes('ML_SERVICE_URL'), 'should use ML_SERVICE_URL');
-    assert.ok(serviceSource.includes('127.0.0.1:8000'), 'should default to localhost:8000');
+    assert.ok(serviceSource.includes('127.0.0.1:10000'), 'should default to localhost:10000');
   });
 
   it('routes supported crops through the CNN /predict endpoint', () => {

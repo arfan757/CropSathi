@@ -4,6 +4,7 @@ import {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  clearAllNotifications,
   takeAction,
 } from '../services/notificationService.js';
 import { protect } from '../middleware/authMiddleware.js';
@@ -67,6 +68,20 @@ router.post('/mark-all-read', async (req, res) => {
   } catch (err) {
     console.error('Error marking all notifications read:', err.message);
     res.status(500).json({ error: 'Failed to mark all notifications as read' });
+  }
+});
+
+// DELETE /api/notifications — delete all notifications for the user (Clear all)
+router.delete('/', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const result = await clearAllNotifications(userId);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Error clearing notifications:', err.message);
+    res.status(500).json({ error: 'Failed to clear notifications' });
   }
 });
 

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advisory — CropSathi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="ui.css">
+  <style>
+    body { font-family: 'Noto Sans', sans-serif; }
+    .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
+    .severity-mild { background: #e6e1f5; color: #5b4a8a; }
+    .severity-moderate { background: #fde8d5; color: #933302; }
+    .severity-severe { background: #fde2e2; color: #ba1a1a; }
+    .advisory-card { transition: box-shadow .15s ease; }
+    .advisory-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+    .sparkline { display: flex; align-items: flex-end; gap: 3px; height: 48px; }
+    .sparkline-bar { width: 8px; border-radius: 3px 3px 0 0; transition: height .2s ease; }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
+
+  <!-- Sidebar Navigation -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-white font-bold shadow-md"><i data-lucide="sprout" class="w-6 h-6"></i></div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+      <nav class="space-y-2">
+        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="layout-grid" class="w-5 h-5"></i><span>Dashboard</span></a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="map-pin" class="w-5 h-5"></i><span>My Fields</span></a>
+        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="camera" class="w-5 h-5"></i><span>Diagnose</span></a>
+        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-white rounded-xl font-semibold transition shadow-sm"><i data-lucide="lightbulb" class="w-5 h-5"></i><span>Advisory</span></a>
+      </nav>
+    </div>
+    <div class="pt-6 border-t border-[#e4e2e1]"><a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition"><i data-lucide="settings" class="w-5 h-5"></i><span>Settings</span></a></div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 w-full overflow-x-hidden p-4 pb-24 md:p-10 md:pb-10 max-w-4xl mx-auto overflow-y-auto md:ml-64">
+
+    <!-- Loading -->
+    <div id="loading-state" class="text-center py-20">
+      <div class="inline-block w-8 h-8 border-3 border-[#006038] border-t-transparent rounded-full animate-spin mb-3" style="border-width:3px"></div>
+      <p class="text-[#3f4941] text-sm">Loading advisory…</p>
+    </div>
+
+    <!-- Error -->
+    <div id="error-state" class="hidden text-center py-20">
+      <div class="w-16 h-16 rounded-full bg-[#f0eded] flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="alert-circle" class="w-8 h-8 text-[#9ca3a2]"></i>
+      </div>
+      <h3 class="font-headline font-bold text-lg text-[#1b1c1c] mb-1">Advisory not found</h3>
+      <p class="text-sm text-[#6f7a71]">No advisory exists for this case, or the link is invalid.</p>
+      <a href="advisory.html" class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 bg-[#006038] text-white font-semibold rounded-full hover:bg-[#1a7a4c] transition text-sm">Back to advisories</a>
+    </div>
+
+    <!-- Advisory content (hidden until loaded) -->
+    <div id="advisory-content" class="hidden space-y-5">
+
+      <!-- ── Header banner ────────────────────────────────────── -->
+      <div id="header-banner" class="bg-white border border-[#e4e2e1] rounded-2xl p-5 advisory-card">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-full bg-[#006038]/10 flex items-center justify-center shrink-0">
+              <i data-lucide="wheat" class="w-5 h-5 text-[#006038]"></i>
+            </div>
+            <div class="min-w-0">
+              <h1 id="hdr-crop" class="font-headline font-bold text-lg text-[#1b1c1c] leading-snug truncate"></h1>
+              <p id="hdr-disease" class="text-sm text-[#3f4941] mt-0.5 truncate"></p>
+            </div>
+          </div>
+          <span id="hdr-severity" class="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide"></span>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-[#6f7a71] mb-3">
+          <span id="hdr-confidence"></span>
+          <span>·</span>
+          <span id="hdr-date"></span>
+        </div>
+        <p id="hdr-summary" class="text-sm text-[#3f4941] leading-relaxed"></p>
+      </div>
+
+      <!-- ── Escalation banner ────────────────────────────────── -->
+      <div id="escalation-banner" class="hidden bg-[#ba1a1a]/5 border border-[#ba1a1a]/20 rounded-2xl p-5">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-[#ba1a1a]/10 flex items-center justify-center shrink-0">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-[#ba1a1a]"></i>
+          </div>
+          <div>
+            <h3 class="font-headline font-semibold text-[#ba1a1a] text-sm">Referred to CROPSAP</h3>
+            <p id="escalation-reason" class="text-xs text-[#ba1a1a]/80 mt-1 leading-relaxed"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Closed banner ────────────────────────────────────── -->
+      <div id="closed-banner" class="hidden bg-[#006038]/5 border border-[#006038]/20 rounded-2xl p-5">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-[#006038]/10 flex items-center justify-center shrink-0">
+            <i data-lucide="check-circle" class="w-5 h-5 text-[#006038]"></i>
+          </div>
+          <div>
+            <h3 class="font-headline font-semibold text-[#006038] text-sm">Case Resolved</h3>
+            <p id="closed-date" class="text-xs text-[#6f7a71] mt-1"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── IPM Remedy cards ─────────────────────────────────── -->
+      <div id="remedy-plan-container" class="space-y-4"></div>
+
+      <!-- ── Where to buy ─────────────────────────────────────── -->
+      <div id="where-to-buy" class="hidden bg-white border border-[#e4e2e1] rounded-2xl p-5 advisory-card">
+        <div class="flex items-center gap-2.5 mb-3">
+          <div class="w-8 h-8 rounded-lg bg-[#006038]/10 flex items-center justify-center shrink-0">
+            <i data-lucide="store" class="w-4 h-4 text-[#006038]"></i>
+          </div>
+          <h3 class="font-headline font-semibold text-sm text-[#1b1c1c]">Where to Buy</h3>
+        </div>
+        <div id="pmksk-list" class="space-y-2"></div>
+      </div>
+
+      <!-- ── Follow-up widget ─────────────────────────────────── -->
+      <div id="followup-widget" class="hidden bg-white border border-[#e4e2e1] rounded-2xl p-5 advisory-card">
+        <div class="flex items-center gap-2.5 mb-3">
+          <div class="w-8 h-8 rounded-lg bg-[#6f7a71]/10 flex items-center justify-center shrink-0">
+            <i data-lucide="clipboard-check" class="w-4 h-4 text-[#6f7a71]"></i>
+          </div>
+          <h3 class="font-headline font-semibold text-sm text-[#1b1c1c]">Follow-up</h3>
+        </div>
+        <div id="followup-content"></div>
+      </div>
+
+      <!-- ── Health score sparkline ────────────────────────────── -->
+      <div id="health-trend-card" class="hidden bg-white border border-[#e4e2e1] rounded-2xl p-5 advisory-card">
+        <div class="flex items-center gap-2.5 mb-3">
+          <div class="w-8 h-8 rounded-lg bg-[#6f7a71]/10 flex items-center justify-center shrink-0">
+            <i data-lucide="activity" class="w-4 h-4 text-[#6f7a71]"></i>
+          </div>
+          <h3 class="font-headline font-semibold text-sm text-[#1b1c1c]">Health Trend</h3>
+        </div>
+        <div class="flex items-end gap-3">
+          <div id="sparkline" class="sparkline flex-1"></div>
+          <div class="text-right shrink-0">
+            <p id="trend-label" class="text-sm font-semibold text-[#1b1c1c]"></p>
+            <p id="trend-sub" class="text-xs text-[#6f7a71]"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Status footer ────────────────────────────────────── -->
+      <div id="status-footer" class="text-center py-4 text-xs text-[#6f7a71]"></div>
+
+    </div><!-- /advisory-content -->
+
+  </main>
+
+  <!-- Bottom navigation (mobile only) -->
+  <nav class="cs-tabbar md:hidden" aria-label="Primary">
+    <a class="cs-tab" href="dashboard.html">
+      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
+      <span class="cs-tab-label">Dashboard</span>
+    </a>
+    <a class="cs-tab" href="my-fields.html">
+      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
+      <span class="cs-tab-label">My Fields</span>
+    </a>
+    <a class="cs-tab" href="diagnose.html">
+      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
+      <span class="cs-tab-label">Diagnose</span>
+    </a>
+    <a class="cs-tab is-active" href="advisory.html" aria-current="page">
+      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
+      <span class="cs-tab-label">Advisory</span>
+    </a>
+    <a class="cs-tab" href="settings.html">
+      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
+      <span class="cs-tab-label">Settings</span>
+    </a>
+  </nav>
+
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="config.js"></script>
+  <script src="preferences.js"></script>
+  <script src="ui.js"></script>
+  <script src="advisory-detail.js"></script>
+</body>
+</html>

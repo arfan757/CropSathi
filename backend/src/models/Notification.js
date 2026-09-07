@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  farmId: { type: mongoose.Schema.Types.ObjectId, ref: 'Field', required: true, index: true },
+  farmId: { type: mongoose.Schema.Types.ObjectId, ref: 'Field', index: true },
   caseId: { type: mongoose.Schema.Types.ObjectId, ref: 'DiagnosisCase', index: true },
   advisoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Advisory', index: true },
   followUpId: { type: mongoose.Schema.Types.ObjectId, ref: 'FollowUp', index: true },

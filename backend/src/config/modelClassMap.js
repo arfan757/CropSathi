@@ -95,7 +95,7 @@ export function humanizeClassName(className) {
 }
 
 /**
- * Build the same result shape Gemini used to produce, so saveGeminiResult,
+ * Build the same result shape Gemini used to produce, so saveDiagnosisResult,
  * routeDiagnosis, and the frontend (which reads diagnosisCase.geminiResult)
  * all keep working unchanged.
  */
@@ -118,7 +118,7 @@ export function buildCnnResult(prediction, farm = {}) {
     // prediction matches, so it routes to 'confirmed' and gets an advisory.
     matches_risk_signal: confidence >= 0.75,
     disease_description: display,
-    treatment: { immediate_actions: [], chemical: '', biological: '', cultural: '', application_schedule: '' },
+    treatment: { immediate_actions: [], chemical: '', biological: '', cultural: '', application_schedule: '', withholding_period: '' },
     prevention: [],
     notes: `Detected by PlantVillage CNN (38 classes). Top matches: ${
       topK.slice(0, 3).map((t) => `${humanizeClassName(t.class_name)} (${Math.round((t.confidence || 0) * 100)}%)`).join(', ')

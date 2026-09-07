@@ -130,6 +130,12 @@ function renderAdvisoryCard(advisory) {
         ${renderChemicalSection(advisory.chemicalRecommendation, checked, c._id)}
         ${renderPreventionSection(advisory.prevention, checked, c._id)}
       </div>
+      <!-- View detail link -->
+      <div class="px-5 pb-5">
+        <a href="advisory-detail.html?caseId=${c._id}" class="block text-center text-xs font-semibold py-2.5 px-4 rounded-xl bg-[#f6f3f2] text-[#006038] hover:bg-[#eae8e7] transition border border-[#e4e2e1]">
+          View full advisory →
+        </a>
+      </div>
     </div>
   `;
 }

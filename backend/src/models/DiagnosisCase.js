@@ -32,7 +32,7 @@ const diagnosisCaseSchema = new mongoose.Schema({
     ],
     default: 'awaiting_photo',
   },
-  // Gemini AI diagnosis result (structured)
+  // AI diagnosis result (structured) — produced by Gemini, CNN+Minimax, or Minimax fallback
   geminiResult: {
     imageQualityOk: { type: Boolean, default: null },
     cropIdentified: { type: String, default: null },
@@ -41,6 +41,9 @@ const diagnosisCaseSchema = new mongoose.Schema({
     severity: { type: String, enum: ['none', 'mild', 'moderate', 'severe', null], default: null },
     symptomsObserved: [{ type: String }],
     matchesRiskSignal: { type: Boolean, default: null },
+    diseaseDescription: { type: String, default: null },
+    treatment: { type: mongoose.Schema.Types.Mixed, default: null },
+    prevention: [{ type: String }],
     notes: { type: String, default: null },
     modelVersion: { type: String, default: null },
   },

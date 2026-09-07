@@ -138,7 +138,8 @@ Output ONLY raw JSON with these exact keys: cultural, biological, chemical, prev
             cultural: { type: 'array', items: { type: 'string' }, description: 'Cultural practices / immediate field actions' },
             biological: { type: 'array', items: { type: 'string' }, description: 'Biological control methods' },
             chemical: {
-              type: ['object', 'null'],
+              type: 'object',
+              nullable: true,
               description: 'Chemical treatment, or null if none recommended',
               properties: {
                 productClass: { type: 'string' },

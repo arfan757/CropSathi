@@ -20,7 +20,7 @@ export async function uploadPhotosEndpoint(req, res) {
   try {
     const { caseId } = req.params;
     const files = (req.files || []).map(f => ({
-      storageKey: 'cases/' + caseId + '/' + f.filename || ('cases/' + caseId + '/' + f.filename),
+      storageKey: 'cases/' + caseId + '/' + f.filename,
       filename: f.originalname || 'photo.jpg',
       mimeType: f.mimetype || 'image/jpeg',
       fileSize: f.size || 0,

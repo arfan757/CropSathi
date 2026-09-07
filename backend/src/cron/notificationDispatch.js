@@ -42,7 +42,7 @@ export async function dispatchNotifications() {
           farmId: diagnosisCase.farmId,
           caseId: diagnosisCase._id,
           advisoryId: advisory._id,
-          deepLink: `/advisory?id=${advisory._id}`,
+          deepLink: `/advisory-detail.html?caseId=${diagnosisCase._id}`,
         });
         notificationsCreated++;
       }
