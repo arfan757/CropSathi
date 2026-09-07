@@ -11,7 +11,7 @@ import sharp from 'sharp';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const DIAGNOSIS_MODEL = 'gemini-3.6-flash';
-const GEMINI_TIMEOUT_MS = 90000;
+const GEMINI_TIMEOUT_MS = 180000;
 
 // Plant disease CNN microservice (ml-service/). Used first for crops the
 // 38-class model supports; Gemini vision is the fallback for everything else.
@@ -232,7 +232,7 @@ Output ONLY raw JSON with these exact root-level keys: image_quality_ok, crop_id
 `;
 
   const abortController = new AbortController();
-  const timeoutId = setTimeout(() => abortController.abort(new Error('Gemini timeout after 90s')), GEMINI_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => abortController.abort(new Error('Gemini timeout after 180s')), GEMINI_TIMEOUT_MS);
 
   try {
     const result = await model.generateContent(

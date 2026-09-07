@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const ADVISORY_MODEL = 'gemini-3.6-flash';
-const ADVISORY_TIMEOUT_MS = 60000;
+const ADVISORY_TIMEOUT_MS = 120000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
