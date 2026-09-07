@@ -47,6 +47,12 @@ const thermalReadingSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  cloudCoverPct: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100,
+  },
 }, { timestamps: true });
 
 thermalReadingSchema.index({ farmId: 1, observedAt: -1 });

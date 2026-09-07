@@ -196,6 +196,7 @@ export async function computeThermalReading(farm, weatherReading) {
         thermalGrid: landsat.thermalGrid,
         sceneSource: 'landsat-8-9',
         sceneId: landsat.sceneInfo.sceneId,
+        cloudCoverPct: landsat.sceneInfo.cloudCover || 0,
       });
 
       return reading;
@@ -241,6 +242,7 @@ export async function computeThermalReading(farm, weatherReading) {
     anomalyC,
     resolution: baseline !== null ? 'district' : 'farm_simulated',
     sceneSource: 'formula',
+    cloudCoverPct: 0,
   });
 
   return reading;

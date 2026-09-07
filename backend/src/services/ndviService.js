@@ -8,11 +8,12 @@ import { resolveDistrictFarmIds } from './thermalService.js';
 // "is there any vegetation in this boundary at all?" vs "how stressed is
 // the crop?" Trying to answer the first question by pushing the second
 // question's stress score toward 1.0 doesn't work — NDVI/NDRE are only
-// ~30-45% of the total weighted score (see computeFusedHealthScore in
-// riskService.js), so even a maxed-out vegetation-index stress can only
-// ever drag the composite down to roughly 100 * (1 - ndviWeight), not to
-// 0 — weather/thermal/pestHistory don't measure whether THIS polygon has
-// plants on it, so they can't contribute to detecting a misplaced
+// ~70-80% of the total weighted score in the 3-signal fusion (see
+// computeVegetationHealthScore in vegetationHealth.js), so even a
+// maxed-out vegetation-index stress can only ever drag the composite
+// down to roughly 100 * (1 - ndviWeight - ndreWeight), not to
+// 0 — thermal doesn't measure whether THIS polygon has
+// plants on it, so it can't contribute to detecting a misplaced
 // boundary at all. This function is meant to be checked BEFORE/alongside
 // the stress fusion and short-circuit it when vegetation is absent,
 // rather than folded into the weighted average.

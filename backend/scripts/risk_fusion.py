@@ -1,75 +1,86 @@
 """
 risk_fusion.py
 ------------------
-The Risk Fusion Engine from ARCHITECTURE.md: turns weather risk,
-NDVI/NDRE anomaly, thermal anomaly, and local pest/soil history into
-one Farm Health Score (0-100, higher = healthier).
+The Risk Fusion Engine from ARCHITECTURE.md: turns NDVI, NDRE
+(Sentinel-2) and thermal (CWSI from Landsat 8/9) into one Field
+Health Score (0-100, higher = healthier).
 
 CONVENTION: this file uses a 0-100 HEALTH score (100 = perfectly
 healthy) rather than the 0-1 "anomaly_score" convention used in
-ndvi_service.py and thermal_anomaly.py. Those two modules' outputs
-plug straight in as `stress = anomaly_score` (their scale already
-runs 0-1, 1 = max stress) -- health_score is just 100 * (1 - fused
-stress). Pick one convention across the codebase; this file assumes
-health-score-out is what the dashboard and advisory engine want.
+ndvi_service.py and thermal_anomaly.py.
 
-WEIGHTING RULES, AND WHY:
-  weather    0.35  -- most current signal (no cloud-cover gaps, daily+
-                       updates), and the best LEADING indicator: humid/
-                       warm conditions predict disease before NDVI shows
-                       any structural change at all.
-  ndvi       0.30  -- farm-level resolution (10-20m) is the most
-                       spatially precise signal, but lags (reacts after
-                       chlorophyll/structural change) and has real
-                       revisit gaps (~5 days nominal, worse in monsoon
-                       cloud cover).
-  thermal    0.15  -- lower weight ON PURPOSE. Per ARCHITECTURE.md's
-                       caveats, satellite thermal (Landsat/MODIS) is
-                       district-level resolution at best for a
-                       smallholder plot, not farm-specific -- so it
-                       contributes context, not a strong farm-level
-                       vote.
-  historical 0.20  -- local pest history (CROPSAP records) and soil
-                       condition. Slow-changing prior, not a live
-                       signal -- functions as a risk FLOOR, not a
-                       trend.
-  Weights sum to 1.0 and are only ever applied to signals that are
-  actually fresh -- see the staleness/reweighting rule below.
+3-SIGNAL WEIGHTING:
+  FieldHealthScore = (w_NDVI × S_NDVI) + (w_NDRE × S_NDRE) + (w_Thermal × S_Thermal)
 
-STALENESS RULE:
-  A signal older than its staleness limit is dropped from the average
-  entirely and its weight is redistributed proportionally across the
-  remaining fresh signals, rather than either (a) trusting stale data
-  as current, or (b) silently zeroing it out and understating risk.
-  Weather should essentially never go stale; NDVI and thermal both can,
-  which is exactly the "satellite alone isn't enough" caveat already
-  documented in ARCHITECTURE.md showing up as a concrete rule.
+  NDVI and NDRE come from Sentinel-2 optical imagery (farm-level
+  resolution, ~10-20m). Thermal comes from Landsat 8/9 LST, converted
+  to an empirical CWSI (Crop Water Stress Index) via the Idso method.
 
-CROP-STAGE GATING:
-  The official PS explicitly names crop stage as a risk factor. A
-  disease that only strikes at flowering shouldn't drag the score down
-  during early vegetative growth -- callers pass a per-signal
-  relevance multiplier (0-1) for the crop's current stage; it defaults
-  to full relevance if the caller doesn't have stage data yet.
+  Weather is REMOVED from the health score. It is still used for
+  disease hypothesis detection in riskService.js but does NOT
+  contribute to this score. Weather was a leading indicator but
+  introduced too many false alarms — regional weather doesn't reflect
+  farm-level conditions.
 
-THRESHOLDS -> LEVELS -> THE FALSE-ALARM GATE:
+  pestHistory is REMOVED from the health score. It remains as a
+  diagnostic-only signal. Historical data is slow-changing and
+  doesn't reflect current crop health.
+
+GROWTH-STAGE WEIGHT SCENARIOS:
+  balanced:     ndvi=0.40, ndre=0.40, thermal=0.20
+  early_sparse: ndvi=0.40, ndre=0.30, thermal=0.30  (sowing, vegetative)
+  late_dense:   ndvi=0.30, ndre=0.40, thermal=0.30  (fruiting, maturity)
+  drought:      ndvi=0.30, ndre=0.30, thermal=0.40  (auto-detected from weather)
+
+  All weights sum to 1.0. Max single weight = 0.40 (hard cap).
+
+CWSI (Empirical Idso Method):
+  CWSI = clamp((dT − dT_lower) / (dT_upper − dT_lower), 0, 1)
+  where:
+    dT = T_canopy − T_air
+    dT_lower = slope_lower × VPD + intercept_lower  (well-watered baseline)
+    dT_upper = slope_upper × VPD + intercept_upper  (full stomatal closure)
+    VPD = vapor pressure deficit (Tetens formula)
+
+  All CWSI regression coefficients are NEEDS_CALIBRATION — seeded
+  with published approximate values per crop type. Replace with real
+  empirically-fit coefficients as ground-referenced canopy temperature
+  / soil moisture data accumulates.
+
+DYNAMIC BASELINES:
+  NDVI/NDRE are normalized against trailing 90-day 5th/95th percentiles
+  per crop type and region (CropBaseline model). Cold-start defaults:
+  NDVI: 0.0–0.9, NDRE: -0.1–0.7.
+
+STALENESS LIMITS:
+  ndvi: 10 days  (~2 missed Sentinel-2 revisits)
+  ndre: 10 days  (same Sentinel-2 image as ndvi)
+  thermal: 20 days  (Landsat revisit is slower; extra slack)
+
+  All stale → neutral fallback (score=50, level=watch).
+
+CLOUD COVER GATING:
+  NDVI threshold: 40%  — independent check per signal
+  Thermal threshold: 50%  — independent check per signal
+  Each signal falls back to last valid reading independently.
+
+RESOLUTION MISMATCH:
+  Landsat thermal pixel = 30m × 30m = 0.09 ha. Fields smaller than
+  this get thermal_confidence: "low".
+
+FALSE-ALARM GATE:
+  Max single weight = 0.40 → single signal at max stress gives
+  health = 100 − (0.40 × 100) = 60 (WATCH, never ELEVATED).
+  Reaching ELEVATED requires ≥2 corroborating signals.
+
+THRESHOLDS -> LEVELS:
   score >= 80  healthy   -- no action
   score >= 60  watch     -- visible in-app, no push alert
   score >= 40  elevated  -- triggers "Farmer Prompted to Upload Photos"
   score <  40  high      -- same trigger, higher-priority notification
-  This score NEVER auto-declares a diagnosis by itself -- per PRD.md
-  Part 2, crossing "elevated" only ever triggers a photo request. See
-  should_prompt_for_photo().
 
-  DELIBERATE PROPERTY OF THESE WEIGHTS: no single signal, even at its
-  own maximum stress value, can push the score into "elevated" alone
-  (each weight is well under the ~0.5 needed for that). Reaching
-  "elevated" requires at least two signals to corroborate each other.
-  This is intentional -- it's the fusion-level version of the same
-  false-alarm-control principle used everywhere else in this system,
-  applied before a photo is even requested. A single noisy sensor
-  reading shows up as "watch" (visible, not alarming) rather than
-  triggering an alert on its own.
+  This score NEVER auto-declares a diagnosis by itself -- crossing
+  "elevated" only ever triggers a photo request.
 """
 
 from dataclasses import dataclass
@@ -84,34 +95,67 @@ class HealthLevel(str, Enum):
     HIGH = "high"
 
 
-# Must sum to 1.0 -- see rationale in the module docstring.
-BASE_WEIGHTS = {
-    "weather": 0.35,
-    "ndvi": 0.30,
-    "thermal": 0.15,
-    "historical": 0.20,
+# 3-signal weight scenarios. All sum to 1.0, max single weight ≤ 0.40.
+GROWTH_WEIGHTS = {
+    "balanced":     {"ndvi": 0.40, "ndre": 0.40, "thermal": 0.20},
+    "early_sparse": {"ndvi": 0.40, "ndre": 0.30, "thermal": 0.30},
+    "late_dense":   {"ndvi": 0.30, "ndre": 0.40, "thermal": 0.30},
+    "drought":      {"ndvi": 0.30, "ndre": 0.30, "thermal": 0.40},
 }
 
-# A signal older than this many days is treated as stale and dropped
-# from the fusion (its weight redistributes to the others) rather than
-# trusted as current. None = never goes stale (the historical baseline
-# changes seasonally, not daily).
-STALENESS_LIMIT_DAYS = {
-    "weather": 2,     # should essentially never trigger -- no satellite gap
-    "ndvi": 10,        # ~2 missed Sentinel-2 revisits
-    "thermal": 20,      # Landsat/MODIS revisit is already slow; extra slack
-    "historical": None,
+STAGE_TO_SCENARIO = {
+    "sowing":     "early_sparse",
+    "vegetative": "early_sparse",
+    "flowering":  "balanced",
+    "fruiting":   "late_dense",
+    "maturity":   "late_dense",
+    "harvested":  None,
 }
+
+STALENESS_LIMIT_DAYS = {
+    "ndvi": 10,
+    "ndre": 10,
+    "thermal": 20,
+}
+
+NDVI_CLOUD_THRESHOLD_PCT = 40
+THERMAL_CLOUD_THRESHOLD_PCT = 50
+THERMAL_PIXEL_AREA_HA = 0.09
+
+DEFAULT_NDVI_BASELINE = {"min": 0.0, "max": 0.9}
+DEFAULT_NDRE_BASELINE = {"min": -0.1, "max": 0.7}
+
+CWSI_REGRESSION = {
+    "cotton":   {"lower": {"slope": -2.5, "intercept": -1.0},
+                 "upper": {"slope": 1.8,  "intercept": 6.0}},
+    "rice":     {"lower": {"slope": -2.8, "intercept": -1.2},
+                 "upper": {"slope": 2.0,  "intercept": 6.5}},
+    "wheat":    {"lower": {"slope": -2.2, "intercept": -0.8},
+                 "upper": {"slope": 1.5,  "intercept": 5.5}},
+    "maize":    {"lower": {"slope": -2.4, "intercept": -0.9},
+                 "upper": {"slope": 1.7,  "intercept": 5.8}},
+    "soybean":  {"lower": {"slope": -2.3, "intercept": -0.85},
+                 "upper": {"slope": 1.6,  "intercept": 5.6}},
+    "sugarcane":{"lower": {"slope": -2.6, "intercept": -1.1},
+                 "upper": {"slope": 1.9,  "intercept": 6.2}},
+    "potato":   {"lower": {"slope": -2.0, "intercept": -0.7},
+                 "upper": {"slope": 1.4,  "intercept": 5.0}},
+    "grapes":   {"lower": {"slope": -1.8, "intercept": -0.6},
+                 "upper": {"slope": 1.3,  "intercept": 4.8}},
+    "tur":      {"lower": {"slope": -2.1, "intercept": -0.75},
+                 "upper": {"slope": 1.5,  "intercept": 5.2}},
+    "default":  {"lower": {"slope": -2.3, "intercept": -0.9},
+                 "upper": {"slope": 1.6,  "intercept": 5.5}},
+}
+
+DROUGHT_RAINFALL_MAX_MM = 2.0
+DROUGHT_TEMP_MIN_C = 35.0
 
 
 @dataclass
 class SignalInput:
     """One fused-in signal. stress is 0-1 (1 = max stress). Source it
-    directly from the existing modules: ndvi_service.py's
-    AnomalyResult.anomaly_score, thermal_anomaly.py's
-    AnomalyResult.anomaly_score, the weather-risk service's own score
-    (or estimate_weather_stress() below as a starting point), and a
-    seasonal lookup for historical."""
+    directly from the existing modules."""
     stress: float
     last_updated: datetime = None
 
@@ -123,6 +167,44 @@ class HealthScoreResult:
     weights_used: dict
     stale_signals: list
     component_stress: dict
+    growth_scenario: str = None
+
+
+def calculate_vpd(temp_c: float, rh: float) -> float:
+    """Vapor Pressure Deficit (Tetens formula)."""
+    import math
+    e_sat = 0.6108 * math.exp((17.27 * temp_c) / (temp_c + 237.3))
+    if rh <= 0:
+        return round(e_sat, 3)
+    if rh >= 100:
+        return 0.0
+    return round(e_sat * (1 - rh / 100), 3)
+
+
+def compute_cwsi(t_canopy: float, t_air: float, vpd: float,
+                  crop_type: str = None) -> float:
+    """Empirical CWSI (Idso method). NEEDS_CALIBRATION — all coefficients
+    are published approximations, not empirically fit from this project's data."""
+    crop_key = (crop_type or "default").lower()
+    reg = CWSI_REGRESSION.get(crop_key, CWSI_REGRESSION["default"])
+
+    dT = t_canopy - t_air
+    dT_lower = reg["lower"]["slope"] * vpd + reg["lower"]["intercept"]
+    dT_upper = reg["upper"]["slope"] * vpd + reg["upper"]["intercept"]
+
+    if abs(dT_upper - dT_lower) < 0.001:
+        return 0.5
+    return max(0.0, min(1.0, (dT - dT_lower) / (dT_upper - dT_lower)))
+
+
+def get_weights(growth_stage: str = None, is_drought: bool = False) -> dict:
+    """Select weight scenario based on growth stage and context."""
+    if growth_stage == "harvested":
+        return None
+    if is_drought:
+        return GROWTH_WEIGHTS["drought"]
+    scenario = STAGE_TO_SCENARIO.get(growth_stage, "balanced")
+    return GROWTH_WEIGHTS[scenario]
 
 
 def _is_stale(signal_name: str, last_updated, now: datetime) -> bool:
@@ -135,38 +217,49 @@ def _is_stale(signal_name: str, last_updated, now: datetime) -> bool:
 
 
 def compute_health_score(
-    weather: SignalInput,
     ndvi: SignalInput,
+    ndre: SignalInput,
     thermal: SignalInput,
-    historical: SignalInput,
-    crop_stage_relevance: dict = None,
+    growth_stage: str = None,
+    is_drought: bool = False,
     now: datetime = None,
 ) -> HealthScoreResult:
     now = now or datetime.utcnow()
-    signals = {"weather": weather, "ndvi": ndvi, "thermal": thermal, "historical": historical}
-    relevance = crop_stage_relevance or {k: 1.0 for k in signals}
+    signals = {"ndvi": ndvi, "ndre": ndre, "thermal": thermal}
 
-    stale = [name for name, sig in signals.items() if _is_stale(name, sig.last_updated, now)]
+    weights = get_weights(growth_stage, is_drought)
+    if weights is None:
+        # harvested — no active crop
+        return HealthScoreResult(
+            score=None, level=None, weights_used={},
+            stale_signals=[], component_stress={}, growth_scenario="harvested",
+        )
 
-    active_weights = {k: (0.0 if k in stale else v) for k, v in BASE_WEIGHTS.items()}
+    stale = [name for name, sig in signals.items()
+             if _is_stale(name, sig.last_updated, now)]
+
+    active_weights = {k: (0.0 if k in stale else v) for k, v in weights.items()}
     active_total = sum(active_weights.values())
     if active_total == 0:
-        # Everything fresh signal is stale -- fall back to the historical
-        # baseline alone rather than return a meaningless fused score.
-        active_weights = {"historical": 1.0, "weather": 0.0, "ndvi": 0.0, "thermal": 0.0}
-        active_total = 1.0
+        # All fresh signals stale — neutral fallback
+        return HealthScoreResult(
+            score=50, level=HealthLevel.WATCH, weights_used={"ndvi": 0, "ndre": 0, "thermal": 0},
+            stale_signals=stale, component_stress={}, growth_scenario="all_stale",
+        )
     normalized_weights = {k: v / active_total for k, v in active_weights.items()}
 
-    weighted_stress = 0.0
+    weighted_score = 0.0
     component_stress = {}
     for name, sig in signals.items():
         w = normalized_weights[name]
-        r = relevance.get(name, 1.0)
-        effective_stress = sig.stress * r
+        effective_stress = sig.stress
         component_stress[name] = round(effective_stress, 3)
-        weighted_stress += w * effective_stress
+        if effective_stress is not None and w > 0:
+            weighted_score += w * (100 * (1 - effective_stress))
 
-    score = max(0, min(round(100 * (1 - weighted_stress)), 100))
+    score = max(0, min(round(weighted_score), 100))
+
+    scenario_key = "drought" if is_drought else STAGE_TO_SCENARIO.get(growth_stage, "balanced")
 
     return HealthScoreResult(
         score=score,
@@ -174,6 +267,7 @@ def compute_health_score(
         weights_used={k: round(v, 3) for k, v in normalized_weights.items()},
         stale_signals=stale,
         component_stress=component_stress,
+        growth_scenario=scenario_key,
     )
 
 
@@ -188,9 +282,8 @@ def _level_for_score(score: int) -> HealthLevel:
 
 
 def should_prompt_for_photo(result: HealthScoreResult) -> bool:
-    """The false-alarm gate rule from PRD.md Part 2: this score never
-    auto-declares a diagnosis. It only ever decides whether to ask the
-    farmer for a confirming photo."""
+    """The false-alarm gate rule: this score never auto-declares a diagnosis.
+    It only ever decides whether to ask the farmer for a confirming photo."""
     return result.level in (HealthLevel.ELEVATED, HealthLevel.HIGH)
 
 
@@ -201,14 +294,12 @@ def estimate_weather_stress(daily_readings: list, disease_thresholds: list) -> f
     sourced from ICAR/state extension advisories before relying on
     this for real advisories.
 
+    NOTE: Weather stress is used ONLY for disease hypothesis detection
+    in riskService.js, NOT as an input to the health score.
+
     daily_readings: [{"date": ..., "humidity_pct": ..., "temp_c": ...}, ...]
     disease_thresholds: [{"name": "fungal blight", "min_humidity": 85,
                            "temp_range": (18, 25), "min_consecutive_days": 3}, ...]
-
-    Persistence matters more than a single reading -- a few humid
-    hours isn't as risky as several consecutive humid days, so this
-    returns the worst persistence-weighted conduciveness across the
-    crop's relevant diseases, not just a snapshot threshold check.
     """
     worst = 0.0
     for disease in disease_thresholds:
@@ -233,28 +324,28 @@ if __name__ == "__main__":
 
     scenarios = {
         "all healthy, all fresh": dict(
-            weather=SignalInput(0.05, now),
-            ndvi=SignalInput(0.02, now - timedelta(days=2)),
+            ndvi=SignalInput(0.02, now),
+            ndre=SignalInput(0.03, now - timedelta(days=2)),
             thermal=SignalInput(0.0, now - timedelta(days=5)),
-            historical=SignalInput(0.1),
+            growth_stage="vegetative",
         ),
-        "weather rising alone -- visible as 'watch', but doesn't trigger a photo request by itself": dict(
-            weather=SignalInput(0.7, now),
-            ndvi=SignalInput(0.05, now - timedelta(days=1)),
+        "NDVI stress alone — visible as 'watch', doesn't trigger photo": dict(
+            ndvi=SignalInput(0.7, now),
+            ndre=SignalInput(0.05, now - timedelta(days=1)),
             thermal=SignalInput(0.0, now - timedelta(days=4)),
-            historical=SignalInput(0.1),
+            growth_stage="flowering",
         ),
-        "NDVI cloud-blocked/stale, weather+thermal carry the score": dict(
-            weather=SignalInput(0.5, now),
-            ndvi=SignalInput(0.1, now - timedelta(days=14)),  # stale
-            thermal=SignalInput(0.4, now - timedelta(days=6)),
-            historical=SignalInput(0.2),
+        "thermal stress alone — early_sparse stage, thermal has more weight": dict(
+            ndvi=SignalInput(0.1, now),
+            ndre=SignalInput(0.1, now - timedelta(days=1)),
+            thermal=SignalInput(0.8, now - timedelta(days=3)),
+            growth_stage="sowing",
         ),
-        "severe, everything agrees": dict(
-            weather=SignalInput(0.8, now),
-            ndvi=SignalInput(0.75, now - timedelta(days=1)),
+        "severe, all signals agree — ELEVATED": dict(
+            ndvi=SignalInput(0.75, now),
+            ndre=SignalInput(0.80, now - timedelta(days=1)),
             thermal=SignalInput(0.6, now - timedelta(days=3)),
-            historical=SignalInput(0.3),
+            growth_stage="flowering",
         ),
     }
 
@@ -264,3 +355,4 @@ if __name__ == "__main__":
         print(f"\n{name}")
         print(f"  score={result.score}  level={result.level.value}  prompt_for_photo={prompt}")
         print(f"  weights_used={result.weights_used}  stale={result.stale_signals}")
+        print(f"  growth_scenario={result.growth_scenario}")

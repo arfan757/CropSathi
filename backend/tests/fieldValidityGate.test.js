@@ -31,11 +31,11 @@ describe('Field Validity Gate', () => {
       assert.strictEqual(isVegetationDetected(null, 0.15, 'sentinel-2'), true);
     });
 
-    it('uses correct thresholds (0.15 for NDVI, 0.2 for NDRE)', () => {
+    it('uses correct thresholds (0.20 for NDVI, 0.20 for NDRE)', () => {
       // Just below threshold - no vegetation
       assert.strictEqual(isVegetationDetected(0.14, 0.19, 'sentinel-2'), false);
       // At threshold - vegetation detected (< not <=)
-      assert.strictEqual(isVegetationDetected(0.15, 0.20, 'sentinel-2'), true);
+      assert.strictEqual(isVegetationDetected(0.20, 0.20, 'sentinel-2'), true);
     });
 
     it('returns true for simulated data even when values are below threshold', () => {
@@ -52,11 +52,11 @@ describe('Field Validity Gate', () => {
 
   describe('Field validity override in fusion', () => {
     it('does NOT override when vegetation is detected (normal healthy field)', () => {
+      // 3-signal fusion: only ndvi, ndre, thermal (weather/pestHistory removed)
       const stressComponents = {
-        weather: 0.1,
         ndvi: 0.05,
+        ndre: 0.0,
         thermal: 0.05,
-        pestHistory: 0.0,
       };
 
       const result = computeFusedHealthScore(
@@ -74,26 +74,20 @@ describe('Field Validity Gate', () => {
       assert.strictEqual(result.triggeredAlert, false);
     });
 
-    it('overrides to score=0 even when weighted fusion would give moderate score', () => {
+    it('overrides to score=0 even when weighted fusion would give concerning score', () => {
       // This simulates the rooftop case: NDVI/NDRE both show no vegetation,
-      // but weather/thermal/pestHistory are measuring ambient conditions
-      // that look fine (because the region is fine - it's just THIS polygon
-      // that has no plants on it).
+      // but weather/thermal are measuring ambient conditions that look fine
+      // (because the region is fine - it's just THIS polygon that has no plants).
+      //
+      // With the new 3-signal fusion (ndvi + ndre + thermal), weather and
+      // pestHistory are no longer part of the health score. The stress is:
+      //   weighted = 0.40*1.0 + 0.40*0.6 + 0.20*0.0 = 0.64
+      //   score = 100 * (1 - 0.64) = 36
       const stressComponents = {
-        weather: 0.0,      // regional weather is fine
         ndvi: 1.0,         // maximal NDVI stress (bare surface detected)
         ndre: 0.6,         // NDRE stress from bare surface
         thermal: 0.0,      // ambient temp is fine
-        pestHistory: 0.0,  // no disease history in district
       };
-
-      // With default weights (ndvi ~30%), weighted fusion would give:
-      // stress = 0.0*0.35 + 1.0*0.30 + 0.0*0.15 + 0.0*0.20 = 0.30
-      // score = 100 * (1 - 0.30) = 70 (WATCH level, NOT concerning)
-      //
-      // But the field validity gate should override this to 0 when
-      // isVegetationDetected returns false (which requires checking
-      // the actual ndvi/ndre VALUES, not just the stress component).
 
       const result = computeFusedHealthScore(
         stressComponents,
@@ -104,13 +98,14 @@ describe('Field Validity Gate', () => {
         null
       );
 
-      // Before the field validity gate, this would be ~70 (WATCH).
+      // Before the field validity gate, this gives a concerning score (~36).
       // The gate doesn't run inside computeFusedHealthScore - it runs
-      // in computeRiskScore AFTER fusion. So this test actually verifies
+      // in computeRiskScore AFTER fusion. So this test verifies
       // the pre-override behavior is as expected.
-      assert.ok(result.score >= 60 && result.score <= 75,
-        `Fusion alone gives moderate score ~70, got ${result.score}`);
-      assert.strictEqual(result.level, HealthLevel.WATCH);
+      assert.ok(result.score < 60,
+        `Fusion alone gives concerning score ${result.score}, expected < 60`);
+      assert.ok(result.level === HealthLevel.ELEVATED || result.level === HealthLevel.HIGH,
+        `Level should be elevated or high, got ${result.level}`);
 
       // The override happens at the computeRiskScore level, tested below
     });
@@ -159,12 +154,11 @@ describe('Field Validity Gate', () => {
       assert.strictEqual(vegetationDetected, false, 'Should detect no vegetation');
 
       // Step 2: Fusion runs normally and produces some score
+      // 3-signal fusion: only ndvi, ndre, thermal
       const stressComponents = {
-        weather: 0.0,
         ndvi: 0.95,  // high stress from bare surface
         ndre: 0.60,  // NDRE stress from bare surface
         thermal: 0.0,
-        pestHistory: 0.0,
       };
 
       const fusionResult = computeFusedHealthScore(
