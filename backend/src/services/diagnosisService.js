@@ -11,7 +11,7 @@ import sharp from 'sharp';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const DIAGNOSIS_MODEL = 'gemini-3.6-flash';
+const DIAGNOSIS_MODEL = 'gemini-2.5-flash';
 const GEMINI_TIMEOUT_MS = 90000;
 
 // Plant disease CNN microservice (ml-service/). Used first for crops the
@@ -153,7 +153,7 @@ async function diagnoseWithCnn(caseId, dc, farm) {
     const resp = await axios.post(
       `${ML_SERVICE_URL}/predict`,
       { image_b64: imageB64 },
-      { timeout: 30000 }
+      { timeout: 90000 }
     );
     prediction = resp.data;
   } catch (err) {

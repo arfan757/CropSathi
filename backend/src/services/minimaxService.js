@@ -99,7 +99,6 @@ async function _singleAttempt(systemPrompt, userPrompt, imageBase64) {
     messages,
     temperature: 0.2,
     max_tokens: 4096,
-    response_format: { type: 'json_object' },
   };
 
   let response;
