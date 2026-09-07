@@ -34,7 +34,7 @@ services:
   # commit; the Node backend calls it via ML_SERVICE_URL.
   - type: web
     name: cropsathi-ml
-    runtime: python
+    runtime: python@3.11
     region: oregon
     rootDir: ml-service
     buildCommand: >
