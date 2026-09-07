@@ -48,6 +48,27 @@ const advisorySchema = new mongoose.Schema({
     },
     default: null,
   },
+  // ── TNAU-grade advisory fields (additive — legacy tier fields above stay) ──
+  summary: { type: String, default: '' },
+  pathogenName: { type: String, default: '' },
+  symptoms: { type: String, default: '' },
+  remedies: [{
+    type: { type: String, enum: ['cultural', 'physical', 'biological', 'chemical'], required: true },
+    action: { type: String, default: '' },
+    productName: { type: String, default: '' },
+    dosage: { type: String, default: '' },
+    frequency: { type: String, default: '' },
+    timing: { type: String, default: '' },
+    preHarvestIntervalDays: { type: Number, default: null },
+    safetyNotes: { type: String, default: '' },
+  }],
+  followUpDays: { type: Number, default: null },
+  escalateToCropsap: { type: Boolean, default: false },
+  escalationReason: { type: String, default: null },
+  // Provenance: which engine wrote this version. Lets the UI badge an
+  // advisory as AI-written vs generic rule guidance.
+  source: { type: String, enum: ['gemini', 'rules'], default: 'rules' },
+  isGeneric: { type: Boolean, default: false },
   prevention: [{
     type: String,
   }],

@@ -6,12 +6,15 @@ import { createNotification } from './notificationService.js';
 const FOLLOWUP_DAYS = 7; // Default follow-up schedule
 
 export async function scheduleFollowUp(caseId, advisoryId, opts = {}) {
+  const days = Number.isFinite(Number(opts.followUpDays)) && Number(opts.followUpDays) > 0
+    ? Number(opts.followUpDays)
+    : FOLLOWUP_DAYS;
   const followUp = await FollowUp.create({
     caseId,
     advisoryId,
     farmId: opts.farmId || null,
     userId: opts.userId || null,
-    scheduledFor: new Date(Date.now() + FOLLOWUP_DAYS * 24 * 60 * 60 * 1000),
+    scheduledFor: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
     status: 'pending',
     reminderCount: 0,
   });

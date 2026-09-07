@@ -20,6 +20,11 @@ const ACTION_TYPES = {
     label: { en: 'Field Actions', hi: 'खेत के कार्य', mr: 'शेत क्रिया' },
     color: 'bg-[#006038]/10 text-[#006038]',
   },
+  physical: {
+    icon: 'brush',
+    label: { en: 'Physical Control', hi: 'भौतिक नियंत्रण', mr: 'भौतिक नियंत्रण' },
+    color: 'bg-[#006038]/10 text-[#006038]',
+  },
   biological: {
     icon: 'bug',
     label: { en: 'Biological Control', hi: 'जैव नियंत्रण', mr: 'जैविक नियंत्रण' },
@@ -36,6 +41,9 @@ const ACTION_TYPES = {
     color: 'bg-[#6f7a71]/10 text-[#6f7a71]',
   },
 };
+
+// Remedy display order: cultural → physical → biological → chemical
+const REMEDY_ORDER = { cultural: 0, physical: 1, biological: 2, chemical: 3 };
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -96,6 +104,13 @@ function renderAdvisoryCard(advisory) {
   const geminiResult = c.geminiResult;
   const symptoms = geminiResult?.symptomsObserved || [];
 
+  // New-shape (TNAU) content rides on remedies[] + pathogenName/symptoms.
+  // Legacy docs fall back to the tier fields below.
+  const hasRemedies = Array.isArray(advisory.remedies) && advisory.remedies.length > 0;
+  const pathogen = (advisory.pathogenName || '').trim();
+  const advisorySymptoms = (advisory.symptoms || '').trim();
+  const isAiAdvisory = advisory.source === 'gemini' && !advisory.isGeneric;
+
   return `
     <div class="bg-white rounded-2xl shadow-sm border border-[#e4e2e1] overflow-hidden tactile-card">
       <!-- Header -->
@@ -114,8 +129,15 @@ function renderAdvisoryCard(advisory) {
           <div class="text-right flex-shrink-0">
             <span class="inline-block px-2.5 py-1 rounded-lg text-xs font-semibold ${sevConfig.bg} ${sevConfig.text}">${sevConfig.label[currentLang] || sevConfig.label.en}</span>
             <p class="text-xs text-[#6f7a71] mt-1.5">${date}</p>
+            ${hasRemedies
+              ? (isAiAdvisory
+                ? `<span class="inline-block mt-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#006038]/10 text-[#006038]">AI Advisory</span>`
+                : `<span class="inline-block mt-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#6f7a71]/10 text-[#6f7a71]">General guidance</span>`)
+              : ''}
           </div>
         </div>
+        ${pathogen ? `<p class="text-xs text-[#3f4941] italic mt-2">${escapeHtml(pathogen)}</p>` : ''}
+        ${advisorySymptoms ? `<p class="text-xs text-[#3f4941] leading-relaxed mt-1">${escapeHtml(advisorySymptoms)}</p>` : ''}
         ${symptoms.length > 0 ? `
           <div class="mt-3 flex flex-wrap gap-1.5">
             ${symptoms.slice(0, 3).map(s => `<span class="inline-block px-2 py-0.5 bg-[#eae8e7] text-[#3f4941] text-xs rounded-lg">${s.length > 40 ? s.substring(0, 40) + '...' : s}</span>`).join('')}
@@ -125,9 +147,11 @@ function renderAdvisoryCard(advisory) {
 
       <!-- Actions -->
       <div class="p-5 space-y-5">
-        ${renderActionSection('cultural', advisory.ipmCulturalActions, checked, c._id)}
-        ${renderActionSection('biological', advisory.ipmBiologicalActions, checked, c._id)}
-        ${renderChemicalSection(advisory.chemicalRecommendation, checked, c._id)}
+        ${hasRemedies
+          ? renderRemedyGroups(advisory.remedies, checked, c._id)
+          : `${renderActionSection('cultural', advisory.ipmCulturalActions, checked, c._id)}
+             ${renderActionSection('biological', advisory.ipmBiologicalActions, checked, c._id)}
+             ${renderChemicalSection(advisory.chemicalRecommendation, checked, c._id)}`}
         ${renderPreventionSection(advisory.prevention, checked, c._id)}
       </div>
       <!-- View detail link -->
@@ -138,6 +162,63 @@ function renderAdvisoryCard(advisory) {
       </div>
     </div>
   `;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text || '';
+  return d.innerHTML;
+}
+
+// New-shape rendering: group remedies[] by type (cultural → physical →
+// biological → chemical) and render full detail rows (product, dosage,
+// frequency, timing) instead of plain-text legacy actions.
+function renderRemedyGroups(remedies, checked, caseId) {
+  const groups = {};
+  (remedies || []).forEach(r => {
+    const t = (r.type || '').toLowerCase();
+    if (!ACTION_TYPES[t] || t === 'prevention') return;
+    (groups[t] = groups[t] || []).push(r);
+  });
+  return Object.keys(groups)
+    .sort((a, b) => (REMEDY_ORDER[a] ?? 9) - (REMEDY_ORDER[b] ?? 9))
+    .map(type => {
+      const config = ACTION_TYPES[type];
+      const label = config.label[currentLang] || config.label.en;
+      const rows = groups[type].map((r, i) => {
+        const key = `${type}_${i}`;
+        const isChecked = checked[key] || false;
+        const hasDetail = r.productName || r.dosage || r.frequency || r.timing;
+        const body = hasDetail
+          ? `<div class="text-sm ${isChecked ? 'line-through text-[#bec9bf]' : ''}">
+               <p class="font-semibold text-[#1b1c1c]">${escapeHtml(r.action || '')}</p>
+               <div class="text-[#3f4941] text-xs mt-1 space-y-0.5">
+                 ${r.productName ? `<p>Product: ${escapeHtml(r.productName)}</p>` : ''}
+                 ${r.dosage ? `<p>Dosage: ${escapeHtml(r.dosage)}</p>` : ''}
+                 ${r.frequency ? `<p>Frequency: ${escapeHtml(r.frequency)}</p>` : ''}
+                 ${r.timing ? `<p>Timing: ${escapeHtml(r.timing)}</p>` : ''}
+               </div>
+               ${r.safetyNotes ? `<p class="text-xs font-semibold mt-1.5 ${type === 'chemical' ? 'text-[#933302]' : 'text-[#3f4941]'}">${escapeHtml(r.safetyNotes)}</p>` : ''}
+             </div>`
+          : `<span class="text-sm text-[#3f4941] group-hover:text-[#1b1c1c] transition ${isChecked ? 'line-through text-[#bec9bf]' : ''}">${escapeHtml(r.action || '')}</span>`;
+        return `
+          <label class="flex items-start gap-3 cursor-pointer group p-2 -mx-2 rounded-lg hover:bg-[#f6f3f2] transition">
+            <input type="checkbox" class="advisory-check mt-0.5 rounded border-[#bec9bf] text-[#006038] focus:ring-[#006038] w-4 h-4"
+              data-case="${caseId}" data-key="${key}" ${isChecked ? 'checked' : ''}>
+            ${body}
+          </label>`;
+      }).join('');
+      return `
+        <div>
+          <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-8 h-8 rounded-lg ${config.color} flex items-center justify-center flex-shrink-0">
+              <i data-lucide="${config.icon}" class="w-4 h-4"></i>
+            </div>
+            <h4 class="font-headline font-semibold text-sm text-[#1b1c1c]">${label}</h4>
+          </div>
+          <div class="ml-10 space-y-2">${rows}</div>
+        </div>`;
+    }).join('');
 }
 
 function renderActionSection(type, actions, checked, caseId) {

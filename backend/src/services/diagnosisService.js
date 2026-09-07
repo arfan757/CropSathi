@@ -71,6 +71,24 @@ function severityForAdvisory(severity) {
   return ADVISORY_SEVERITY[severity] || 'low';
 }
 
+// Best-effort advisory context for the Gemini prompt: confidence comes from
+// the just-saved diagnosis, district from the user's farm profile. Never
+// throws — missing district falls back to '' (prompt uses 'unknown').
+async function resolveAdvisoryOpts(dc, parsed) {
+  const confidence = Number.isFinite(Number(parsed?.confidence ?? dc?.confidence))
+    ? Number(parsed?.confidence ?? dc?.confidence)
+    : undefined;
+  let district = '';
+  try {
+    const { default: User } = await import('../models/User.js');
+    const user = await User.findById(dc?.userId).select('farmDetails.district').lean();
+    district = user?.farmDetails?.district || '';
+  } catch {
+    district = '';
+  }
+  return { confidence, district };
+}
+
 export async function createCase({ farmId, userId, triggeredBy, triggeringRiskScoreId = null, gpsPoint = null }) {
   const farm = await Field.findById(farmId);
   if (!farm) throw new Error('Farm not found');
@@ -353,7 +371,8 @@ async function saveDiagnosisResult(dc, parsed, farm) {
         parsed.detected_issue,
         severityForAdvisory(parsed.severity),
         farm?.cropStage || 'vegetative',
-        farm?.cropType || ''
+        farm?.cropType || '',
+        await resolveAdvisoryOpts(dc, parsed)
       );
       // NOTIFICATION TRIGGER 1: advisory_ready when case confirmed
       try {
@@ -373,7 +392,7 @@ async function saveDiagnosisResult(dc, parsed, farm) {
       // notification can ever appear.
       try {
         const { scheduleFollowUp } = await import('./followupService.js');
-        await scheduleFollowUp(dc._id, advisory?._id || null, { farmId: dc.farmId, userId: dc.userId });
+        await scheduleFollowUp(dc._id, advisory?._id || null, { farmId: dc.farmId, userId: dc.userId, followUpDays: advisory?.followUpDays });
       } catch (fuErr) {
         console.warn('Follow-up scheduling failed:', fuErr.message);
       }
@@ -403,7 +422,8 @@ async function saveDiagnosisResult(dc, parsed, farm) {
         parsed.detected_issue,
         severityForAdvisory(parsed.severity),
         farm?.cropStage || 'vegetative',
-        farm?.cropType || ''
+        farm?.cropType || '',
+        await resolveAdvisoryOpts(dc, parsed)
       );
       // NOTIFICATION: advisory_ready + escalation_alert for expert review
       try {
@@ -426,7 +446,7 @@ async function saveDiagnosisResult(dc, parsed, farm) {
       // Schedule follow-up + remedy reminders (see confirmed path above)
       try {
         const { scheduleFollowUp } = await import('./followupService.js');
-        await scheduleFollowUp(dc._id, advisory?._id || null, { farmId: dc.farmId, userId: dc.userId });
+        await scheduleFollowUp(dc._id, advisory?._id || null, { farmId: dc.farmId, userId: dc.userId, followUpDays: advisory?.followUpDays });
       } catch (fuErr) {
         console.warn('Follow-up scheduling failed:', fuErr.message);
       }

@@ -142,6 +142,47 @@ function deriveAdvisoryStatus(outcome, followUps) {
 }
 
 function buildRemedyPlan(advisory) {
+  // New path: group remedies[] by type (cultural → physical → biological →
+  // chemical). Rich item fields ride along for the updated card renderer;
+  // `text` preserves the legacy shape for old clients.
+  if (Array.isArray(advisory.remedies) && advisory.remedies.length > 0) {
+    const labels = { cultural: 'Cultural & Mechanical', physical: 'Physical', biological: 'Biological', chemical: 'Chemical' };
+    const plan = [];
+    for (const tier of ['cultural', 'physical', 'biological', 'chemical']) {
+      const group = advisory.remedies.filter((r) => r.type === tier);
+      if (group.length === 0) continue;
+      plan.push({
+        tier,
+        label: labels[tier],
+        items: group.map((r, i) => {
+          const phi = r.preHarvestIntervalDays ?? null;
+          const base = {
+            actionKey: `${tier}_${i + 1}`,
+            text: r.action || '',
+            action: r.action || '',
+            productName: r.productName || '',
+            dosage: r.dosage || '',
+            frequency: r.frequency || '',
+            timing: r.timing || '',
+            preHarvestIntervalDays: phi,
+            safetyNotes: r.safetyNotes || '',
+          };
+          if (tier === 'chemical') {
+            return {
+              ...base,
+              productClass: r.productName || r.action || '',
+              unit: '',
+              safetyNotes: r.safetyNotes
+                || (phi ? `Do not harvest for ${phi} days after application` : ''),
+            };
+          }
+          return base;
+        }),
+      });
+    }
+    return plan;
+  }
+  // Legacy path: tier fields only (old docs) — unchanged.
   const plan = [];
   if (advisory.ipmCulturalActions?.length) {
     plan.push({
@@ -149,7 +190,7 @@ function buildRemedyPlan(advisory) {
       label: 'Cultural & Mechanical',
       items: advisory.ipmCulturalActions.map(a => ({
         actionKey: a.actionKey,
-        text: a.en || '',
+        text: a.en || a.text || '',
       })),
     });
   }
@@ -159,7 +200,7 @@ function buildRemedyPlan(advisory) {
       label: 'Biological',
       items: advisory.ipmBiologicalActions.map(a => ({
         actionKey: a.actionKey,
-        text: a.en || '',
+        text: a.en || a.text || '',
       })),
     });
   }
@@ -252,8 +293,9 @@ router.get('/case/:caseId/detail', async (req, res) => {
     const sevMap = { low: 'mild', medium: 'moderate', high: 'severe', critical: 'severe' };
     const displaySeverity = sevMap[advisory.severity] || 'moderate';
 
-    // 9. Summary from diagnosis
-    const summary = dc.geminiResult?.diseaseDescription || '';
+    // 9. Summary from advisory (Gemini) with diagnosis fallback; new
+    // About-disease fields pass through null-safe for legacy advisories.
+    const summary = advisory.summary || dc.geminiResult?.diseaseDescription || '';
 
     // 10. Assemble response
     res.json({
@@ -268,6 +310,11 @@ router.get('/case/:caseId/detail', async (req, res) => {
         severity: displaySeverity,
         severityRaw: advisory.severity,
         summary,
+        pathogenName: advisory.pathogenName || '',
+        symptoms: advisory.symptoms || '',
+        followUpDays: advisory.followUpDays ?? null,
+        source: advisory.source || 'rules',
+        isGeneric: Boolean(advisory.isGeneric),
         remedyPlan: buildRemedyPlan(localized),
         escalateToCropsap,
         escalationReason,

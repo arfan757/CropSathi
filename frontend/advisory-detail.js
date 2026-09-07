@@ -90,6 +90,7 @@ function renderAll(data) {
   renderHeader(a);
   renderEscalation(a);
   renderClosedBanner(a);
+  renderAboutDisease(a);
   renderRemedyPlan(a, reminders, a.escalateToCropsap, a.status);
   renderWhereToBuy(a);
   renderFollowUp(followUps);
@@ -134,22 +135,43 @@ function renderClosedBanner(a) {
   document.getElementById('closed-date').textContent = 'This case has been resolved.';
 }
 
+// ── 4b. About this disease (pathogen + symptoms, above remedy cards) ──────
+function renderAboutDisease(a) {
+  const el = document.getElementById('disease-about');
+  if (!el) return;
+  const pathogen = (a.pathogenName || '').trim();
+  const symptoms = (a.symptoms || '').trim();
+  if (!pathogen && !symptoms) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const pathogenEl = document.getElementById('disease-pathogen');
+  const symptomsEl = document.getElementById('disease-symptoms');
+  if (pathogenEl) {
+    pathogenEl.textContent = pathogen;
+    pathogenEl.classList.toggle('hidden', !pathogen);
+  }
+  if (symptomsEl) {
+    symptomsEl.textContent = symptoms;
+    symptomsEl.classList.toggle('hidden', !symptoms);
+  }
+}
+
 // ── 5. IPM remedy cards ─────────────────────────────────────────────────────
 function renderRemedyPlan(a, reminders, escalated, status) {
   const container = document.getElementById('remedy-plan-container');
   const plan = a.remedyPlan || [];
   if (plan.length === 0) { container.classList.add('hidden'); return; }
 
-  const tierIcons = { cultural: 'sprout', biological: 'bug', chemical: 'flask-conical' };
+  const tierIcons = { cultural: 'sprout', physical: 'brush', biological: 'bug', chemical: 'flask-conical' };
   const tierColors = {
     cultural: 'bg-[#006038]/10 text-[#006038]',
+    physical: 'bg-[#006038]/10 text-[#006038]',
     biological: 'bg-[#006038]/10 text-[#006038]',
     chemical: 'bg-[#933302]/10 text-[#933302]',
   };
 
-  // Sort: cultural first, biological second, chemical last
-  const order = { cultural: 0, biological: 1, chemical: 2 };
-  const sorted = [...plan].sort((x, y) => (order[x.tier] || 9) - (order[y.tier] || 9));
+  // Sort: cultural, then physical, then biological, chemical last
+  const order = { cultural: 0, physical: 1, biological: 2, chemical: 3 };
+  const sorted = [...plan].sort((x, y) => (order[x.tier] ?? 9) - (order[y.tier] ?? 9));
 
   container.innerHTML = sorted.map(tier => {
     const icon = tierIcons[tier.tier] || 'circle';
@@ -159,6 +181,7 @@ function renderRemedyPlan(a, reminders, escalated, status) {
     const wrapperClass = isLastResort ? 'opacity-80 text-sm' : '';
 
     const itemsHtml = tier.items.map(item => {
+      const hasRichDetail = item.productName || item.dosage || item.frequency || item.timing;
       if (isChemical) {
         const safetyNote = item.safetyNotes
           ? `<div class="mt-3 p-3 bg-[#933302]/5 border border-[#933302]/20 rounded-xl">
@@ -170,18 +193,32 @@ function renderRemedyPlan(a, reminders, escalated, status) {
           : '';
         return `
           <div class="p-3 bg-[#f6f3f2] rounded-xl">
-            <p class="font-semibold text-sm text-[#1b1c1c]">${escHtml(item.productClass)}</p>
+            <p class="font-semibold text-sm text-[#1b1c1c]">${escHtml(item.productClass || item.productName || item.action)}</p>
+            ${item.action && (item.productClass || item.productName) && item.action !== (item.productClass || item.productName) ? `<p class="text-xs text-[#3f4941] mt-1">${escHtml(item.action)}</p>` : ''}
             <div class="text-xs text-[#3f4941] mt-1.5 space-y-0.5">
-              ${item.dosage ? `<p>Dosage: ${escHtml(item.dosage)} ${escHtml(item.unit || '')}</p>` : ''}
+              ${item.dosage ? `<p>Dosage: ${escHtml(item.dosage)}${item.unit ? ` ${escHtml(item.unit)}` : ''}</p>` : ''}
               ${item.frequency ? `<p>Frequency: ${escHtml(item.frequency)}</p>` : ''}
               ${item.timing ? `<p>Timing: ${escHtml(item.timing)}</p>` : ''}
             </div>
             ${safetyNote}
           </div>`;
       }
+      if (hasRichDetail) {
+        return `
+          <div class="p-3 bg-[#f6f3f2] rounded-xl">
+            <p class="font-semibold text-sm text-[#1b1c1c]">${escHtml(item.action || item.text || '')}</p>
+            <div class="text-xs text-[#3f4941] mt-1.5 space-y-0.5">
+              ${item.productName ? `<p>Product: ${escHtml(item.productName)}</p>` : ''}
+              ${item.dosage ? `<p>Dosage: ${escHtml(item.dosage)}</p>` : ''}
+              ${item.frequency ? `<p>Frequency: ${escHtml(item.frequency)}</p>` : ''}
+              ${item.timing ? `<p>Timing: ${escHtml(item.timing)}</p>` : ''}
+              ${item.safetyNotes ? `<p class="font-semibold">Note: ${escHtml(item.safetyNotes)}</p>` : ''}
+            </div>
+          </div>`;
+      }
       return `
         <div class="p-3 bg-[#f6f3f2] rounded-xl text-sm text-[#3f4941]">
-          ${escHtml(item.text || '')}
+          ${escHtml(item.text || item.action || '')}
         </div>`;
     }).join('');
 

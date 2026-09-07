@@ -43,24 +43,37 @@ export async function regenerateAdvisory(req, res) {
     const finalSeverity = severity || latest.severity;
     const finalCropStage = cropStage || latest.cropStage;
 
-    // Generate new version
-    const version = latest ? latest.version + 1 : 1;
+    // Gemini-first regeneration: load case context (crop, confidence,
+    // district) so the new TNAU prompt gets the same inputs as the
+    // diagnosis-time path. Falls back to normalized rules internally.
+    const { generateAdvisoryForCase } = await import('../services/advisoryService.js');
+    const { default: DiagnosisCase } = await import('../models/DiagnosisCase.js');
+    const dc = await DiagnosisCase.findById(caseId).lean();
 
-    // Import dynamically to avoid circular dependency
-    const { generateAdvisoryContent } = await import('../services/advisoryService.js');
-    const content = generateAdvisoryContent(finalDiseaseCode, finalSeverity, finalCropStage);
+    let cropType = '';
+    let confidence;
+    let district = '';
+    try {
+      const { default: Field } = await import('../models/Field.js');
+      const { default: User } = await import('../models/User.js');
+      const farmId = dc?.farmId || null;
+      const [farm, user] = await Promise.all([
+        farmId ? Field.findById(farmId).select('cropType').lean() : null,
+        dc?.userId ? User.findById(dc.userId).select('farmDetails.district').lean() : null,
+      ]);
+      cropType = farm?.cropType || '';
+      district = user?.farmDetails?.district || '';
+      if (Number.isFinite(Number(dc?.confidence))) confidence = Number(dc.confidence);
+    } catch { /* context is advisory-only; never block regeneration */ }
 
-    const advisory = await Advisory.create({
+    const advisory = await generateAdvisoryForCase(
       caseId,
-      version,
-      diseaseCode: finalDiseaseCode,
-      severity: finalSeverity,
-      cropStage: finalCropStage,
-      ipmCulturalActions: content.cultural,
-      ipmBiologicalActions: content.biological,
-      chemicalRecommendation: content.chemical,
-      generatedAt: new Date(),
-    });
+      finalDiseaseCode,
+      finalSeverity,
+      finalCropStage,
+      cropType,
+      { confidence, district },
+    );
 
     return res.json({ success: true, data: advisory });
   } catch (err) {
