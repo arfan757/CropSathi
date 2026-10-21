@@ -423,3 +423,29 @@ CREATE INDEX IF NOT EXISTS idx_notifications_farm_type  ON notifications(farm_id
 CREATE TRIGGER trg_notifications_updated_at
   BEFORE UPDATE ON notifications
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+
+-- ─── 15. WEATHER READINGS ────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS weather_readings (
+  id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  farm_id         UUID         NOT NULL REFERENCES fields(id) ON DELETE CASCADE,
+  source          VARCHAR(30)  NOT NULL DEFAULT 'open_meteo'
+                  CHECK (source IN ('open_meteo', 'imd')),
+  observed_at     TIMESTAMPTZ  NOT NULL,
+  temperature_c   NUMERIC(5,2),
+  humidity_pct    NUMERIC(5,2),
+  rainfall_mm_24h NUMERIC(6,2) DEFAULT 0,
+  wind_speed_ms   NUMERIC(5,2) DEFAULT 0,
+  soil_temp_c     NUMERIC(5,2),
+  raw_payload     JSONB,
+  created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_weather_farm_observed ON weather_readings(farm_id, observed_at DESC);
+
+CREATE TRIGGER trg_weather_readings_updated_at
+  BEFORE UPDATE ON weather_readings
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+

@@ -92,6 +92,11 @@ class RiskScoreQuery {
     return this;
   }
 
+  select(s) {
+    this._select = s;
+    return this;
+  }
+
   async then(resolve, reject) {
     try {
       const res = await this.executor(this._sort, this._limit);

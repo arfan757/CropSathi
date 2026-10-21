@@ -80,6 +80,11 @@ class ThermalQuery {
     return this;
   }
 
+  select(s) {
+    this._select = s;
+    return this;
+  }
+
   async then(resolve, reject) {
     try {
       const res = await this.executor(this._sort, this._limit);
@@ -102,8 +107,16 @@ const ThermalReading = function (fields) {
 ThermalReading.findOne = function (query = {}) {
   return new ThermalQuery(async () => {
     let q = supabase.from('thermal_readings').select('*');
+    const id = query._id || query.id;
+    if (typeof id === 'string') {
+      q = q.eq('id', id);
+    } else if (id?.$ne) {
+      q = q.neq('id', id.$ne);
+    }
+
     const fid = query.farmId || query.farm_id;
     if (fid) q = q.eq('farm_id', fid);
+    if (query.thermalGrid?.$ne === null) q = q.not('thermal_grid', 'is', null);
     q = q.order('observed_at', { ascending: false }).limit(1);
 
     const { data, error } = await q.maybeSingle();
@@ -112,11 +125,19 @@ ThermalReading.findOne = function (query = {}) {
   });
 };
 
+ThermalReading.findById = function (id) {
+  return ThermalReading.findOne({ _id: id });
+};
+
 ThermalReading.find = function (query = {}) {
   return new ThermalQuery(async (sort, limit) => {
     let q = supabase.from('thermal_readings').select('*');
     const fid = query.farmId || query.farm_id;
-    if (fid) q = q.eq('farm_id', fid);
+    if (typeof fid === 'string') {
+      q = q.eq('farm_id', fid);
+    } else if (fid?.$in && Array.isArray(fid.$in)) {
+      q = q.in('farm_id', fid.$in);
+    }
 
     if (query.observedAt?.$gte) {
       q = q.gte('observed_at', query.observedAt.$gte.toISOString ? query.observedAt.$gte.toISOString() : query.observedAt.$gte);

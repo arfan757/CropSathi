@@ -121,6 +121,10 @@ class QueryBuilder {
     return this;
   }
 
+  lean() {
+    return this;
+  }
+
   async then(resolve, reject) {
     try {
       const res = await this.promiseFn(this._includePassword);
@@ -159,16 +163,18 @@ const User = {
     return this.findOne({ _id: id });
   },
 
-  async find(query = {}) {
-    let q = supabase.from('users').select('*');
-    if (query['farmDetails.district']) {
-      q = q.eq('farm_details->>district', query['farmDetails.district']);
-    }
-    const { data, error } = await q;
-    if (error) throw new Error(error.message);
-    return (data || []).map(row => {
-      delete row.password;
-      return new UserDocument(row);
+  find(query = {}) {
+    return new QueryBuilder(async () => {
+      let q = supabase.from('users').select('*');
+      if (query['farmDetails.district']) {
+        q = q.eq('farm_details->>district', query['farmDetails.district']);
+      }
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      return (data || []).map(row => {
+        delete row.password;
+        return new UserDocument(row);
+      });
     });
   },
 

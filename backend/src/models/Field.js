@@ -141,6 +141,11 @@ class FieldQuery {
     return this;
   }
 
+  select(s) {
+    this._select = s;
+    return this;
+  }
+
   async then(resolve, reject) {
     try {
       const res = await this.executor(this._sort, this._limit);
@@ -165,7 +170,11 @@ Field.find = function (query = {}) {
     let q = supabase.from('fields').select('*');
 
     const uid = query.userId || query.user_id;
-    if (uid) q = q.eq('user_id', uid);
+    if (typeof uid === 'string') {
+      q = q.eq('user_id', uid);
+    } else if (uid?.$in && Array.isArray(uid.$in)) {
+      q = q.in('user_id', uid.$in);
+    }
 
     if (query.deletedAt === null) {
       q = q.is('deleted_at', null);

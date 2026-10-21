@@ -84,6 +84,11 @@ class NdviQuery {
     return this;
   }
 
+  select(s) {
+    this._select = s;
+    return this;
+  }
+
   async then(resolve, reject) {
     try {
       const res = await this.executor(this._sort, this._limit);
@@ -106,8 +111,17 @@ const NdviReading = function (fields) {
 NdviReading.findOne = function (query = {}) {
   return new NdviQuery(async () => {
     let q = supabase.from('ndvi_readings').select('*');
+    const id = query._id || query.id;
+    if (typeof id === 'string') {
+      q = q.eq('id', id);
+    } else if (id?.$ne) {
+      q = q.neq('id', id.$ne);
+    }
+
     const fid = query.farmId || query.farm_id;
     if (fid) q = q.eq('farm_id', fid);
+    if (query.ndviGrid?.$ne === null) q = q.not('ndvi_grid', 'is', null);
+    if (query.ndreGrid?.$ne === null) q = q.not('ndre_grid', 'is', null);
     q = q.order('observed_at', { ascending: false }).limit(1);
 
     const { data, error } = await q.maybeSingle();
@@ -116,11 +130,19 @@ NdviReading.findOne = function (query = {}) {
   });
 };
 
+NdviReading.findById = function (id) {
+  return NdviReading.findOne({ _id: id });
+};
+
 NdviReading.find = function (query = {}) {
   return new NdviQuery(async (sort, limit) => {
     let q = supabase.from('ndvi_readings').select('*');
     const fid = query.farmId || query.farm_id;
-    if (fid) q = q.eq('farm_id', fid);
+    if (typeof fid === 'string') {
+      q = q.eq('farm_id', fid);
+    } else if (fid?.$in && Array.isArray(fid.$in)) {
+      q = q.in('farm_id', fid.$in);
+    }
 
     if (query.observedAt?.$gte) {
       q = q.gte('observed_at', query.observedAt.$gte.toISOString ? query.observedAt.$gte.toISOString() : query.observedAt.$gte);
