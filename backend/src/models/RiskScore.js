@@ -153,4 +153,39 @@ RiskScore.create = async function (fields) {
   return doc.save();
 };
 
+RiskScore.aggregate = async function (pipeline = []) {
+  const matchStage = pipeline.find(p => p.$match);
+  const farmIds = matchStage?.$match?.farmId?.$in || [];
+  const excludeIds = matchStage?.$match?._id?.$nin || [];
+
+  if (farmIds.length === 0) return [];
+
+  let q = supabase
+    .from('risk_scores')
+    .select('*')
+    .in('farm_id', farmIds)
+    .order('computed_at', { ascending: false });
+
+  if (excludeIds.length > 0) {
+    for (const exId of excludeIds) {
+      q = q.neq('id', exId);
+    }
+  }
+
+  const { data, error } = await q;
+  if (error || !data) return [];
+
+  const map = new Map();
+  for (const row of data) {
+    if (!map.has(row.farm_id)) {
+      map.set(row.farm_id, {
+        _id: row.farm_id,
+        doc: new RiskScoreDocument(row).toObject(),
+      });
+    }
+  }
+
+  return Array.from(map.values());
+};
+
 export default RiskScore;

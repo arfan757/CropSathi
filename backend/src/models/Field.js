@@ -222,6 +222,10 @@ Field.findById = function (id) {
   return Field.findOne({ _id: id, deletedAt: null });
 };
 
+Field.findByIdAndUpdate = function (id, updates, options = {}) {
+  return Field.findOneAndUpdate({ _id: id }, updates, options);
+};
+
 Field.findOneAndUpdate = async function (filter, updates, options = {}) {
   const existing = await Field.findOne(filter);
   if (!existing) return null;
