@@ -11,10 +11,20 @@
  * server-side via process.env.
  */
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure .env is loaded regardless of import order in ESM
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
 const url  = process.env.SUPABASE_URL;
-const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const key  = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
 if (!url || !key) {
   console.error('❌ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing in .env');
