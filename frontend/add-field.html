@@ -3,97 +3,149 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CropSathi - Add New Field</title>
+  <title>CropSathi — Add New Field</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="app.css">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="tailwind-config.js"></script>
   <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="ui.css">
 
   <style>
-    body { font-family: 'Noto Sans', sans-serif; background-color: #fbf9f8; color: #1b1c1c; }
-    h1, h2, h3, h4, .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
-    .tactile-card { box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05); }
-    #map { width: 100%; height: 100%; min-height: 380px; border-radius: 12px; }
-    .drawing-active { cursor: crosshair !important; }
-    .leaflet-control-zoom a { background-color: #006038 !important; color: white !important; }
-    .leaflet-control-zoom a:hover { background-color: #1a7a4c !important; }
+    #map {
+      width: 100%;
+      height: 100%;
+      min-height: 420px;
+      border-radius: 1.25rem;
+    }
+    .drawing-active {
+      cursor: crosshair !important;
+    }
+    .leaflet-control-zoom a {
+      background-color: #1B4332 !important;
+      color: white !important;
+      border-radius: 8px !important;
+    }
+    .leaflet-control-zoom a:hover {
+      background-color: #163A2B !important;
+    }
   </style>
-</head>  <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex flex-col has-tabbar">
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
+</head>
+<body class="bg-offwhite-100 font-body text-forest-700 min-h-screen flex flex-col has-tabbar">
 
   <!-- Header -->
-  <header class="bg-white border-b border-[#e4e2e1] px-6 py-4 flex-shrink-0">
+  <header class="border-b border-offwhite-300 bg-offwhite-50 px-4 py-3 sm:px-6 lg:px-8 flex-shrink-0">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
-      <a href="my-fields.html" class="flex items-center gap-2 text-[#3f4941] hover:text-[#006038] transition">
-        <i data-lucide="arrow-left" class="w-5 h-5"></i>
-        <span class="font-medium text-sm" data-i18n="af_back">Back to My Fields</span>
+      <a href="my-fields.html" class="flex items-center gap-2 font-heading text-xs font-semibold text-forest-600 hover:text-forest-700 transition-colors">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        <span data-i18n="af_back">Back to My Fields</span>
       </a>
-      <div class="user-menu">
-        <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
-          <span id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
-            <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
-          </span>
-          <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
-        </button>
-        <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
-          <div class="user-menu-head">
-            <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
-            <span class="user-menu-head-meta">
-              <span class="user-menu-head-name" id="userMenuName">Farmer</span>
-              <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
-            </span>
+
+      <!-- User Profile Dropdown Menu matching Bolt TopBar -->
+      <div class="user-menu relative" id="topProfileWrapper">
+        <button
+          type="button"
+          class="user-menu-trigger flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 p-1.5 pr-2 transition-colors hover:border-forest-200 lg:pr-3 shadow-card"
+          onclick="toggleProfileDropdown(event)"
+          aria-haspopup="menu"
+          aria-expanded="false"
+        >
+          <div id="navProfilePhoto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden">
+            <span id="navAvatarInitial">F</span>
           </div>
-          <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
-          <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
-          <span class="user-menu-sep" role="separator"></span>
-          <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+          <div class="hidden text-left lg:block">
+            <div class="flex items-center gap-1">
+              <p class="font-heading text-sm font-semibold text-forest-700 truncate max-w-[120px]" id="userName">Farmer</p>
+              <i data-lucide="chevron-down" id="topProfileChevron" class="w-3.5 h-3.5 text-forest-400 transition-transform duration-200"></i>
+            </div>
+            <p class="text-xs text-forest-400" id="userLocation">Farmer</p>
+          </div>
+        </button>
+        
+        <div id="topProfileMenuPanel" onclick="event.stopPropagation()" class="hidden absolute right-0 top-full mt-2 w-64 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in" role="menu">
+          <div class="flex items-center gap-3 rounded-xl bg-offwhite-200 p-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50" id="userMenuPhoto">
+              F
+            </div>
+            <div class="min-w-0">
+              <p class="font-heading text-sm font-semibold text-forest-700 truncate" id="userMenuName">Farmer</p>
+              <p class="text-xs text-forest-400 truncate" id="userMenuPhone">Verified Account</p>
+            </div>
+          </div>
+          <div class="mt-2 space-y-1">
+            <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="user" class="w-4 h-4 text-forest-400"></i>
+              <span>My Profile</span>
+            </a>
+            <a href="my-fields.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="map" class="w-4 h-4 text-forest-400"></i>
+              <span>My Fields</span>
+            </a>
+            <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
+              <span>Help & Support</span>
+            </a>
+            <div class="my-1 border-t border-offwhite-200"></div>
+            <button type="button" onclick="handleLogout()" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-terracotta-500 hover:bg-terracotta-50 transition-colors">
+              <i data-lucide="log-out" class="w-4 h-4 text-terracotta-500"></i>
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
   <!-- Main Content -->
-  <main class="max-w-7xl mx-auto p-4 md:p-6 w-full flex-1 flex flex-col overflow-x-hidden">
-    <div class="flex flex-col lg:flex-row gap-6 items-stretch">
+  <main class="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 w-full flex-1 flex flex-col overflow-x-hidden">
+    <div class="flex flex-col lg:flex-row gap-6 items-stretch flex-1">
 
-      <!-- Left: Map Section -->
+      <!-- Left Column: Map & Drawing Tools -->
       <div class="w-full lg:w-3/5 flex flex-col justify-between">
-        <div class="flex-1 rounded-xl overflow-hidden border border-[#e4e2e1] tactile-card relative min-h-[380px]">
+        <div class="flex-1 rounded-2xl overflow-hidden border border-offwhite-300 shadow-card relative min-h-[420px]">
           <div id="map"></div>
         </div>
 
         <!-- Map Toolbar -->
         <div class="mt-4 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
           <button onclick="toggleDrawing()" id="drawBtn"
-            class="bg-[#006038] hover:bg-[#1a7a4c] text-white px-4 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 text-sm shadow-sm">
-            <i data-lucide="pentagon" class="w-4.5 h-4.5"></i>
+            class="bg-forest-500 hover:bg-forest-600 text-offwhite-50 px-4 py-2.5 rounded-xl font-heading text-xs font-semibold transition-colors flex items-center gap-2 shadow-card">
+            <i data-lucide="pen-tool" class="w-4 h-4"></i>
             <span id="drawBtnText" data-i18n="af_start_drawing">Start Drawing Boundary</span>
           </button>
+
           <div class="flex items-center gap-2">
             <button onclick="getCurrentLocation()" id="locateBtn"
-              class="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-white text-[#006038] hover:bg-gray-100 rounded-xl transition border border-[#e4e2e1]">
-              <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> <span data-i18n="af_use_location">Use My Location</span>
+              class="flex items-center gap-1.5 px-3 py-2 text-xs font-heading font-semibold bg-offwhite-50 text-forest-600 hover:bg-offwhite-200 rounded-xl transition-colors border border-offwhite-300 shadow-card">
+              <i data-lucide="crosshair" class="w-3.5 h-3.5 text-forest-500"></i>
+              <span data-i18n="af_use_location">Use My Location</span>
             </button>
             <button onclick="undoLastPoint()"
-              class="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-white text-[#3f4941] hover:bg-gray-100 rounded-xl transition border border-[#e4e2e1]">
-              <i data-lucide="undo-2" class="w-3.5 h-3.5"></i> <span data-i18n="af_undo">Undo</span>
+              class="flex items-center gap-1.5 px-3 py-2 text-xs font-heading font-semibold bg-offwhite-50 text-forest-600 hover:bg-offwhite-200 rounded-xl transition-colors border border-offwhite-300 shadow-card">
+              <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+              <span data-i18n="af_undo">Undo</span>
             </button>
             <button onclick="clearPolygon()"
-              class="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-white text-[#933302] hover:bg-red-50 rounded-xl transition border border-[#e4e2e1]">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> <span data-i18n="af_clear">Clear</span>
+              class="flex items-center gap-1.5 px-3 py-2 text-xs font-heading font-semibold bg-offwhite-50 text-terracotta-500 hover:bg-terracotta-50 rounded-xl transition-colors border border-offwhite-300 shadow-card">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span data-i18n="af_clear">Clear</span>
             </button>
           </div>
         </div>
 
-        <!-- Instructions -->
-        <div class="mt-4 bg-[#006038]/10 border border-[#006038]/20 rounded-xl p-3.5 flex-shrink-0">
+        <!-- Instructions Card -->
+        <div class="mt-4 bg-forest-50/80 border border-forest-200/60 rounded-2xl p-4 flex-shrink-0">
           <div class="flex items-start gap-3">
-            <i data-lucide="info" class="w-5 h-5 text-[#006038] mt-0.5 flex-shrink-0"></i>
-            <div class="text-xs text-[#006038]">
-              <p class="font-semibold text-xs mb-1" data-i18n="af_how_to">How to mark your field:</p>
-              <ol class="list-decimal list-inside space-y-0.5 text-xs text-[#006038]/90">
+            <i data-lucide="info" class="w-4 h-4 text-forest-500 mt-0.5 flex-shrink-0"></i>
+            <div class="text-xs text-forest-600">
+              <p class="font-heading font-semibold text-xs mb-1" data-i18n="af_how_to">How to mark your field:</p>
+              <ol class="list-decimal list-inside space-y-0.5 text-xs text-forest-500">
                 <li data-i18n="af_step1">Click "Use My Location" or navigate to your field</li>
                 <li data-i18n="af_step2">Click "Start Drawing" to enter drawing mode</li>
                 <li data-i18n="af_step3">Click on the map to mark corners of your field</li>
@@ -104,22 +156,32 @@
         </div>
       </div>
 
-      <!-- Right: Form Section -->
+      <!-- Right Column: Form Section -->
       <div class="w-full lg:w-2/5 flex flex-col">
-        <div class="bg-white border border-[#e4e2e1] rounded-xl p-6 tactile-card flex flex-col justify-between h-full">
+        <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl p-6 shadow-card flex flex-col justify-between h-full">
           <div>
-            <h2 id="headerTitle" class="font-headline font-bold text-xl text-[#1b1c1c] mb-5" data-i18n="af_field_details">Field Details</h2>
+            <h2 id="headerTitle" class="font-heading font-bold text-lg text-forest-700 mb-5" data-i18n="af_field_details">
+              Field Details
+            </h2>
+
             <div class="space-y-4">
+              <!-- Field Name -->
               <div>
-                <label class="block text-xs font-semibold text-[#3f4941] uppercase tracking-wider mb-1.5"><span data-i18n="af_field_name">Field Name</span> *</label>
-                <input type="text" id="fieldName" placeholder="e.g. North Terrace Vineyard"
-                  class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition bg-white">
+                <label class="block text-xs font-heading font-semibold text-forest-400 uppercase tracking-wider mb-1.5">
+                  <span data-i18n="af_field_name">Field Name</span> *
+                </label>
+                <input type="text" id="fieldName" placeholder="e.g. North Riverbank Plot"
+                  class="w-full px-4 py-2.5 border border-offwhite-300 rounded-xl text-xs font-body text-forest-700 focus:border-forest-400 focus:ring-1 focus:ring-forest-400 outline-none transition bg-offwhite-50">
               </div>
+
+              <!-- Crop Type -->
               <div>
-                <label class="block text-xs font-semibold text-[#3f4941] uppercase tracking-wider mb-1.5"><span data-i18n="af_crop_type">Crop Type</span> *</label>
+                <label class="block text-xs font-heading font-semibold text-forest-400 uppercase tracking-wider mb-1.5">
+                  <span data-i18n="af_crop_type">Crop Type</span> *
+                </label>
                 <div class="relative">
                   <select id="cropType"
-                    class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition appearance-none bg-white">
+                    class="w-full px-4 py-2.5 border border-offwhite-300 rounded-xl text-xs font-body text-forest-700 focus:border-forest-400 focus:ring-1 focus:ring-forest-400 outline-none transition appearance-none bg-offwhite-50">
                     <option value="" disabled selected>Select crop type</option>
                     <option value="Wheat">Wheat</option>
                     <option value="Rice">Rice</option>
@@ -128,22 +190,32 @@
                     <option value="Sugarcane">Sugarcane</option>
                     <option value="Potato">Potato</option>
                     <option value="Grapes">Grapes</option>
+                    <option value="Soybean">Soybean</option>
+                    <option value="Tur">Tur</option>
                     <option value="Other">Other</option>
                   </select>
-                  <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#6f7a71] pointer-events-none"></i>
+                  <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-forest-400 pointer-events-none"></i>
                 </div>
               </div>
+
+              <!-- Sowing Date -->
               <div>
-                <label class="block text-xs font-semibold text-[#3f4941] uppercase tracking-wider mb-1.5"><span data-i18n="af_sowing_date">Sowing Date</span> *</label>
+                <label class="block text-xs font-heading font-semibold text-forest-400 uppercase tracking-wider mb-1.5">
+                  <span data-i18n="af_sowing_date">Sowing Date</span> *
+                </label>
                 <input type="date" id="sowingDate"
-                  class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition bg-white">
+                  class="w-full px-4 py-2.5 border border-offwhite-300 rounded-xl text-xs font-body text-forest-700 focus:border-forest-400 focus:ring-1 focus:ring-forest-400 outline-none transition bg-offwhite-50">
               </div>
+
+              <!-- Crop Stage -->
               <div>
-                <label class="block text-xs font-semibold text-[#3f4941] uppercase tracking-wider mb-1.5"><span>Crop Stage</span></label>
+                <label class="block text-xs font-heading font-semibold text-forest-400 uppercase tracking-wider mb-1.5">
+                  <span>Growth Stage</span>
+                </label>
                 <div class="relative">
                   <select id="cropStage"
-                    class="w-full px-4 py-2.5 border border-[#e4e2e1] rounded-xl text-sm focus:border-[#006038] focus:ring-1 focus:ring-[#006038] outline-none transition appearance-none bg-white">
-                    <option value="" selected>Auto (based on sowing date)</option>
+                    class="w-full px-4 py-2.5 border border-offwhite-300 rounded-xl text-xs font-body text-forest-700 focus:border-forest-400 focus:ring-1 focus:ring-forest-400 outline-none transition appearance-none bg-offwhite-50">
+                    <option value="" selected>Auto (calculated from sowing date)</option>
                     <option value="sowing">Sowing</option>
                     <option value="vegetative">Vegetative</option>
                     <option value="flowering">Flowering</option>
@@ -151,33 +223,43 @@
                     <option value="maturity">Maturity</option>
                     <option value="harvested">Harvested</option>
                   </select>
-                  <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#6f7a71] pointer-events-none"></i>
+                  <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-forest-400 pointer-events-none"></i>
                 </div>
-                <p id="cropStageHint" class="text-[11px] text-[#6f7a71] mt-1 hidden"></p>
+                <p id="cropStageHint" class="text-[11px] text-forest-400 mt-1 hidden"></p>
               </div>
-              <div class="bg-[#f6f3f2] rounded-xl p-3.5 border border-[#e4e2e1]">
-                <p class="text-[11px] font-semibold text-[#3f4941] uppercase tracking-wider mb-2.5" data-i18n="af_polygon_summary">Polygon Summary</p>
+
+              <!-- Polygon Summary -->
+              <div class="bg-offwhite-200/60 rounded-2xl p-4 border border-offwhite-300">
+                <p class="text-[10px] font-heading font-semibold text-forest-400 uppercase tracking-wider mb-2.5" data-i18n="af_polygon_summary">
+                  Polygon Boundary Telemetry
+                </p>
                 <div class="grid grid-cols-2 gap-3">
-                  <div class="bg-white p-3 rounded-lg border border-[#e4e2e1]">
-                    <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider" data-i18n="af_points">Points</p>
-                    <p class="text-base font-bold text-[#1b1c1c]" id="pointCount">0</p>
+                  <div class="bg-offwhite-50 p-3 rounded-xl border border-offwhite-300">
+                    <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wider" data-i18n="af_points">Points</p>
+                    <p class="text-base font-bold font-serif text-forest-700" id="pointCount">0</p>
                   </div>
-                  <div class="bg-white p-3 rounded-lg border border-[#e4e2e1]">
-                    <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider" data-i18n="af_area">Area</p>
-                    <p class="text-base font-bold text-[#006038]" id="areaHectares">0 ha</p>
+                  <div class="bg-offwhite-50 p-3 rounded-xl border border-offwhite-300">
+                    <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wider" data-i18n="af_area">Area (Ha)</p>
+                    <p class="text-base font-bold font-serif text-forest-700" id="areaHectares">0 ha</p>
                   </div>
                 </div>
-                <div class="mt-2.5 bg-white p-3 rounded-lg border border-[#e4e2e1]">
-                  <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Area in Acres</p>
-                  <p class="text-base font-bold text-[#1b1c1c]" id="areaAcres">0 acres</p>
+                <div class="mt-2.5 bg-offwhite-50 p-3 rounded-xl border border-offwhite-300">
+                  <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wider">Area (Acres)</p>
+                  <p class="text-base font-bold font-serif text-forest-700" id="areaAcres">0 acres</p>
                 </div>
               </div>
             </div>
           </div>
-          <div class="pt-5 border-t border-[#e4e2e1] mt-6 flex gap-3">
-            <a href="my-fields.html" class="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-[#3f4941] bg-[#f0eded] hover:bg-[#eae8e7] rounded-full transition"><span data-i18n="af_cancel">Cancel</span></a>
+
+          <!-- Bottom Action Buttons -->
+          <div class="pt-5 border-t border-offwhite-200 mt-6 flex gap-3">
+            <a href="my-fields.html" class="flex-1 text-center px-4 py-2.5 text-xs font-heading font-semibold text-forest-600 bg-offwhite-200 hover:bg-offwhite-300 rounded-xl transition-colors">
+              <span data-i18n="af_cancel">Cancel</span>
+            </a>
             <button onclick="saveField()" id="saveBtn" disabled
-              class="flex-1 px-4 py-2.5 text-sm font-semibold bg-[#006038] text-white rounded-full transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#1a7a4c] flex items-center justify-center gap-2"><span data-i18n="af_save">Save Field</span></button>
+              class="flex-1 px-4 py-2.5 text-xs font-heading font-semibold bg-forest-500 text-offwhite-50 rounded-xl transition-colors shadow-card disabled:opacity-40 disabled:cursor-not-allowed hover:bg-forest-600 flex items-center justify-center gap-2">
+              <span data-i18n="af_save">Save Field</span>
+            </button>
           </div>
         </div>
       </div>
@@ -190,8 +272,9 @@
   <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/dist/leaflet.geometryutil.min.js"></script>
   <script src="config.js"></script>
   <script src="preferences.js"></script>
+  <script src="nav-profile.js"></script>
+  
   <script>
-    // Global variables
     let map;
     let drawnItems;
     let currentPolygon = null;
@@ -204,15 +287,13 @@
     let editFieldId = null;
     let isSaving = false;
 
-    // Initialize
     document.addEventListener('DOMContentLoaded', async function() {
       await loadUserLocation();
       initMap();
       loadEditMode();
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
     });
 
-    // Edit mode
     function loadEditMode() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('edit') === 'true') {
@@ -221,7 +302,7 @@
           const field = JSON.parse(editData);
           editMode = true;
           editFieldId = field._id;
-          document.title = 'CropSathi - Edit Field';
+          document.title = 'CropSathi — Edit Field';
           document.getElementById('headerTitle').textContent = 'Edit Field';
           document.getElementById('fieldName').value = field.name || '';
           document.getElementById('cropType').value = field.cropType || '';
@@ -248,12 +329,12 @@
       polygonPoints = polygonData.map(p => L.latLng(p.lat, p.lng));
       polygonPoints.forEach(latlng => {
         const marker = L.circleMarker(latlng, {
-          radius: 6, fillColor: '#006038', color: '#ffffff', weight: 2, fillOpacity: 1
+          radius: 6, fillColor: '#1B4332', color: '#ffffff', weight: 2, fillOpacity: 1
         }).addTo(map);
         tempMarkers.push(marker);
       });
       currentPolygon = L.polygon(polygonPoints, {
-        color: '#006038', weight: 2, fillColor: '#006038', fillOpacity: 0.2
+        color: '#1B4332', weight: 2.5, fillColor: '#3F8259', fillOpacity: 0.25
       }).addTo(map);
       map.fitBounds(currentPolygon.getBounds(), { padding: [30, 30] });
       updateAreaDisplay();
@@ -261,23 +342,21 @@
       validateForm();
     }
 
-    // Load user location
     async function loadUserLocation() {
-      const token = localStorage.getItem('token');
+      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
       if (!token) { window.location.href = 'login.html'; return; }
       try {
         const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await response.json();
-        if (data.success && data.user.farmDetails.latitude && data.user.farmDetails.longitude) {
+        if (data.success && data.user.farmDetails?.latitude && data.user.farmDetails?.longitude) {
           centerLat = data.user.farmDetails.latitude;
           centerLng = data.user.farmDetails.longitude;
         }
       } catch (e) { console.error('Error loading location:', e); }
     }
 
-    // Init map
     function initMap() {
       map = L.map('map').setView([centerLat, centerLng], 15);
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -291,7 +370,6 @@
       map.addLayer(drawnItems);
     }
 
-    // Location
     function getCurrentLocation() {
       const btn = document.getElementById('locateBtn');
       btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> ' + CropSathiPrefs.t('af_locating');
@@ -303,23 +381,22 @@
             L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map).bindPopup('Your Location').openPopup();
             btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> ' + CropSathiPrefs.t('af_location_found');
             btn.disabled = false;
-            lucide.createIcons();
-            setTimeout(() => { btn.innerHTML = '<i data-lucide="crosshair" class="w-3.5 h-3.5"></i> ' + CropSathiPrefs.t('af_use_location'); lucide.createIcons(); }, 2000);
+            if (window.lucide) lucide.createIcons();
+            setTimeout(() => { btn.innerHTML = '<i data-lucide="crosshair" class="w-3.5 h-3.5"></i> ' + CropSathiPrefs.t('af_use_location'); if (window.lucide) lucide.createIcons(); }, 2000);
           },
-          () => { alert('Unable to get location.'); btn.innerHTML = '<i data-lucide="crosshair" class="w-3.5 h-3.5"></i> ' + CropSathiPrefs.t('af_use_location'); btn.disabled = false; lucide.createIcons(); }
+          () => { alert('Unable to get location.'); btn.innerHTML = '<i data-lucide="crosshair" class="w-3.5 h-3.5"></i> ' + CropSathiPrefs.t('af_use_location'); btn.disabled = false; if (window.lucide) lucide.createIcons(); }
         );
       }
     }
 
-    // Drawing
     function toggleDrawing() { isDrawing ? stopDrawing() : startDrawing(); }
 
     function startDrawing() {
       isDrawing = true;
       const drawBtn = document.getElementById('drawBtn');
       document.getElementById('drawBtnText').textContent = CropSathiPrefs.t('af_drawing_active');
-      drawBtn.classList.add('bg-[#933302]');
-      drawBtn.classList.remove('bg-[#006038]');
+      drawBtn.classList.add('bg-terracotta-400');
+      drawBtn.classList.remove('bg-forest-500');
       map.getContainer().classList.add('drawing-active');
       if (currentPolygon) { map.removeLayer(currentPolygon); currentPolygon = null; }
       tempMarkers.forEach(m => map.removeLayer(m));
@@ -334,8 +411,8 @@
     function stopDrawing() {
       isDrawing = false;
       const drawBtn = document.getElementById('drawBtn');
-      drawBtn.classList.remove('bg-[#933302]');
-      drawBtn.classList.add('bg-[#006038]');
+      drawBtn.classList.remove('bg-terracotta-400');
+      drawBtn.classList.add('bg-forest-500');
       if (currentPolygon && polygonPoints.length >= 3) {
         document.getElementById('drawBtnText').textContent = CropSathiPrefs.t('af_polygon_drawn');
       } else {
@@ -351,14 +428,14 @@
         if (latlng.distanceTo(polygonPoints[0]) < 20) { completePolygon(); return; }
       }
       const marker = L.circleMarker(latlng, {
-        radius: 6, fillColor: '#006038', color: '#ffffff', weight: 2, fillOpacity: 1
+        radius: 6, fillColor: '#1B4332', color: '#ffffff', weight: 2, fillOpacity: 1
       }).addTo(map);
       tempMarkers.push(marker);
       polygonPoints.push(latlng);
       if (polygonPoints.length >= 2) {
         if (currentPolygon) map.removeLayer(currentPolygon);
         currentPolygon = L.polygon(polygonPoints, {
-          color: '#006038', weight: 2, fillColor: '#006038', fillOpacity: 0.2
+          color: '#1B4332', weight: 2.5, fillColor: '#3F8259', fillOpacity: 0.25
         }).addTo(map);
       }
       updateAreaDisplay();
@@ -403,7 +480,7 @@
       if (currentPolygon) { map.removeLayer(currentPolygon); currentPolygon = null; }
       if (polygonPoints.length >= 2) {
         currentPolygon = L.polygon(polygonPoints, {
-          color: '#006038', weight: 2, fillColor: '#006038', fillOpacity: 0.2
+          color: '#1B4332', weight: 2.5, fillColor: '#3F8259', fillOpacity: 0.25
         }).addTo(map);
       }
       updateAreaDisplay();
@@ -447,10 +524,9 @@
       document.getElementById('saveBtn').disabled = !valid;
     }
 
-    // Save
     async function saveField() {
       if (isSaving) return;
-      const token = localStorage.getItem('token');
+      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
       if (!token) { window.location.href = 'login.html'; return; }
       const name = document.getElementById('fieldName').value.trim();
       const cropType = document.getElementById('cropType').value;
@@ -473,8 +549,6 @@
       const method = editMode ? 'PUT' : 'POST';
       try {
         const payload = { name, cropType, sowingDate, polygon, areaInHectares, areaInAcres: areaInHectares * 2.47105 };
-        // Omit stage when "Auto" is selected so the backend infers it from
-        // the sowing date; an explicit pick is sent through as-is.
         if (cropStage) payload.cropStage = cropStage;
         const res = await fetch(url, {
           method,
@@ -482,8 +556,15 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) { localStorage.setItem('newFieldCreated', 'true'); window.location.href = 'dashboard.html'; return; }
-        else { alert(data.message || 'Error saving field'); }
+        if (data.success) {
+          if (typeof CropSathiCache !== 'undefined') CropSathiCache.invalidate('fields');
+          if (data.data && data.data._id && typeof CropSathiSession !== 'undefined') {
+            CropSathiSession.setActiveFarm(data.data._id);
+          }
+          localStorage.setItem('newFieldCreated', 'true');
+          window.location.href = 'dashboard.html';
+          return;
+        } else { alert(data.message || 'Error saving field'); }
       } catch (e) { console.error('Error saving field:', e); alert('Error saving field. Please try again.'); }
       isSaving = false;
       saveBtn.classList.remove('opacity-75');
@@ -496,9 +577,6 @@
     document.getElementById('cropType').addEventListener('change', validateForm);
     document.getElementById('sowingDate').addEventListener('change', validateForm);
 
-    // Crop-stage auto hint: when "Auto" is selected, show the stage the
-    // backend would infer from the current crop + sowing date. Best-effort
-    // (single source of truth stays server-side); failures hide the hint.
     let stageHintTimer = null;
     async function updateStageHint() {
       const hint = document.getElementById('cropStageHint');
@@ -508,7 +586,7 @@
       if (!hint || !stageSel) return;
       if (stageSel.value || !cropType || !sowingDate) { hint.classList.add('hidden'); return; }
       try {
-        const token = localStorage.getItem('token');
+        const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
         const res = await fetch(
           `${CropSathiPrefs.api}/api/fields/infer-stage?cropType=${encodeURIComponent(cropType)}&sowingDate=${encodeURIComponent(sowingDate)}`,
           { headers: { 'Authorization': 'Bearer ' + token } }
@@ -532,31 +610,6 @@
     document.getElementById('cropStage').addEventListener('change', updateStageHint);
   </script>
 
-  <!-- Shared UI: user menu + mobile search -->
   <script src="ui.js"></script>
-
-  <!-- Bottom navigation (mobile only) -->
-  <nav class="cs-tabbar md:hidden" aria-label="Primary">
-    <a class="cs-tab" href="dashboard.html">
-      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
-    </a>
-    <a class="cs-tab is-active" href="my-fields.html" aria-current="page">
-      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
-    </a>
-    <a class="cs-tab" href="diagnose.html">
-      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
-    </a>
-    <a class="cs-tab" href="advisory.html">
-      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
-    </a>
-    <a class="cs-tab" href="settings.html">
-      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
-    </a>
-  </nav>
 </body>
 </html>

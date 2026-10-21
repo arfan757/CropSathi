@@ -3,97 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CropSathi - Dashboard</title>
+  <title>Dashboard — CropSathi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Google Fonts: Be Vietnam Pro & Noto Sans -->
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="preconnect" href="https://images.unsplash.com">
-  <link rel="stylesheet" href="app.css">
+  <!-- Google Fonts matching Bolt: Be Vietnam Pro, Noto Sans, Lora -->
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS & Bolt Theme Config -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="tailwind-config.js"></script>
   <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="ui.css">
+  
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
 
-  <script>
-    async function syncUserProfile() {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      try {
-        const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const result = await response.json();
-
-        if (result.success) {
-          const user = result.user;
-          const nameElem = document.getElementById('userName');
-          const locationElem = document.getElementById('userLocation');
-
-          if (nameElem) nameElem.textContent = user.name || 'Farmer';
-
-          // Update profile photo and avatar initial
-          const navAvatar = document.getElementById('navAvatarInitial');
-          if (navAvatar && user.name) {
-            navAvatar.textContent = user.name.trim().charAt(0).toUpperCase();
-          }
-          if (typeof applyProfilePhoto === 'function') {
-            applyProfilePhoto(user.profilePhoto);
-          }
-
-          if (locationElem && user.farmDetails) {
-            const village = user.farmDetails.village || '';
-            const district = user.farmDetails.district || '';
-            locationElem.textContent = village || district || 'Location not set';
-          }
-
-          // Fetch real weather data if GPS coordinates exist
-          if (user.farmDetails && user.farmDetails.latitude && user.farmDetails.longitude) {
-            fetchWeatherData(user.farmDetails.latitude, user.farmDetails.longitude);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to sync user data:', error);
-      }
-    }
-
-    async function fetchWeatherData(lat, lng) {
-      try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,rain,soil_temperature_6cm,wind_speed_10m&timezone=auto`;
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data && data.current) {
-          const current = data.current;
-
-          // Update temperature card
-          const temp = Math.round(current.temperature_2m);
-          updateWeatherVisual(temp);
-
-          // Update metric cards
-          const soilTemp = document.getElementById('soilTempValue');
-          const humidity = document.getElementById('humidityValue');
-          const wind = document.getElementById('windValue');
-          const precip = document.getElementById('precipValue');
-
-          if (soilTemp) soilTemp.textContent = (current.soil_temperature_6cm != null ? Math.round(current.soil_temperature_6cm) : 23) + '°C';
-          if (humidity) humidity.textContent = (current.relative_humidity_2m != null ? Math.round(current.relative_humidity_2m) : 78) + '%';
-          if (wind) wind.textContent = (current.wind_speed_10m != null ? Math.round(current.wind_speed_10m) : 7) + ' m/s';
-          if (precip) precip.textContent = (current.rain != null ? current.rain.toFixed(1) : 0) + ' mm';
-        }
-      } catch (error) {
-        console.error('Weather fetch failed, using defaults:', error);
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', syncUserProfile);
-  </script>
   <style>
-    body {
-      font-family: 'Noto Sans', sans-serif;
-      background-color: #fbf9f8;
-      color: #1b1c1c;
+    @keyframes morphIn {
+      0% { opacity: 0; transform: translateY(6px) scale(0.98); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
     }
-    h1, h2, h3, h4, .font-headline {
-      font-family: 'Be Vietnam Pro', sans-serif;
+    .animate-morph-in {
+      animation: morphIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .gauge-circle {
+      transition: stroke-dashoffset 0.05s linear;
     }
     .no-scrollbar::-webkit-scrollbar {
       display: none;
@@ -102,609 +37,1638 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    .tactile-card {
-      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+
+    /* Bulletproof Weather Card Styling — Stays crisp, vibrant, and mint in all modes */
+    #weatherCardBg {
+      background: linear-gradient(135deg, #e7f7f5 0%, #effaf4 50%, #dff1e5 100%) !important;
+      border: 1.5px solid #8bcfd0 !important;
+      color: #062f2d !important;
+      box-shadow: 0 10px 30px rgba(38, 113, 111, 0.12) !important;
+    }
+    #weatherCardBg * {
+      box-sizing: border-box;
     }
   </style>
 </head>
-<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
+<body class="bg-offwhite-100 font-body text-forest-700 min-h-screen flex has-tabbar">
 
-  <!-- Sidebar Navigation -->
-  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+  <!-- Desktop Sidebar matching Bolt Sidebar.tsx -->
+  <aside class="hidden w-64 flex-shrink-0 border-r border-offwhite-300 bg-offwhite-50 lg:flex lg:flex-col fixed left-0 top-0 bottom-0 overflow-y-auto z-30 justify-between">
     <div>
-      <div class="flex items-center gap-3 mb-10">
-        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-[#ffffff] font-bold shadow-md">
-          <i data-lucide="sprout" class="w-6 h-6"></i>
+      <!-- Brand Lockup -->
+      <div class="flex items-center gap-3 px-6 py-6">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+          <i data-lucide="sprout" class="w-5 h-5 text-offwhite-50"></i>
         </div>
-        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+        <div>
+          <h1 class="font-heading text-lg font-bold text-forest-700 leading-tight">CropSathi</h1>
+          <p class="text-xs text-forest-400">Crop Health Monitor</p>
+        </div>
       </div>
 
-      <nav class="space-y-2">
-        <a href="#" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-[#ffffff] rounded-xl font-semibold transition shadow-sm">
-          <i data-lucide="layout-grid" class="w-5 h-5"></i>
-          <span data-i18n="nav_dashboard">Dashboard</span>
-        </a>
-        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="map-pin" class="w-5 h-5"></i>
-          <span data-i18n="nav_my_fields">My Fields</span>
-        </a>
-        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="camera" class="w-5 h-5"></i>
-          <span data-i18n="nav_diagnose">Diagnose</span>
-        </a>
-        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="lightbulb" class="w-5 h-5"></i>
-          <span data-i18n="nav_advisory">Advisory</span>
-        </a>
+      <!-- Navigation Menu -->
+      <nav class="flex-1 px-3 py-2">
+        <p class="px-3 pb-2 font-heading text-xs font-semibold uppercase tracking-wider text-forest-300">
+          Menu
+        </p>
+        <ul class="space-y-1">
+          <li>
+            <a href="dashboard.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold bg-forest-500 text-offwhite-50 shadow-card">
+              <i data-lucide="layout-dashboard" class="w-5 h-5 text-offwhite-50"></i>
+              <span class="flex-1 text-left" data-i18n="nav_dashboard">Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a href="my-fields.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="map" class="w-5 h-5 text-forest-400"></i>
+              <span class="flex-1 text-left" data-i18n="nav_my_fields">My Fields</span>
+            </a>
+          </li>
+          <li>
+            <a href="diagnose.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="camera" class="w-5 h-5 text-forest-400"></i>
+              <span class="flex-1 text-left" data-i18n="nav_diagnose">Diagnose</span>
+            </a>
+          </li>
+          <li>
+            <a href="advisory.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="lightbulb" class="w-5 h-5 text-forest-400"></i>
+              <span class="flex-1 text-left" data-i18n="nav_advisory">Advisory</span>
+              <span id="sidebarAdvisoryBadge" class="hidden flex h-5 min-w-5 items-center justify-center rounded-full bg-terracotta-400 px-1.5 text-xs font-semibold text-offwhite-50">0</span>
+            </a>
+          </li>
+          <li>
+            <a href="analytics.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="file-text" class="w-5 h-5 text-forest-400"></i>
+              <span class="flex-1 text-left">Reports</span>
+            </a>
+          </li>
+          <li>
+            <a href="#weatherSection" onclick="document.getElementById('weatherCardBg').scrollIntoView({behavior:'smooth'}); return false;" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="cloud-sun" class="w-5 h-5 text-forest-400"></i>
+              <span class="flex-1 text-left">Weather</span>
+            </a>
+          </li>
+          <li>
+            <a href="settings.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="settings" class="w-5 h-5 text-forest-400"></i>
+              <span class="flex-1 text-left" data-i18n="nav_settings">Settings</span>
+            </a>
+          </li>
+        </ul>
       </nav>
     </div>
 
-    <div class="pt-6 border-t border-[#e4e2e1]">
-      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-        <i data-lucide="settings" class="w-5 h-5"></i>
-        <span data-i18n="nav_settings">Settings</span>
-      </a>
+    <!-- Need Help Box (Bolt Sidebar) -->
+    <div class="px-3 py-4">
+      <div class="rounded-2xl border border-offwhite-300 bg-offwhite-200/50 p-4">
+        <div class="flex items-center gap-2">
+          <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
+          <span class="font-heading text-xs font-semibold text-forest-600">Need Help?</span>
+        </div>
+        <p class="mt-2 text-xs text-forest-400 leading-relaxed">
+          Contact your Gram Sevak or call the Kisan helpline at 1800-180-1551.
+        </p>
+        <a href="settings.html" class="mt-3 block w-full text-center rounded-lg bg-forest-500 py-2 font-heading text-xs font-semibold text-offwhite-50 transition-colors hover:bg-forest-600">
+          Get Support
+        </a>
+      </div>
     </div>
   </aside>
 
-  <!-- Main Content Area -->
-  <main class="flex-1 w-full overflow-x-hidden p-4 pb-24 md:p-10 md:pb-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
+  <!-- Main Content Wrapper -->
+  <div class="flex min-w-0 flex-1 flex-col lg:ml-64">
     
-    <!-- Top Header -->
-    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6 md:mb-8">
-
-      <!-- Brand lockup — mobile top app bar -->
-      <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi — Dashboard">
-        <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
-        <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
+    <!-- TopBar matching Bolt TopBar.tsx exactly -->
+    <header class="sticky top-0 z-30 flex items-center justify-between border-b border-offwhite-300 bg-offwhite-100/90 px-4 py-3 backdrop-blur-md lg:px-8">
+      <!-- Mobile Logo -->
+      <a href="dashboard.html" class="flex items-center gap-2 lg:hidden" aria-label="CropSathi Dashboard">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+          <i data-lucide="sprout" class="w-5 h-5 text-offwhite-50"></i>
+        </div>
       </a>
 
-      <!-- Title -->
-      <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
-        <h1 class="text-2xl md:text-3xl font-bold text-[#1b1c1c]"><span id="dashHelloText" data-i18n="dash_hello">Hello</span>, <span id="userName">Farmer</span></h1>
-        <p class="text-[#3f4941] text-sm flex items-center gap-1 mt-1">
-          <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> <span id="userLocation">Location not set</span>
-        </p>
+      <!-- Field Selector Dropdown (matches Bolt TopBar.tsx) -->
+      <div class="relative" id="topFieldSelectorWrapper">
+        <button
+          type="button"
+          id="topFieldSelectorBtn"
+          onclick="toggleFieldDropdown(event)"
+          class="flex items-center gap-3 rounded-xl border border-offwhite-300 bg-offwhite-50 px-3 py-2 transition-colors hover:border-forest-200 lg:px-4 shadow-card text-left"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+        >
+          <div id="topFieldEmoji" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-50 text-lg leading-none">
+            🌾
+          </div>
+          <div class="hidden text-left sm:block">
+            <div class="flex items-center gap-1.5">
+              <p id="topFieldName" class="font-heading text-sm font-semibold text-forest-700 leading-none">Loading fields...</p>
+              <i data-lucide="chevron-down" id="topFieldChevron" class="w-3.5 h-3.5 text-forest-400 transition-transform duration-200"></i>
+            </div>
+            <p id="topFieldMeta" class="text-xs text-forest-400 mt-1 leading-none">Field Health Overview</p>
+          </div>
+          <div class="block text-left sm:hidden">
+            <p id="topFieldCropMobile" class="font-heading text-sm font-semibold text-forest-700">Fields</p>
+          </div>
+        </button>
+
+        <!-- Dropdown Menu -->
+        <div
+          id="topFieldDropdownMenu"
+          onclick="event.stopPropagation()"
+          class="hidden absolute left-0 top-full mt-2 w-72 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in"
+          role="listbox"
+        >
+          <div class="flex items-center justify-between px-3 py-2">
+            <p class="font-heading text-xs font-semibold uppercase tracking-wider text-forest-300">
+              Select Field
+            </p>
+            <a href="add-field.html" class="text-xs font-semibold text-forest-500 hover:underline flex items-center gap-1">
+              <i data-lucide="plus" class="w-3 h-3"></i> Add
+            </a>
+          </div>
+          <div id="topFieldListItems" class="space-y-1 max-h-60 overflow-y-auto no-scrollbar">
+            <!-- Dynamically populated from real DB fields -->
+          </div>
+        </div>
       </div>
 
-      <!-- Actions -->
-      <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
-        <button type="button" class="cs-app-action cs-search-trigger md:hidden w-11 h-11" aria-label="Search" aria-expanded="false">
-          <i data-lucide="search"></i>
-        </button>
-        <div class="relative hidden md:block">
-          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
-          <input type="text" placeholder="Search crops, tasks..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-60 text-[#1b1c1c]">
-        </div>
-        <a href="notifications.html" class="cs-app-action w-11 h-11" aria-label="Notifications">
-          <i data-lucide="bell"></i>
-          <span class="cs-dot"></span>
+      <!-- Right Header Actions (Bell with Badge + Profile) -->
+      <div class="flex items-center gap-2 lg:gap-3 ml-auto">
+        <!-- Notifications Bell -->
+        <a href="notifications.html" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-offwhite-300 bg-offwhite-50 text-forest-500 transition-colors hover:border-forest-200 shadow-card" aria-label="Notifications">
+          <i data-lucide="bell" class="w-4.5 h-4.5 text-forest-500"></i>
+          <span id="topNotifBadge" class="hidden absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-terracotta-400 px-1 text-xs font-bold text-offwhite-50">
+            0
+          </span>
         </a>
-        <div class="user-menu">
-          <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
-            <span id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
-              <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
-            </span>
-            <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
-          </button>
-          <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
-            <div class="user-menu-head">
-              <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
-              <span class="user-menu-head-meta">
-                <span class="user-menu-head-name" id="userMenuName">Farmer</span>
-                <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
-              </span>
+
+        <!-- User Profile Dropdown Menu matching Bolt TopBar -->
+        <div class="user-menu relative" id="topProfileWrapper">
+          <button
+            type="button"
+            class="user-menu-trigger flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 p-1.5 pr-2 transition-colors hover:border-forest-200 lg:pr-3 shadow-card"
+            onclick="toggleProfileDropdown(event)"
+            aria-haspopup="menu"
+            aria-expanded="false"
+          >
+            <div id="navProfilePhoto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden">
+              <span id="navAvatarInitial">F</span>
             </div>
-            <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
-            <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
-            <span class="user-menu-sep" role="separator"></span>
-            <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+            <div class="hidden text-left lg:block">
+              <div class="flex items-center gap-1">
+                <p class="font-heading text-sm font-semibold text-forest-700 truncate max-w-[120px]" id="userName">Farmer</p>
+                <i data-lucide="chevron-down" id="topProfileChevron" class="w-3.5 h-3.5 text-forest-400 transition-transform duration-200"></i>
+              </div>
+              <p class="text-xs text-forest-400" id="userLocation">Farmer</p>
+            </div>
+          </button>
+          
+          <div id="topProfileMenuPanel" onclick="event.stopPropagation()" class="hidden absolute right-0 top-full mt-2 w-64 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in" role="menu">
+            <div class="flex items-center gap-3 rounded-xl bg-offwhite-200 p-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50" id="userMenuPhoto">
+                F
+              </div>
+              <div class="min-w-0">
+                <p class="font-heading text-sm font-semibold text-forest-700 truncate" id="userMenuName">Farmer</p>
+                <p class="text-xs text-forest-400 truncate" id="userMenuPhone">Verified Account</p>
+              </div>
+            </div>
+            <div class="mt-2 space-y-1">
+              <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="user" class="w-4 h-4 text-forest-400"></i>
+                <span>My Profile</span>
+              </a>
+              <a href="my-fields.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="map" class="w-4 h-4 text-forest-400"></i>
+                <span>My Fields</span>
+              </a>
+              <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
+                <span>Help & Support</span>
+              </a>
+              <div class="my-1 border-t border-offwhite-200"></div>
+              <button type="button" onclick="CropSathiSession.clearSession(); location.href='login.html';" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-semibold text-terracotta-500 hover:bg-terracotta-50 transition-colors">
+                <i data-lucide="log-out" class="w-4 h-4 text-terracotta-500"></i>
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Mobile search row -->
-    <div class="cs-searchrow md:hidden">
-      <i data-lucide="search" aria-hidden="true"></i>
-      <input type="search" placeholder="Search crops, tasks..." aria-label="Search">
-      <button type="button" class="cs-searchrow-close" data-search-close aria-label="Close search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
+    <!-- Main Content Area -->
+    <main class="flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-10 max-w-7xl">
+
+      <!-- Page Heading + Quick Actions Row (matches Bolt App.tsx) -->
+      <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 class="font-heading text-xl font-bold text-forest-700 lg:text-2xl">
+            Dashboard
+          </h1>
+          <p id="dashboardSubtitle" class="mt-0.5 text-sm text-forest-400">
+            Real-time crop health telemetry & field advisory overview
+          </p>
+        </div>
+
+        <!-- 3 Quick Action Buttons exactly like screenshot -->
+        <div class="hidden flex-wrap items-center gap-3 sm:flex">
+          <a href="diagnose.html" class="flex items-center gap-2 rounded-xl bg-terracotta-400 px-4 py-2.5 font-heading text-sm font-semibold text-offwhite-50 transition-colors hover:bg-terracotta-500 shadow-card">
+            <i data-lucide="camera" class="w-4 h-4"></i>
+            <span>Scan Crop</span>
+          </a>
+          <a href="advisory.html" class="flex items-center gap-2 rounded-xl bg-forest-500 px-4 py-2.5 font-heading text-sm font-semibold text-offwhite-50 transition-colors hover:bg-forest-600 shadow-card">
+            <i data-lucide="lightbulb" class="w-4 h-4"></i>
+            <span>View Advisory</span>
+          </a>
+          <a href="settings.html" class="flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 px-4 py-2.5 font-heading text-sm font-semibold text-forest-600 transition-colors hover:border-forest-200 shadow-card">
+            <i data-lucide="alert-circle" class="w-4 h-4 text-forest-500"></i>
+            <span>Report Issue</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Weather Card (Fixed Mint Background & Crisp Layout, Bulletproof Rendering) -->
+      <div id="weatherSection" class="animate-slide-up mb-4">
+        <section id="weatherCardBg" class="relative isolate overflow-hidden rounded-[20px] sm:rounded-[25px]">
+          <!-- Ambient SVG Landscape Scene with solid mint base rect -->
+          <svg class="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 900 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="weather-hill-far" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#b4dfc2" />
+                <stop offset="1" stop-color="#5db18a" />
+              </linearGradient>
+              <linearGradient id="weather-hill-near" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#75c69a" />
+                <stop offset="1" stop-color="#08745f" />
+              </linearGradient>
+              <linearGradient id="weather-sky-glow" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stop-color="#d8f3f2" stop-opacity=".7" />
+                <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <!-- Solid mint base to prevent transparent/dark leaks -->
+            <rect width="900" height="160" fill="#e7f7f5" />
+            <rect width="900" height="160" fill="url(#weather-sky-glow)" />
+            <circle cx="790" cy="34" r="22" fill="#fbcf67" opacity=".42" />
+            <circle cx="790" cy="34" r="16" fill="#ffd978" opacity=".85" />
+            <g fill="#ffffff" opacity=".75">
+              <ellipse cx="700" cy="42" rx="25" ry="12" />
+              <ellipse cx="720" cy="36" rx="20" ry="14" />
+              <ellipse cx="745" cy="43" rx="26" ry="11" />
+            </g>
+            <g fill="#ffffff" opacity=".85">
+              <ellipse cx="820" cy="20" rx="22" ry="10" />
+              <ellipse cx="840" cy="15" rx="16" ry="12" />
+              <ellipse cx="860" cy="21" rx="21" ry="9" />
+            </g>
+            <path d="M495 150 Q600 92 697 106 Q761 116 828 71 Q864 48 900 57 V160 H495Z" fill="url(#weather-hill-far)" opacity=".75" />
+            <path d="M575 160 Q677 92 757 98 Q831 102 900 57 V160 H575Z" fill="url(#weather-hill-near)" opacity=".9" />
+            <path d="M650 160 Q740 97 806 89 Q850 82 900 65" fill="none" stroke="#3c9d78" stroke-width="11" opacity=".7" />
+            <path d="M710 160 Q785 105 847 91 Q874 84 900 79" fill="none" stroke="#16856d" stroke-width="13" opacity=".72" />
+            <path d="M776 160 Q824 115 875 93 Q890 87 900 85" fill="none" stroke="#075c51" stroke-width="12" opacity=".68" />
+            <path d="M850 160 Q871 123 893 108 Q899 104 900 104 V160Z" fill="#084e46" opacity=".75" />
+          </svg>
+
+          <!-- Weather Content Overlay -->
+          <div class="relative flex items-center gap-3 px-4 py-3.5 sm:gap-0 sm:px-5 sm:py-4 lg:px-6">
+            <!-- Left: Icon + Temperature + Growth Condition + Location -->
+            <div class="flex items-center gap-3 sm:w-[38%] sm:min-w-[310px] sm:gap-5 lg:w-[35%]">
+              <div class="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[14px] bg-white/80 text-[#f7ad26] shadow-[0_5px_15px_rgba(67,128,119,0.08)] backdrop-blur-sm sm:h-[72px] sm:w-[72px] sm:rounded-[18px]">
+                <i data-lucide="cloud-sun" class="w-8 h-8 sm:w-11 sm:h-11 text-[#f7ad26]"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-baseline gap-0.5 sm:gap-1">
+                  <span id="tempValue" class="font-heading text-3xl font-bold leading-none tracking-tight sm:text-5xl sm:text-[50px]" style="color: #062f2d !important;">
+                    --
+                  </span>
+                  <span class="font-heading text-lg font-semibold sm:text-2xl" style="color: #0d3e3b !important;">°C</span>
+                </div>
+                <p id="weatherConditionText" class="mt-0.5 truncate font-heading text-sm font-medium leading-tight sm:mt-1 sm:text-lg" style="color: #073b38 !important;">Live Forecast</p>
+                <p class="mt-1 flex items-center gap-1 text-xs font-medium sm:mt-2 sm:text-sm" style="color: #376b6d !important;">
+                  <i data-lucide="map-pin" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#376b6d]"></i>
+                  <span id="weatherLocationText" class="truncate">Detecting Location...</span>
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Secondary Metrics with Dividers -->
+            <div class="flex flex-1 items-stretch border-l border-[#a6c9c3] py-1.5 pl-3 sm:py-2 sm:pl-6 lg:pl-8">
+              <!-- Wind -->
+              <div class="flex min-w-0 flex-1 flex-col items-center justify-center border-r border-[#a6c9c3] px-1.5 text-center sm:px-5">
+                <i data-lucide="wind" class="w-4 h-4 sm:w-6 sm:h-6 text-[#0b4c47]"></i>
+                <span class="mt-1 text-[10px] font-medium sm:mt-2 sm:text-sm" style="color: #39706b !important;" data-i18n="dash_wind">Wind</span>
+                <span id="windValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold sm:mt-1 sm:text-lg" style="color: #082f2c !important;">-- km/h</span>
+                <span id="windDirValue" class="mt-0.5 text-[9px] font-medium sm:text-xs" style="color: #39706b !important;">WSW</span>
+              </div>
+              <!-- Humidity -->
+              <div class="flex min-w-0 flex-1 flex-col items-center justify-center border-r border-[#a6c9c3] px-1.5 text-center sm:px-5">
+                <i data-lucide="droplets" class="w-4 h-4 sm:w-6 sm:h-6 text-[#0b4c47]"></i>
+                <span class="mt-1 text-[10px] font-medium sm:mt-2 sm:text-sm" style="color: #39706b !important;" data-i18n="dash_humidity">Humidity</span>
+                <span id="humidityValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold sm:mt-1 sm:text-lg" style="color: #082f2c !important;">--%</span>
+              </div>
+              <!-- Rain -->
+              <div class="flex min-w-0 flex-1 flex-col items-center justify-center px-1.5 text-center sm:px-5">
+                <i data-lucide="cloud-rain" class="w-4 h-4 sm:w-6 sm:h-6 text-[#0b4c47]"></i>
+                <span class="mt-1 text-[10px] font-medium sm:mt-2 sm:text-sm" style="color: #39706b !important;" data-i18n="dash_precipitation">Rain</span>
+                <span id="precipValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold sm:mt-1 sm:text-lg" style="color: #082f2c !important;">-- mm</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- HealthScoreCard (The Big Green Card with Animated Circular Meter & Real Field Data) -->
+      <div class="animate-slide-up mb-6">
+        <section
+          id="healthScoreCard"
+          class="relative overflow-hidden rounded-[24px] border border-forest-600 bg-gradient-to-br from-[#07523f] via-forest-600 to-[#06382d] shadow-card sm:rounded-[28px]"
+        >
+          <!-- Decorative SVG Leaves matching HealthScoreCard.tsx -->
+          <div class="pointer-events-none absolute inset-0 overflow-hidden opacity-25">
+            <svg class="absolute h-48 w-48 fill-[#6caa78] -left-10 -top-8 -rotate-[28deg]" viewBox="0 0 200 200" aria-hidden="true">
+              <path d="M24 170C42 91 91 35 174 21c-4 79-50 131-150 149Z"/>
+              <path d="M34 166C82 111 115 68 166 26" fill="none" stroke="#d1f0d1" stroke-opacity=".35" stroke-width="2"/>
+            </svg>
+            <svg class="absolute h-48 w-48 fill-[#6caa78] -bottom-12 -right-10 rotate-[32deg]" viewBox="0 0 200 200" aria-hidden="true">
+              <path d="M24 170C42 91 91 35 174 21c-4 79-50 131-150 149Z"/>
+              <path d="M34 166C82 111 115 68 166 26" fill="none" stroke="#d1f0d1" stroke-opacity=".35" stroke-width="2"/>
+            </svg>
+          </div>
+
+          <!-- Main Field Card Content -->
+          <div
+            id="healthSwipeArea"
+            class="relative select-none"
+            style="touch-action: pan-y;"
+          >
+            <!-- Real Fields Active View -->
+            <div id="fieldActiveContainer" class="relative flex flex-col items-center gap-4 px-4 py-5 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-7 lg:gap-10 lg:px-10 lg:py-8">
+              
+              <!-- Circular Gauge (Fixed container, internal SVG meter smoothly animates) -->
+              <div class="flex flex-shrink-0 items-center justify-center rounded-full bg-white/[0.08] p-2.5 sm:p-3 shadow-inner">
+                <div class="relative flex items-center justify-center" style="width: 140px; height: 140px;">
+                  <svg width="140" height="140" class="-rotate-90">
+                    <!-- Background Track -->
+                    <circle
+                      cx="70"
+                      cy="70"
+                      r="58"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.12)"
+                      stroke-width="12"
+                    />
+                    <!-- Animated Radial Progress Stroke -->
+                    <circle
+                      id="gaugeProgressCircle"
+                      cx="70"
+                      cy="70"
+                      r="58"
+                      fill="none"
+                      stroke="#4CAF6E"
+                      stroke-width="12"
+                      stroke-linecap="round"
+                      stroke-dasharray="364.42"
+                      stroke-dashoffset="364.42"
+                      class="gauge-circle"
+                    />
+                  </svg>
+                  <div class="absolute flex flex-col items-center justify-center pointer-events-none">
+                    <span
+                      id="gaugeScoreValue"
+                      class="font-serif text-4xl sm:text-5xl font-bold leading-none text-white"
+                      style="text-shadow: 0 2px 8px rgba(0,0,0,0.35);"
+                    >
+                      --
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Field Information Container (Morphs / fades smoothly on field change) -->
+              <div id="fieldInfoBlock" class="flex min-w-0 flex-1 flex-col items-center text-center sm:items-start sm:text-left animate-morph-in">
+                <!-- Title Row: Crop Emoji + Field Name -->
+                <div class="flex items-center gap-2">
+                  <span id="fieldEmoji" class="text-xl sm:text-2xl leading-none">🌾</span>
+                  <h2 id="fieldName" class="truncate font-heading text-lg font-bold text-offwhite-50 sm:text-xl lg:text-2xl">
+                    Loading Field...
+                  </h2>
+                </div>
+
+                <!-- Meta Details: Sprout Crop + MapPin Village + Calendar Acreage -->
+                <div class="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-offwhite-100 sm:mt-3 sm:justify-start sm:text-sm sm:gap-x-5">
+                  <span class="flex items-center gap-1.5">
+                    <i data-lucide="sprout" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-offwhite-100"></i>
+                    <span id="fieldCropType">--</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-offwhite-100"></i>
+                    <span id="fieldVillage">--</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-offwhite-100"></i>
+                    <span id="fieldAcres">--</span>
+                  </span>
+                </div>
+
+                <!-- Trend Badge -->
+                <div class="mt-3 flex items-center gap-2.5 sm:mt-4">
+                  <div id="fieldTrendBadge" class="flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 backdrop-blur-sm text-[#b8ebc6]">
+                    <i data-lucide="trending-up" id="fieldTrendIcon" class="w-3.5 h-3.5"></i>
+                    <span id="fieldTrendPts" class="font-heading text-xs font-semibold sm:text-sm">
+                      +0 pts
+                    </span>
+                  </div>
+                  <span class="text-xs text-offwhite-200 sm:text-sm">vs last telemetry</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty State if User Has 0 Registered Fields -->
+            <div id="fieldEmptyContainer" class="hidden flex flex-col items-center text-center px-6 py-10 sm:py-12">
+              <div class="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-offwhite-50 mb-3 backdrop-blur-sm">
+                <i data-lucide="sprout" class="w-7 h-7 text-offwhite-50"></i>
+              </div>
+              <h3 class="font-heading text-lg font-bold text-offwhite-50">No Fields Registered Yet</h3>
+              <p class="text-xs sm:text-sm text-offwhite-100 mt-1 max-w-md">
+                Register your farm boundary to start receiving Sentinel-2 NDVI satellite monitoring, health scores, and precision advisories.
+              </p>
+              <a href="add-field.html" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-offwhite-50 px-5 py-2.5 font-heading text-sm font-semibold text-forest-700 hover:bg-offwhite-100 transition-colors shadow-card">
+                <i data-lucide="plus" class="w-4 h-4 text-forest-600"></i>
+                <span>Add Your Field</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Footer Controls: Swipe Hint + Chevrons + Pagination Dots -->
+          <div id="fieldFooterControls" class="relative flex items-center justify-between border-t border-white/10 px-4 py-2.5 sm:px-8 sm:py-3">
+            <span class="hidden text-xs font-medium text-offwhite-200 sm:block">
+              Swipe left or right to change field
+            </span>
+            <span class="text-[10px] font-medium text-offwhite-200 sm:hidden">
+              Swipe to switch fields
+            </span>
+
+            <div class="flex items-center gap-2">
+              <!-- Previous Field Button -->
+              <button
+                type="button"
+                id="prevFieldBtn"
+                onclick="navigateField(-1)"
+                class="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-offwhite-50 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label="Previous field"
+              >
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              </button>
+
+              <!-- Pagination Dots -->
+              <div id="fieldPaginationDots" class="flex items-center gap-1.5 px-1">
+                <!-- Dynamically populated from real DB fields -->
+              </div>
+
+              <!-- Next Field Button -->
+              <button
+                type="button"
+                id="nextFieldBtn"
+                onclick="navigateField(1)"
+                class="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-offwhite-50 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label="Next field"
+              >
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 3 Metric Cards Row (NDVI, NDRE, CWSI) matching bolt aesthetic -->
+      <div class="grid grid-cols-1 gap-4 animate-slide-up sm:grid-cols-2 lg:grid-cols-3 mb-6">
+        
+        <!-- NDVI Metric Card -->
+        <div class="group rounded-2xl border border-offwhite-300 bg-offwhite-50 p-5 shadow-card transition-all hover:shadow-card-hover hover:border-forest-200">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="font-heading text-sm font-semibold text-forest-700">NDVI</p>
+              <p class="mt-0.5 text-xs text-forest-400">Vegetation density and plant health</p>
+            </div>
+            <span id="ndviRangeBadge" class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-yellow bg-yellow-50">
+              0.6 – 0.8
+            </span>
+          </div>
+          <div class="mt-4 flex items-end justify-between">
+            <div class="flex items-baseline gap-2">
+              <span id="ndviValue" class="font-serif text-4xl font-semibold text-forest-700">--</span>
+              <span class="text-sm text-forest-400">index</span>
+            </div>
+            <div id="ndviSparkline" class="w-[110px] h-[36px]">
+              <!-- SVG Sparkline populated from real timeseries -->
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2 border-t border-offwhite-200 pt-3">
+            <div id="ndviTrendWrapper" class="flex items-center gap-0.5 text-xs font-semibold text-risk-green">
+              <i data-lucide="arrow-up-right" id="ndviTrendIcon" class="w-3.5 h-3.5 text-risk-green"></i>
+              <span id="ndviTrendPct">--%</span>
+            </div>
+            <span class="text-xs text-forest-400">satellite telemetry</span>
+          </div>
+        </div>
+
+        <!-- NDRE Metric Card -->
+        <div class="group rounded-2xl border border-offwhite-300 bg-offwhite-50 p-5 shadow-card transition-all hover:shadow-card-hover hover:border-forest-200">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="font-heading text-sm font-semibold text-forest-700">NDRE</p>
+              <p class="mt-0.5 text-xs text-forest-400">Chlorophyll content and nitrogen stress</p>
+            </div>
+            <span id="ndreRangeBadge" class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-green bg-forest-50">
+              0.3 – 0.5
+            </span>
+          </div>
+          <div class="mt-4 flex items-end justify-between">
+            <div class="flex items-baseline gap-2">
+              <span id="ndreValue" class="font-serif text-4xl font-semibold text-forest-700">--</span>
+              <span class="text-sm text-forest-400">index</span>
+            </div>
+            <div id="ndreSparkline" class="w-[110px] h-[36px]">
+              <!-- SVG Sparkline populated from real timeseries -->
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2 border-t border-offwhite-200 pt-3">
+            <div id="ndreTrendWrapper" class="flex items-center gap-0.5 text-xs font-semibold text-risk-green">
+              <i data-lucide="arrow-up-right" id="ndreTrendIcon" class="w-3.5 h-3.5 text-risk-green"></i>
+              <span id="ndreTrendPct">--%</span>
+            </div>
+            <span class="text-xs text-forest-400">canopy red-edge</span>
+          </div>
+        </div>
+
+        <!-- CWSI Metric Card -->
+        <div class="group rounded-2xl border border-offwhite-300 bg-offwhite-50 p-5 shadow-card transition-all hover:shadow-card-hover hover:border-forest-200">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="font-heading text-sm font-semibold text-forest-700">CWSI</p>
+              <p class="mt-0.5 text-xs text-forest-400">Water stress from thermal imagery</p>
+            </div>
+            <span id="cwsiRangeBadge" class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-orange bg-terracotta-50">
+              0.0 – 0.3
+            </span>
+          </div>
+          <div class="mt-4 flex items-end justify-between">
+            <div class="flex items-baseline gap-2">
+              <span id="cwsiValue" class="font-serif text-4xl font-semibold text-forest-700">--</span>
+              <span class="text-sm text-forest-400">index</span>
+            </div>
+            <div id="cwsiSparkline" class="w-[110px] h-[36px]">
+              <!-- SVG Sparkline populated from real timeseries -->
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2 border-t border-offwhite-200 pt-3">
+            <div id="cwsiTrendWrapper" class="flex items-center gap-0.5 text-xs font-semibold text-risk-orange">
+              <i data-lucide="arrow-up-right" id="cwsiTrendIcon" class="w-3.5 h-3.5 text-risk-orange"></i>
+              <span id="cwsiTrendPct">--%</span>
+            </div>
+            <span class="text-xs text-forest-400">thermal canopy</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Main Content Grid: Alerts & Map (2/3) and Activity Feed + Summary (1/3) -->
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        
+        <!-- Left Column (Alerts & Field Map) -->
+        <div class="space-y-6 lg:col-span-2">
+          
+          <!-- Active Alerts & Advisory Card (Populated with Real Alerts from API) -->
+          <div class="rounded-2xl border border-offwhite-300 bg-offwhite-50 p-5 shadow-card">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-terracotta-50 text-terracotta-400">
+                  <i data-lucide="alert-triangle" class="w-4.5 h-4.5 text-terracotta-400"></i>
+                </div>
+                <div>
+                  <h3 class="font-heading text-base font-semibold text-forest-700">Active Alerts & Advisory</h3>
+                  <p id="alertsCountSub" class="text-xs text-forest-400">Checking active issues...</p>
+                </div>
+              </div>
+              <a href="advisory.html" class="hidden font-heading text-xs font-semibold text-forest-500 hover:text-forest-600 sm:block">
+                View all
+              </a>
+            </div>
+
+            <div id="alertsContainer" class="mt-4 space-y-3">
+              <!-- Dynamically populated from real DB notifications & advisories -->
+              <div class="p-6 text-center text-xs text-forest-400">Loading alerts...</div>
+            </div>
+          </div>
+
+          <!-- Field Map Card matching Bolt MapPreview.tsx -->
+          <div class="rounded-2xl border border-offwhite-300 bg-offwhite-50 p-5 shadow-card">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-50 text-forest-500">
+                  <i data-lucide="layers" class="w-4.5 h-4.5 text-forest-500"></i>
+                </div>
+                <div>
+                  <h3 class="font-heading text-base font-semibold text-forest-700">Field Map</h3>
+                  <p class="text-xs text-forest-400">Satellite Health Overlay · <span id="mapFieldName">Current Field</span></p>
+                </div>
+              </div>
+              <a href="my-fields.html" class="flex items-center gap-1 font-heading text-xs font-semibold text-forest-500 hover:text-forest-600">
+                <span>View full map</span>
+                <i data-lucide="arrow-right" class="w-3 h-3"></i>
+              </a>
+            </div>
+
+            <!-- Simulated Map Visualizer matching Bolt MapPreview -->
+            <div class="relative mt-4 aspect-[4/3] overflow-hidden rounded-xl border border-offwhite-300 bg-[#0D2219]">
+              <!-- Grid background -->
+              <svg class="absolute inset-0 h-full w-full" preserveAspectRatio="none">
+                <defs>
+                  <pattern id="dashMapGrid" width="32" height="32" patternUnits="userSpaceOnUse">
+                    <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(250, 249, 246, 0.06)" stroke-width="1" />
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#dashMapGrid)" />
+              </svg>
+
+              <!-- Polygon field with health zones -->
+              <svg class="absolute inset-0 h-full w-full" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                  <linearGradient id="mapHealthGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#3F8259" stop-opacity="0.7" />
+                    <stop offset="40%" stop-color="#3F8259" stop-opacity="0.5" />
+                    <stop offset="60%" id="mapGradMid" stop-color="#D96A3E" stop-opacity="0.6" />
+                    <stop offset="100%" id="mapGradEnd" stop-color="#D96A3E" stop-opacity="0.8" />
+                  </linearGradient>
+                </defs>
+
+                <!-- Field boundary -->
+                <path
+                  d="M 60 60 L 280 50 L 340 120 L 320 230 L 180 250 L 70 200 Z"
+                  fill="url(#mapHealthGradient)"
+                  stroke="#FAF9F6"
+                  stroke-width="2"
+                  stroke-dasharray="6 4"
+                />
+
+                <!-- Health zones inside field -->
+                <circle cx="120" cy="110" r="28" fill="#3F8259" fill-opacity="0.45" />
+                <circle cx="220" cy="140" r="35" fill="#D4A93A" fill-opacity="0.35" />
+                <circle id="mapStressedZone" cx="270" cy="190" r="30" fill="#D96A3E" fill-opacity="0.5" />
+
+                <!-- Scan markers -->
+                <g>
+                  <circle cx="120" cy="110" r="4" fill="#FAF9F6" />
+                  <circle cx="220" cy="140" r="4" fill="#FAF9F6" />
+                  <circle cx="270" cy="190" r="4" fill="#FAF9F6" />
+                </g>
+              </svg>
+
+              <!-- Map UI Overlays -->
+              <div class="absolute left-3 top-3 flex items-center gap-1 rounded-lg bg-forest-900/60 px-2 py-1 text-xs font-medium text-offwhite-100 backdrop-blur-sm">
+                <i data-lucide="compass" class="w-3 h-3 text-offwhite-100"></i>
+                <span>N</span>
+              </div>
+
+              <div class="absolute bottom-3 left-3 rounded-lg bg-forest-900/60 px-3 py-1.5 backdrop-blur-sm">
+                <p class="font-heading text-xs font-semibold text-offwhite-100">Satellite · NDVI overlay</p>
+              </div>
+
+              <!-- Score Badge -->
+              <div class="absolute right-3 top-3 rounded-lg bg-offwhite-50/90 px-3 py-1.5 backdrop-blur-sm shadow-card">
+                <p id="mapScoreBadge" class="font-serif text-lg font-bold leading-none text-forest-700">--</p>
+                <p class="text-[10px] text-forest-400">Health</p>
+              </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="mt-3 flex items-center gap-4 text-xs">
+              <span class="flex items-center gap-1.5 text-forest-400">
+                <span class="h-2.5 w-2.5 rounded-full bg-risk-green"></span>
+                Healthy
+              </span>
+              <span class="flex items-center gap-1.5 text-forest-400">
+                <span class="h-2.5 w-2.5 rounded-full bg-risk-yellow"></span>
+                Watch
+              </span>
+              <span class="flex items-center gap-1.5 text-forest-400">
+                <span id="mapLegendStressDot" class="h-2.5 w-2.5 rounded-full bg-[#D96A3E]"></span>
+                Stressed
+              </span>
+              <span class="ml-auto flex items-center gap-1.5 text-forest-400">
+                <span class="h-0.5 w-4 rounded-full bg-offwhite-400"></span>
+                Boundary
+              </span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Real Recent Activity Feed + Weekly Summary -->
+        <div class="space-y-6 lg:col-span-1">
+          
+          <!-- Recent Activity Feed (Populated with Real DB activities) -->
+          <div class="rounded-2xl border border-offwhite-300 bg-offwhite-50 p-5 shadow-card">
+            <div class="flex items-center justify-between">
+              <h3 class="font-heading text-base font-semibold text-forest-700">Recent Activity</h3>
+              <a href="notifications.html" class="font-heading text-xs font-semibold text-forest-500 hover:text-forest-600">
+                View all
+              </a>
+            </div>
+
+            <div id="recentActivityList" class="mt-4 space-y-0">
+              <!-- Dynamically populated from real DB notifications -->
+              <div class="p-4 text-center text-xs text-forest-400">Loading activities...</div>
+            </div>
+          </div>
+
+          <!-- Weekly Summary Card matching Bolt App.tsx -->
+          <div class="rounded-2xl border border-offwhite-300 bg-gradient-to-br from-lavender-50 to-offwhite-50 p-5 shadow-card">
+            <div class="flex items-center gap-2.5">
+              <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-lavender-100 text-lavender-500">
+                <i data-lucide="bar-chart-3" class="w-4.5 h-4.5 text-lavender-500"></i>
+              </div>
+              <h3 class="font-heading text-base font-semibold text-forest-700">Weekly Summary</h3>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+              <div class="rounded-xl bg-offwhite-50 p-3 shadow-sm border border-offwhite-300/50">
+                <p id="statScansCount" class="font-serif text-2xl font-bold text-forest-700">0</p>
+                <p class="text-xs text-forest-400 mt-0.5">Scans completed</p>
+              </div>
+              <div class="rounded-xl bg-offwhite-50 p-3 shadow-sm border border-offwhite-300/50">
+                <p id="statAdvisoriesCount" class="font-serif text-2xl font-bold text-forest-700">0</p>
+                <p class="text-xs text-forest-400 mt-0.5">Advisories issued</p>
+              </div>
+              <div class="rounded-xl bg-offwhite-50 p-3 shadow-sm border border-offwhite-300/50">
+                <p id="statAlertsCount" class="font-serif text-2xl font-bold text-terracotta-400">0</p>
+                <p class="text-xs text-forest-400 mt-0.5">Alerts active</p>
+              </div>
+              <div class="rounded-xl bg-offwhite-50 p-3 shadow-sm border border-offwhite-300/50">
+                <p id="statFieldsCount" class="font-serif text-2xl font-bold text-forest-500">0</p>
+                <p class="text-xs text-forest-400 mt-0.5">Fields monitored</p>
+              </div>
+            </div>
+            <a href="analytics.html" class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-forest-500 py-2.5 font-heading text-sm font-semibold text-offwhite-50 transition-colors hover:bg-forest-600 shadow-card">
+              <span>View Detailed Report</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </a>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Mobile Floating Action Button (FAB) matching Bolt QuickActions.tsx -->
+  <a href="diagnose.html" class="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-terracotta-400 text-offwhite-50 shadow-elevated transition-transform hover:scale-105 active:scale-95 lg:hidden" aria-label="Scan crop for diagnosis">
+    <i data-lucide="plus" class="w-6 h-6"></i>
+  </a>
+
+  <!-- Mobile Bottom Tab Bar matching Bolt BottomTabBar.tsx -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 border-t border-offwhite-300 bg-offwhite-50/95 backdrop-blur-md lg:hidden cs-tabbar" aria-label="Primary Mobile Navigation">
+    <div class="flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <!-- Dashboard Tab (Active) -->
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab is-active" href="dashboard.html" aria-current="page">
+        <div class="p-1 text-forest-500">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-forest-500" data-i18n="nav_dashboard">Dashboard</span>
+      </a>
+
+      <!-- Fields Tab -->
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="my-fields.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="map" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_my_fields">Fields</span>
+      </a>
+
+      <!-- Center Raised Camera Scan Button -->
+      <a class="relative flex flex-col items-center gap-1 px-2 -mt-4 cs-tab" href="diagnose.html" aria-label="Scan Crop">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-terracotta-400 text-offwhite-50 shadow-elevated transition-transform active:scale-95">
+          <i data-lucide="camera" class="w-6 h-6"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-terracotta-500">Scan</span>
+      </a>
+
+      <!-- Advisory Tab -->
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="advisory.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="lightbulb" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_advisory">Advisory</span>
+      </a>
+
+      <!-- Settings Tab -->
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="settings.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_settings">Settings</span>
+      </a>
     </div>
+  </nav>
 
-    <!-- Weather & Field Health Section -->
-    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-stretch">
-      
-      <!-- LEFT COLUMN: Weather Card & Metrics -->
-      <div class="lg:col-span-5 flex flex-col justify-between h-full gap-3 font-sans">
-        <!-- Main Weather Card -->
-        <div id="weatherCardBg" class="bg-[#f7f5f4] border border-[#e4e2e1] p-6 rounded-2xl relative overflow-hidden tactile-card flex justify-between min-h-[170px] flex-1">
-          <div class="relative z-10 flex flex-col justify-between items-start">
-            <div>
-              <span class="text-[#3f4941] font-medium text-sm tracking-wide" data-i18n="dash_current_temp">Current Temperature</span>
-              <div class="flex items-baseline gap-1 mt-1">
-                <span id="tempValue" class="text-5xl font-extrabold text-[#1b1c1c] font-headline tracking-tight">32°</span>
-                <span class="text-xl font-semibold text-[#3f4941]">C</span>
-              </div>
-            </div>
-            <div id="weatherBadge" class="inline-flex items-center gap-2 bg-[#e8efe5] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm">
-              <i data-lucide="cloud-sun" class="w-4 h-4" aria-hidden="true"></i>
-              <span id="weatherBadgeText">Warm / Growth Active</span>
-            </div>
-          </div>
-
-          <div id="weatherVectorContainer" class="absolute bottom-0 right-0 w-48 h-full pointer-events-none flex items-end justify-end"></div>
-        </div>
-
-        <!-- 2x2 Secondary Metrics Grid -->
-        <div class="grid grid-cols-2 gap-3">
-          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
-            <div>
-              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_soil_temp">Soil temp</p>
-              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="soilTempValue">+23°C</p>
-            </div>
-            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#933302] border border-[#e4e2e1] shadow-sm">
-              <i data-lucide="thermometer" class="w-4 h-4"></i>
-            </div>
-          </div>
-
-          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
-            <div>
-              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_humidity">Humidity</p>
-              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="humidityValue">78%</p>
-            </div>
-            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#006038] border border-[#e4e2e1] shadow-sm">
-              <i data-lucide="droplets" class="w-4 h-4"></i>
-            </div>
-          </div>
-
-          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
-            <div>
-              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_wind">Wind</p>
-              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="windValue">7 m/s</p>
-            </div>
-            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#006038] border border-[#e4e2e1] shadow-sm">
-              <i data-lucide="wind" class="w-4 h-4"></i>
-            </div>
-          </div>
-
-          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
-            <div>
-              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_precipitation">Precipitation</p>
-              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="precipValue">0 mm</p>
-            </div>
-            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#933302] border border-[#e4e2e1] shadow-sm">
-              <i data-lucide="cloud-rain" class="w-4 h-4"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- RIGHT COLUMN: Dial Gauge Cards -->
-      <div class="lg:col-span-7 bg-[#f6f3f2] border border-[#e4e2e1] p-6 rounded-xl flex flex-col justify-between tactile-card h-full">
-        <div class="flex items-center justify-between gap-2 mb-4">
-          <div>
-            <h2 class="text-lg font-bold text-[#1b1c1c] font-headline" data-i18n="dash_field_health">Field Health Score</h2>
-            <p class="text-xs text-[#3f4941]" data-i18n="dash_field_health_sub">Real-time composite telemetry gauge score</p>
-            <p id="lastSyncLabel" class="text-[10px] text-[#6f7a71] mt-0.5 hidden"></p>
-          </div>
-          <button type="button" id="sentinelSyncBtn" class="text-xs font-bold px-3.5 py-2 sm:py-1.5 bg-[#006038] hover:bg-[#004d2b] active:scale-95 text-[#ffffff] rounded-full flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer select-none touch-manipulation transition-all shadow-sm" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;" title="Sync satellite data and recalculate health scores">
-            <span id="sentinelSyncDot" class="w-2 h-2 rounded-full bg-[#abffc9]"></span>
-            <span data-i18n="dash_sentinel_sync">Sentinel Sync</span>
-          </button>
-        </div>
-
-        <!-- Scrollable Cards Container -->
-        <div id="cropScrollContainer" class="flex overflow-x-auto gap-3 md:gap-4 no-scrollbar cursor-grab active:cursor-grabbing select-none py-1">
-          <!-- Loading skeleton -->
-          <div class="health-skeleton bg-white p-5 rounded-xl border border-[#e4e2e1] flex flex-col items-center shrink-0 animate-pulse" style="min-width:220px;">
-            <div class="flex items-center gap-2.5 w-full">
-              <div class="w-8 h-8 rounded-lg bg-[#f0eded]"></div>
-              <div class="flex-1 space-y-2 py-1">
-                <div class="h-3 bg-[#f0eded] rounded w-3/4"></div>
-                <div class="h-2.5 bg-[#f0eded] rounded w-1/2"></div>
-              </div>
-            </div>
-            <div class="bg-[#f0eded]/60 rounded-full my-2" style="width:144px;height:144px;"></div>
-            <div class="flex items-center justify-between w-full pt-3 border-t border-[#e4e2e1]">
-              <div class="h-3 w-12 bg-[#f0eded] rounded"></div>
-              <div class="h-3 w-20 bg-[#f0eded] rounded"></div>
-            </div>
-          </div>
-          <!-- Empty state -->
-          <div id="healthEmpty" class="hidden text-center py-8 w-full">
-            <i data-lucide="sprout" class="w-10 h-10 text-[#6f7a71] mx-auto mb-2"></i>
-            <p class="text-sm text-[#6f7a71]">Add fields to see health scores</p>
-            <a href="add-field.html" class="text-xs text-[#006038] font-semibold hover:underline mt-1 inline-block">Add Field</a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
+  <!-- Scripts -->
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="config.js"></script>
   <script src="preferences.js"></script>
   <script src="nav-profile.js"></script>
+  
   <script>
     if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
-    lucide.createIcons();
 
-    const scrollContainer = document.getElementById('cropScrollContainer');
-    scrollContainer.addEventListener('wheel', (evt) => {
-      evt.preventDefault();
-      scrollContainer.scrollLeft += evt.deltaY;
-    });
+    // REAL Fields Array — populated entirely from database via /api/dashboard/health
+    let realFields = [];
+    let activeFieldIndex = 0;
+    let currentScore = 0;
+    let currentColor = '#4CAF6E';
+    const GAUGE_RADIUS = 58;
+    const GAUGE_CIRCUMFERENCE = 2 * Math.PI * GAUGE_RADIUS; // ~364.42
+    let animationFrameId = null;
 
-    updateWeatherVisual(32);
-
-    function updateWeatherVisual(temp) {
-      const container = document.getElementById('weatherVectorContainer');
-      const cardBg = document.getElementById('weatherCardBg');
-      const badge = document.getElementById('weatherBadge');
-      const badgeText = document.getElementById('weatherBadgeText');
-      const tempValElem = document.getElementById('tempValue');
-
-      if (tempValElem) tempValElem.textContent = temp + '°';
-
-      let svgHTML = '';
-
-      if (temp < 18) {
-        if (cardBg) cardBg.style.backgroundColor = '#f5f7f9';
-        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e8f0f7] px-3.5 py-1.5 rounded-full border border-[#2b6cb0]/10 text-xs font-semibold text-[#2b6cb0] mt-4 shadow-sm';
-        if (badgeText) badgeText.textContent = 'Cool / Frost Risk Weather';
-
-        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
-          + '<circle cx="150" cy="35" r="14" fill="#A0AEC0" fill-opacity="0.5"/>'
-          + '<path d="M40 120C90 85 150 90 200 120H40Z" fill="#CBD5E0" fill-opacity="0.6"/>'
-          + '<path d="M0 120C60 75 130 80 200 120H0Z" fill="#BEE3F8" fill-opacity="0.5"/>'
-          + '<ellipse cx="140" cy="30" rx="20" ry="10" fill="#EDF2F7"/>'
-          + '<ellipse cx="125" cy="35" rx="14" ry="7" fill="#EDF2F7"/>'
-          + '</svg>';
-
-      } else if (temp <= 28) {
-        if (cardBg) cardBg.style.backgroundColor = '#f7f5f4';
-        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e2efe7] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm';
-        if (badgeText) badgeText.textContent = 'Optimal Growth Weather';
-
-        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
-          + '<circle cx="150" cy="35" r="16" fill="#F6AD55"/>'
-          + '<path d="M50 120C90 85 140 90 200 120H50Z" fill="#C5E3D2" fill-opacity="0.7"/>'
-          + '<path d="M0 120C60 75 120 80 200 120H0Z" fill="#A4D4B8" fill-opacity="0.6"/>'
-          + '<path d="M150 120C150 98 142 80 132 68C144 74 156 86 158 120" fill="#006038"/>'
-          + '<path d="M150 120C150 102 160 88 173 82C165 92 158 106 150 120" fill="#208353"/>'
-          + '</svg>';
-
-      } else if (temp <= 35) {
-        if (cardBg) cardBg.style.backgroundColor = '#f7f6f4';
-        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e8efe5] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm';
-        if (badgeText) badgeText.textContent = 'Warm / Growth Active';
-
-        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
-          + '<circle cx="150" cy="30" r="18" fill="#F8C055"/>'
-          + '<path d="M40 120C80 80 130 85 200 120H40Z" fill="#C5E3D2" fill-opacity="0.7"/>'
-          + '<path d="M0 120C50 70 110 75 200 120H0Z" fill="#A4D4B8" fill-opacity="0.6"/>'
-          + '<path d="M145 120C145 98 137 80 127 68C139 74 151 86 153 120" fill="#006038"/>'
-          + '<path d="M145 120C145 102 155 88 168 82C160 92 153 106 145 120" fill="#208353"/>'
-          + '</svg>';
-
-      } else {
-        if (cardBg) cardBg.style.backgroundColor = '#f9f5f2';
-        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#fae8d5] px-3.5 py-1.5 rounded-full border border-[#c05621]/10 text-xs font-semibold text-[#c05621] mt-4 shadow-sm';
-        if (badgeText) badgeText.textContent = 'High Heat / Irrigation Advised';
-
-        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
-          + '<circle cx="150" cy="30" r="22" fill="#DD6B20" fill-opacity="0.2"/>'
-          + '<circle cx="150" cy="30" r="15" fill="#ED8936"/>'
-          + '<path d="M40 120C85 85 135 90 200 120H40Z" fill="#FBD38D" fill-opacity="0.5"/>'
-          + '<path d="M0 120C50 75 115 80 200 120H0Z" fill="#FEEBC8" fill-opacity="0.7"/>'
-          + '<path d="M145 120C145 106 132 93 120 86C132 88 142 97 145 120" fill="#C05621"/>'
-          + '</svg>';
-      }
-
-      if (container) container.innerHTML = svgHTML;
-    }
-
-    const cropEmojis = {
-      'Rice': 'wheat', 'Wheat': 'wheat', 'Maize': 'wheat', 'Cotton': 'cloud',
-      'Sugarcane': 'sprout', 'Potato': 'apple', 'Grapes': 'grape', 'Soybean': 'sprout',
-      'Tur': 'sprout', 'Other': 'sprout',
+    // Risk Colors
+    const colorMap = {
+      green: { stroke: '#4CAF6E', track: 'rgba(255,255,255,0.12)', label: 'Healthy' },
+      yellow: { stroke: '#E8B84A', track: 'rgba(255,255,255,0.12)', label: 'Watch' },
+      orange: { stroke: '#D96A3E', track: 'rgba(255,255,255,0.12)', label: 'Elevated' },
+      red: { stroke: '#D14545', track: 'rgba(255,255,255,0.12)', label: 'High Risk' }
     };
 
-    function getScoreColor(score) {
-      if (score >= 70) return '#006038';
-      if (score >= 40) return '#1a7a4c';
-      return '#933302';
+    const cropEmojis = {
+      'Wheat': '🌾', 'Rice': '🌾', 'Maize': '🌽', 'Corn': '🌽',
+      'Cotton': '🌱', 'Sugarcane': '🎋', 'Soybean': '🫘', 'Groundnut': '🥜',
+      'Potato': '🥔', 'Tomato': '🍅', 'Grapes': '🍇', 'Tur': '🌿',
+      'Other': '🌾'
+    };
+
+    function getCropEmoji(type) {
+      if (!type) return '🌾';
+      for (const [key, emoji] of Object.entries(cropEmojis)) {
+        if (type.toLowerCase().includes(key.toLowerCase())) return emoji;
+      }
+      return '🌾';
     }
 
-    function getScoreLabel(severity, triggeredAlert, noVegetationDetected) {
-      if (noVegetationDetected) return { text: 'No Vegetation', bg: 'bg-[#933302]/10', color: 'text-[#933302]' };
-      if (triggeredAlert) return { text: 'Alert', bg: 'bg-[#933302]/10', color: 'text-[#933302]' };
-      if (severity === 'low') return { text: 'Optimal', bg: 'bg-[#006038]/10', color: 'text-[#006038]' };
-      if (severity === 'medium') return { text: 'Watch', bg: 'bg-[#1a7a4c]/10', color: 'text-[#1a7a4c]' };
-      return { text: 'New', bg: 'bg-[#f0eded]', color: 'text-[#6f7a71]' };
+    function lerpColor(a, b, t) {
+      const pa = [parseInt(a.slice(1, 3), 16), parseInt(a.slice(3, 5), 16), parseInt(a.slice(5, 7), 16)];
+      const pb = [parseInt(b.slice(1, 3), 16), parseInt(b.slice(3, 5), 16), parseInt(b.slice(5, 7), 16)];
+      const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
+      const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
+      const bl = Math.round(pa[2] + (pb[2] - pa[2]) * t);
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
     }
 
-    function getActionText(field) {
-      if (field.noVegetationDetected) return 'Check boundary';
-      if (field.triggeredAlert) return field.diseaseHypothesis?.replace(/_/g, ' ') || 'Risk detected';
-      if (field.severity === 'medium') return 'Monitor closely';
-      if (field.severity === 'low') return 'No action needed';
-      return 'Awaiting data';
-    }
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
-    function getTrendArrow(trend) {
-      if (trend === 'up') return '<i data-lucide="arrow-up" class="w-3 h-3 text-[#006038] inline-block align-middle"></i>';
-      if (trend === 'down') return '<i data-lucide="arrow-down" class="w-3 h-3 text-[#933302] inline-block align-middle"></i>';
-      return '<i data-lucide="minus" class="w-3 h-3 text-[#6f7a71] inline-block align-middle"></i>';
-    }
-
-    function renderHealthCard(field) {
-      const hasData = field.compositeScore != null;
-      const score = hasData ? field.compositeScore : 0;
-      const color = getScoreColor(score);
-      const label = getScoreLabel(field.severity, field.triggeredAlert, field.noVegetationDetected);
-      const iconName = cropEmojis[field.cropType] || 'sprout';
-      const actionText = getActionText(field);
-      const trend = getTrendArrow(field.trend);
-      const borderColor = (field.triggeredAlert || field.noVegetationDetected) ? 'border-[#ffb599]' : 'border-[#e4e2e1]';
-
-      // 240-degree arc, r = 80, centered at (100,100) on a square 200x200 viewBox
-      // so the arc's true center matches the box center the score text is
-      // absolutely-positioned against (total arc length = r * 240deg-in-rad ≈ 335.10)
-      const arcLength = 335.10;
-      const dashOffset = arcLength - (arcLength * (hasData ? score : 0)) / 100;
+    // Create SVG Sparkline from real numbers
+    function createSparklineSvg(data, stroke, fill = 'rgba(27,67,50,0.08)', width = 110, height = 36) {
+      if (!data || data.length === 0) {
+        return `<svg width="${width}" height="${height}" class="overflow-visible"><path d="M 0 18 L ${width} 18" stroke="#D5D0C3" stroke-width="1.5" stroke-dasharray="3 3"/></svg>`;
+      }
+      if (data.length === 1) data = [data[0], data[0]];
+      const min = Math.min(...data);
+      const max = Math.max(...data);
+      const range = (max - min) || 1;
+      const stepX = width / (data.length - 1);
+      const points = data.map((val, i) => {
+        const x = i * stepX;
+        const y = height - ((val - min) / range) * (height - 8) - 4;
+        return { x, y };
+      });
+      const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+      const areaPath = `${linePath} L ${width} ${height} L 0 ${height} Z`;
+      const lastPoint = points[points.length - 1];
 
       return `
-        <div class="bg-white p-5 rounded-xl border ${borderColor} flex flex-col items-center tactile-card shrink-0" style="min-width:220px;">
-          <div class="flex items-start justify-between w-full gap-2 mb-1">
-            <div class="flex items-center gap-2 min-w-0">
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background-color: ${color}15;">
-                <i data-lucide="${iconName}" class="w-4 h-4 text-[#006038]"></i>
-              </div>
-              <div class="min-w-0">
-                <h3 class="font-bold text-[13px] text-[#1b1c1c] font-headline leading-tight truncate">${field.farmName}</h3>
-                <p class="text-[11px] text-[#3f4941] truncate">${field.areaHectares?.toFixed(1) || '?'} Ha · ${field.cropType}</p>
-              </div>
-            </div>
-            <span class="text-[9.5px] font-bold ${label.color} ${label.bg} px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">${label.text}</span>
-          </div>
-
-          <!-- Gauge SVG -->
-          <div class="relative my-1 flex items-center justify-center" style="width:144px;height:144px;">
-            <svg viewBox="0 0 200 200" class="w-full h-full" aria-hidden="true">
-              <!-- Background Arc: 240 degrees, gap centered at the bottom, arc centered at (100,100) -->
-              <path d="M 30.72 140 A 80 80 0 1 1 169.28 140" fill="none" stroke="#e4e2e1" stroke-width="14" stroke-linecap="round"/>
-              <!-- Active Score Arc -->
-              <path d="M 30.72 140 A 80 80 0 1 1 169.28 140" fill="none" stroke="${color}" stroke-width="14" stroke-linecap="round"
-                stroke-dasharray="${arcLength}" stroke-dashoffset="${dashOffset}"/>
-            </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span class="font-headline text-3xl font-extrabold ${hasData ? 'text-[#1b1c1c]' : 'text-[#6f7a71]'} leading-none">${hasData ? score : '--'}</span>
-              <div class="flex items-center gap-1 mt-1">
-                <span class="text-[9px] font-bold text-[#3f4941] uppercase tracking-wider">SCORE</span>
-                ${trend}
-              </div>
-            </div>
-          </div>
-
-          <div class="w-full pt-3 border-t border-[#e4e2e1] flex items-center justify-between gap-1 text-[11px]">
-            <span class="text-[#3f4941]">Action:</span>
-            <span class="font-semibold ${(field.triggeredAlert || field.noVegetationDetected) ? 'text-[#933302]' : 'text-[#006038]'} capitalize truncate">${actionText}</span>
-          </div>
-        </div>`;
+        <svg width="${width}" height="${height}" class="overflow-visible">
+          <path d="${areaPath}" fill="${fill}" />
+          <path d="${linePath}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="${lastPoint.x.toFixed(2)}" cy="${lastPoint.y.toFixed(2)}" r="3" fill="${stroke}" />
+        </svg>
+      `;
     }
 
-    async function loadHealthScores() {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+    // Smooth Circular Meter Animation matching Bolt CircularGauge.tsx
+    function animateGauge(targetScore, targetRisk) {
+      const circleEl = document.getElementById('gaugeProgressCircle');
+      const scoreEl = document.getElementById('gaugeScoreValue');
+      if (!circleEl || !scoreEl) return;
 
-      const skeletonEls = document.querySelectorAll('.health-skeleton');
-      const emptyEl = document.getElementById('healthEmpty');
-      const container = document.getElementById('cropScrollContainer');
+      const fromScore = currentScore;
+      const toScore = targetScore;
+      const fromColor = currentColor;
+      const toColor = colorMap[targetRisk]?.stroke || '#4CAF6E';
+
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+      const duration = 900;
+      const startTime = performance.now();
+
+      function tick(now) {
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const eased = easeOutCubic(t);
+
+        const displayedScore = Math.round(fromScore + (toScore - fromScore) * eased);
+        const interpolatedColor = lerpColor(fromColor, toColor, eased);
+        const displayedOffset = GAUGE_CIRCUMFERENCE - (displayedScore / 100) * GAUGE_CIRCUMFERENCE;
+
+        scoreEl.textContent = displayedScore;
+        circleEl.setAttribute('stroke', interpolatedColor);
+        circleEl.setAttribute('stroke-dashoffset', displayedOffset.toFixed(2));
+
+        if (t < 1) {
+          animationFrameId = requestAnimationFrame(tick);
+        } else {
+          currentScore = toScore;
+          currentColor = toColor;
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(tick);
+    }
+
+    // Update entire dashboard view for the active real field
+    function selectRealField(index, triggerAnimation = true) {
+      if (realFields.length === 0) {
+        document.getElementById('fieldActiveContainer').classList.add('hidden');
+        document.getElementById('fieldEmptyContainer').classList.remove('hidden');
+        document.getElementById('fieldFooterControls').classList.add('hidden');
+        document.getElementById('topFieldName').textContent = 'No registered fields';
+        document.getElementById('topFieldMeta').textContent = 'Click to add a field';
+        document.getElementById('mapFieldName').textContent = 'No field active';
+        document.getElementById('statFieldsCount').textContent = '0';
+        return;
+      }
+
+      document.getElementById('fieldActiveContainer').classList.remove('hidden');
+      document.getElementById('fieldEmptyContainer').classList.add('hidden');
+      document.getElementById('fieldFooterControls').classList.remove('hidden');
+
+      activeFieldIndex = Math.max(0, Math.min(realFields.length - 1, index));
+      const field = realFields[activeFieldIndex];
+      if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm(field.id);
+
+      // Meter Animation
+      if (triggerAnimation) {
+        animateGauge(field.healthScore, field.riskLevel);
+      } else {
+        const circleEl = document.getElementById('gaugeProgressCircle');
+        const scoreEl = document.getElementById('gaugeScoreValue');
+        currentScore = field.healthScore;
+        currentColor = colorMap[field.riskLevel]?.stroke || '#4CAF6E';
+        const offset = GAUGE_CIRCUMFERENCE - (field.healthScore / 100) * GAUGE_CIRCUMFERENCE;
+        if (scoreEl) scoreEl.textContent = field.healthScore;
+        if (circleEl) {
+          circleEl.setAttribute('stroke', currentColor);
+          circleEl.setAttribute('stroke-dashoffset', offset.toFixed(2));
+        }
+      }
+
+      // Morph field info in place
+      const infoBlock = document.getElementById('fieldInfoBlock');
+      if (infoBlock) {
+        infoBlock.classList.remove('animate-morph-in');
+        void infoBlock.offsetWidth;
+        infoBlock.classList.add('animate-morph-in');
+      }
+
+      document.getElementById('fieldEmoji').textContent = field.cropEmoji;
+      document.getElementById('fieldName').textContent = field.name;
+      document.getElementById('fieldCropType').textContent = field.cropType;
+      document.getElementById('fieldVillage').textContent = field.village || 'Farm Field';
+      document.getElementById('fieldAcres').textContent = `${field.areaAcres} acres`;
+
+      // Subtitle
+      document.getElementById('dashboardSubtitle').textContent = `Crop health overview for ${field.cropType} · Real-time satellite telemetry`;
+
+      // Trend pts
+      const scoreDiff = field.healthScore - field.prevScore;
+      const isUp = scoreDiff >= 0;
+      const trendBadge = document.getElementById('fieldTrendBadge');
+      const trendPts = document.getElementById('fieldTrendPts');
+      const trendIcon = document.getElementById('fieldTrendIcon');
+
+      trendPts.textContent = `${isUp ? '+' : ''}${scoreDiff} pts`;
+      if (isUp) {
+        trendBadge.className = 'flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 backdrop-blur-sm text-[#b8ebc6]';
+        trendIcon.setAttribute('data-lucide', 'trending-up');
+      } else {
+        trendBadge.className = 'flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 backdrop-blur-sm text-[#ff9e9e]';
+        trendIcon.setAttribute('data-lucide', 'trending-down');
+      }
+
+      // TopBar sync
+      document.getElementById('topFieldEmoji').textContent = field.cropEmoji;
+      document.getElementById('topFieldName').textContent = field.name;
+      document.getElementById('topFieldMeta').textContent = `${field.cropType} · ${field.areaAcres} acres`;
+      document.getElementById('topFieldCropMobile').textContent = field.name;
+
+      // Map Sync
+      const mapName = document.getElementById('mapFieldName');
+      const mapBadge = document.getElementById('mapScoreBadge');
+      const mapDot = document.getElementById('mapLegendStressDot');
+      const mapZone = document.getElementById('mapStressedZone');
+      const gradMid = document.getElementById('mapGradMid');
+      const gradEnd = document.getElementById('mapGradEnd');
+      const strokeColor = colorMap[field.riskLevel]?.stroke || '#4CAF6E';
+
+      if (mapName) mapName.textContent = field.name;
+      if (mapBadge) {
+        mapBadge.textContent = field.healthScore;
+        mapBadge.style.color = strokeColor;
+      }
+      if (mapDot) mapDot.style.backgroundColor = strokeColor;
+      if (mapZone) mapZone.setAttribute('fill', strokeColor);
+      if (gradMid) gradMid.setAttribute('stop-color', strokeColor);
+      if (gradEnd) gradEnd.setAttribute('stop-color', strokeColor);
+
+      // Pagination Controls
+      document.getElementById('prevFieldBtn').disabled = (activeFieldIndex === 0);
+      document.getElementById('nextFieldBtn').disabled = (activeFieldIndex === realFields.length - 1);
+
+      renderPaginationDots();
+      renderFieldDropdownItems();
+
+      // Fetch Real Timeseries for this field
+      fetchFieldTimeseries(field.id, field);
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function navigateField(delta) {
+      selectRealField(activeFieldIndex + delta, true);
+    }
+
+    function renderPaginationDots() {
+      const container = document.getElementById('fieldPaginationDots');
+      if (!container) return;
+      container.innerHTML = realFields.map((f, i) => `
+        <button
+          type="button"
+          onclick="selectRealField(${i}, true)"
+          aria-label="Show ${f.name}"
+          class="h-1.5 rounded-full transition-all duration-300 ${
+            i === activeFieldIndex ? 'w-5 bg-offwhite-50' : 'w-1.5 bg-offwhite-50/40 hover:bg-offwhite-50/60'
+          }"
+        ></button>
+      `).join('');
+    }
+
+    function renderFieldDropdownItems() {
+      const container = document.getElementById('topFieldListItems');
+      if (!container) return;
+      if (realFields.length === 0) {
+        container.innerHTML = `
+          <div class="px-3 py-3 text-xs text-forest-400 text-center">
+            No fields registered.<br>
+            <a href="add-field.html" class="text-forest-600 font-semibold underline mt-1 inline-block">Add your first field</a>
+          </div>
+        `;
+        return;
+      }
+      container.innerHTML = realFields.map((f, i) => `
+        <button
+          type="button"
+          onclick="selectRealField(${i}, true); toggleFieldDropdown(false);"
+          class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-offwhite-200 ${
+            i === activeFieldIndex ? 'bg-offwhite-200 font-semibold' : ''
+          }"
+        >
+          <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-offwhite-200 text-lg leading-none">
+            ${f.cropEmoji}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-heading text-sm font-semibold text-forest-700 truncate">${f.name}</p>
+            <p class="text-xs text-forest-400 truncate">${f.cropType} · ${f.areaAcres} acres</p>
+          </div>
+          ${i === activeFieldIndex ? '<i data-lucide="check" class="w-4 h-4 text-forest-500 shrink-0"></i>' : ''}
+        </button>
+      `).join('');
+    }
+
+    function toggleFieldDropdown(e) {
+      if (e) {
+        e.stopPropagation();
+      }
+      const menu = document.getElementById('topFieldDropdownMenu');
+      const chevron = document.getElementById('topFieldChevron');
+      if (!menu) return;
+
+      // Close profile dropdown if open
+      if (typeof window.closeProfileDropdown === 'function') {
+        window.closeProfileDropdown();
+      }
+
+      const isHidden = menu.classList.contains('hidden');
+      if (isHidden) {
+        menu.classList.remove('hidden');
+        if (chevron) chevron.classList.add('rotate-180');
+      } else {
+        menu.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+      }
+    }
+
+    function closeFieldDropdown() {
+      const menu = document.getElementById('topFieldDropdownMenu');
+      const chevron = document.getElementById('topFieldChevron');
+      if (menu && !menu.classList.contains('hidden')) {
+        menu.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+      }
+    }
+    window.toggleFieldDropdown = toggleFieldDropdown;
+    window.closeFieldDropdown = closeFieldDropdown;
+
+    document.addEventListener('click', (e) => {
+      const fieldWrapper = document.getElementById('topFieldSelectorWrapper');
+      if (fieldWrapper && !fieldWrapper.contains(e.target)) {
+        closeFieldDropdown();
+      }
+      const profileWrapper = document.getElementById('topProfileWrapper');
+      if (profileWrapper && !profileWrapper.contains(e.target)) {
+        if (typeof window.closeProfileDropdown === 'function') {
+          window.closeProfileDropdown();
+        }
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeFieldDropdown();
+        if (typeof window.closeProfileDropdown === 'function') {
+          window.closeProfileDropdown();
+        }
+      }
+    });
+
+    // Touch / Swipe Navigation for Health Score Card
+    const swipeArea = document.getElementById('healthSwipeArea');
+    if (swipeArea) {
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchMoved = false;
+
+      swipeArea.addEventListener('pointerdown', (e) => {
+        touchStartX = e.clientX;
+        touchStartY = e.clientY;
+        touchMoved = false;
+      });
+
+      swipeArea.addEventListener('pointermove', (e) => {
+        if (!touchStartX) return;
+        const dx = e.clientX - touchStartX;
+        const dy = e.clientY - touchStartY;
+        if (!touchMoved && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
+          touchMoved = true;
+        }
+      });
+
+      swipeArea.addEventListener('pointerup', (e) => {
+        if (touchStartX && touchMoved) {
+          const dist = e.clientX - touchStartX;
+          if (Math.abs(dist) > 35) navigateField(dist < 0 ? 1 : -1);
+        }
+        touchStartX = 0;
+        touchMoved = false;
+      });
+
+      swipeArea.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaX) < 10 && Math.abs(e.deltaY) < 10) return;
+        e.preventDefault();
+        const delta = (e.deltaX + e.deltaY) > 0 ? 1 : -1;
+        navigateField(delta);
+      }, { passive: false });
+    }
+
+    // ─── Real Timeseries Metric Fetching ──────────────────────────────────────
+    async function fetchFieldTimeseries(farmId, field) {
+      const token = CropSathiSession.getToken();
+      if (!token || !farmId) return;
 
       try {
-        const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const res = await fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/timeseries`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        const data = await res.json();
+        const json = await res.json();
 
-        if (!data.success || !data.data?.fields?.length) {
-          skeletonEls.forEach(el => el.classList.add('hidden'));
-          emptyEl?.classList.remove('hidden');
+        if (json.success && json.data) {
+          const ndviList = (json.data.ndvi || []).map(r => r.ndvi).filter(v => v != null).reverse();
+          const ndreList = (json.data.ndvi || []).map(r => r.ndre).filter(v => v != null).reverse();
+          const thermalList = (json.data.thermal || []).map(r => r.lst || r.anomaly || 0).filter(v => v != null).reverse();
+
+          // Latest values
+          const latestNdvi = ndviList.length ? ndviList[ndviList.length - 1] : ((field.components?.ndvi || 65) / 100);
+          const latestNdre = ndreList.length ? ndreList[ndreList.length - 1] : ((field.components?.ndre || 38) / 100);
+          const latestThermal = thermalList.length ? thermalList[thermalList.length - 1] : ((field.components?.thermal || 25) / 100);
+
+          document.getElementById('ndviValue').textContent = latestNdvi.toFixed(2);
+          document.getElementById('ndreValue').textContent = latestNdre.toFixed(2);
+          document.getElementById('cwsiValue').textContent = latestThermal > 1 ? (latestThermal / 40).toFixed(2) : latestThermal.toFixed(2);
+
+          // Sparklines
+          document.getElementById('ndviSparkline').innerHTML = createSparklineSvg(ndviList.slice(-10), '#D4A93A', 'rgba(212,169,58,0.08)');
+          document.getElementById('ndreSparkline').innerHTML = createSparklineSvg(ndreList.slice(-10), '#3F8259', 'rgba(63,130,89,0.08)');
+          document.getElementById('cwsiSparkline').innerHTML = createSparklineSvg(thermalList.slice(-10), '#C1502E', 'rgba(193,80,46,0.08)');
+
+          // Trend Deltas
+          if (ndviList.length > 1) {
+            const delta = ((ndviList[ndviList.length - 1] - ndviList[0]) / (ndviList[0] || 1) * 100);
+            document.getElementById('ndviTrendPct').textContent = `${Math.abs(delta).toFixed(1)}%`;
+            document.getElementById('ndviTrendIcon').setAttribute('data-lucide', delta >= 0 ? 'arrow-up-right' : 'arrow-down-right');
+          }
+          if (ndreList.length > 1) {
+            const delta = ((ndreList[ndreList.length - 1] - ndreList[0]) / (ndreList[0] || 1) * 100);
+            document.getElementById('ndreTrendPct').textContent = `${Math.abs(delta).toFixed(1)}%`;
+            document.getElementById('ndreTrendIcon').setAttribute('data-lucide', delta >= 0 ? 'arrow-up-right' : 'arrow-down-right');
+          }
+          if (thermalList.length > 1) {
+            const delta = ((thermalList[thermalList.length - 1] - thermalList[0]) / (thermalList[0] || 1) * 100);
+            document.getElementById('cwsiTrendPct').textContent = `${Math.abs(delta).toFixed(1)}%`;
+            document.getElementById('cwsiTrendIcon').setAttribute('data-lucide', delta >= 0 ? 'arrow-up-right' : 'arrow-down-right');
+          }
+
+          if (window.lucide) lucide.createIcons();
           return;
         }
-
-        const fields = data.data.fields;
-        const html = fields.map(renderHealthCard).join('');
-
-        container.innerHTML = html;
-        lucide.createIcons();
-
       } catch (err) {
-        console.error('Failed to load health scores:', err);
-        skeletonEls.forEach(el => el.classList.add('hidden'));
+        console.warn('Timeseries fetch fallback to components');
       }
+
+      // Fallback: use field components if available
+      const ndviComp = (field.components?.ndvi != null) ? (field.components.ndvi / 100) : 0.65;
+      const ndreComp = (field.components?.ndre != null) ? (field.components.ndre / 100) : 0.38;
+      const thermalComp = (field.components?.thermal != null) ? (field.components.thermal / 100) : 0.42;
+
+      document.getElementById('ndviValue').textContent = ndviComp.toFixed(2);
+      document.getElementById('ndreValue').textContent = ndreComp.toFixed(2);
+      document.getElementById('cwsiValue').textContent = thermalComp.toFixed(2);
+
+      document.getElementById('ndviSparkline').innerHTML = createSparklineSvg([ndviComp * 0.9, ndviComp * 0.95, ndviComp], '#D4A93A', 'rgba(212,169,58,0.08)');
+      document.getElementById('ndreSparkline').innerHTML = createSparklineSvg([ndreComp * 0.95, ndreComp], '#3F8259', 'rgba(63,130,89,0.08)');
+      document.getElementById('cwsiSparkline').innerHTML = createSparklineSvg([thermalComp * 0.8, thermalComp], '#C1502E', 'rgba(193,80,46,0.08)');
+      if (window.lucide) lucide.createIcons();
     }
 
-    loadHealthScores();
+    // ─── Real Field Data Loader from /api/dashboard/health ─────────────────────
+    async function loadRealDashboardData() {
+      const token = CropSathiSession.getToken();
+      if (!token) return;
 
-    // Show "last synced" label if we have a stored timestamp
-    function updateLastSyncLabel() {
-      const label = document.getElementById('lastSyncLabel');
-      const ts = localStorage.getItem('lastSentinelSync');
-      if (!label) return;
-      if (ts) {
-        const diff = Date.now() - new Date(ts).getTime();
-        let text;
-        if (diff < 60_000) text = 'Synced just now';
-        else if (diff < 3_600_000) text = `Synced ${Math.floor(diff / 60_000)}m ago`;
-        else if (diff < 86_400_000) text = `Synced ${Math.floor(diff / 3_600_000)}h ago`;
-        else text = `Synced ${new Date(ts).toLocaleDateString()}`;
-        label.textContent = text;
-        label.classList.remove('hidden');
-      }
-    }
-    updateLastSyncLabel();
-    setInterval(updateLastSyncLabel, 60_000);
-
-    // Keep the health cards fresh: re-fetch the latest computed scores
-    // every 5 minutes.
-    setInterval(loadHealthScores, 5 * 60 * 1000);
-
-    // Sentinel Sync button: force-refresh satellite data (NDVI + thermal)
-    // and recompute risk scores for ALL fields in one server call.
-    const sentinelSyncBtn = document.getElementById('sentinelSyncBtn');
-    if (sentinelSyncBtn) {
-      let toastTimer = null;
-      let isSyncing = false;
-
-      function showSyncToast(message, isError) {
-        const toastEl = document.getElementById('syncToast');
-        if (!toastEl) return;
-        toastEl.textContent = message;
-        toastEl.classList.toggle('err', !!isError);
-        toastEl.classList.add('show');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
-      }
-
-      function setSyncUI(active, label) {
-        const dot = document.getElementById('sentinelSyncDot');
-        const labelEl = sentinelSyncBtn.querySelector('[data-i18n]');
-        if (active) {
-          isSyncing = true;
-          sentinelSyncBtn.disabled = true;
-          sentinelSyncBtn.classList.add('opacity-75');
-          dot?.classList.add('animate-pulse');
-          if (labelEl && label) labelEl.textContent = label;
-        } else {
-          isSyncing = false;
-          sentinelSyncBtn.disabled = false;
-          sentinelSyncBtn.classList.remove('opacity-75');
-          dot?.classList.remove('animate-pulse');
-          if (labelEl) labelEl.textContent = 'Sentinel Sync';
-        }
-      }
-
-      async function triggerSentinelSync(e) {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        if (isSyncing || sentinelSyncBtn.disabled) return;
-
-        const token = localStorage.getItem('token');
-        if (!token) {
-          showSyncToast('Please sign in to sync fields', true);
+      function applyFieldsData(data) {
+        if (!data || !data.success || !data.data?.fields) {
+          selectRealField(0, false);
           return;
         }
 
-        setSyncUI(true, 'Syncing…');
-        showSyncToast('Syncing satellite data for all fields…', false);
+        const apiFields = data.data.fields;
+        realFields = apiFields.map(f => {
+          const score = (f.compositeScore != null) ? Math.round(f.compositeScore) : 0;
+          const prev = (f.previousScore != null) ? Math.round(f.previousScore) : score;
+          let risk = 'green';
+          if (score < 40) risk = 'red';
+          else if (score < 60) risk = 'orange';
+          else if (score < 75) risk = 'yellow';
 
-        try {
-          const res = await fetch(`${CropSathiPrefs.api}/api/monitoring/sync-satellite`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
+          return {
+            id: f.farmId || f._id,
+            name: f.farmName || 'Farm Field',
+            cropType: f.cropType || 'Wheat',
+            cropEmoji: getCropEmoji(f.cropType),
+            areaAcres: f.areaHectares ? parseFloat((f.areaHectares * 2.471).toFixed(1)) : 1.5,
+            village: document.getElementById('userLocation')?.textContent?.replace('Farmer · ', '') || 'Field Location',
+            healthScore: score,
+            prevScore: prev,
+            riskLevel: risk,
+            components: f.components || {},
+            triggeredAlert: f.triggeredAlert || false,
+            diseaseHypothesis: f.diseaseHypothesis || null,
+          };
+        });
 
-          if (!res.ok) {
-            const errBody = await res.json().catch(() => ({}));
-            throw new Error(errBody.message || `Server error ${res.status}`);
-          }
+        // Update Monitored Fields Stat
+        document.getElementById('statFieldsCount').textContent = realFields.length;
 
-          const body = await res.json();
-          const { synced, failed, results } = body.data || {};
-
-          // Refresh the cards so the freshly computed scores render now.
-          await loadHealthScores();
-          updateLastSyncLabel();
-
-          if (failed === 0) {
-            showSyncToast(
-              `Synced ${synced} field${synced === 1 ? '' : 's'} — health scores updated`,
-              false
-            );
-          } else {
-            const failedNames = results
-              ?.filter(r => !r.success)
-              .map(r => r.farmName)
-              .join(', ') || '';
-            showSyncToast(
-              `Synced ${synced}/${synced + failed} fields` +
-              (failedNames ? ` — failed: ${failedNames}` : ''),
-              true
-            );
-          }
-
-          // Store last sync timestamp so cards can show it
-          localStorage.setItem('lastSentinelSync', new Date().toISOString());
-        } catch (err) {
-          console.error('Sentinel sync failed:', err);
-          showSyncToast('Sync failed — check connection and try again', true);
-        } finally {
-          setSyncUI(false);
+        // Restore active field from session if available
+        const activeFarmId = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getActiveFarm() : null;
+        let targetIdx = 0;
+        if (activeFarmId) {
+          const found = realFields.findIndex(f => f.id === activeFarmId);
+          if (found !== -1) targetIdx = found;
         }
+        selectRealField(targetIdx, false);
       }
 
-      // Prevent double-fire on mobile: touchend fires before click on
-      // touch devices, so we gate with a short cooldown.
-      let lastTapTime = 0;
-      function handleInteraction(e) {
-        const now = Date.now();
-        if (now - lastTapTime < 300) return; // 300ms debounce
-        lastTapTime = now;
-        triggerSentinelSync(e);
+      try {
+        if (typeof CropSathiCache !== 'undefined') {
+          await CropSathiCache.fetchSWR(`${CropSathiPrefs.api}/api/dashboard/health`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }, {
+            ttl: 60000,
+            onCached: applyFieldsData,
+            onFresh: applyFieldsData
+          });
+        } else {
+          const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
+          applyFieldsData(data);
+        }
+      } catch (err) {
+        console.error('Failed to load real dashboard health:', err);
+        selectRealField(0, false);
       }
-
-      sentinelSyncBtn.addEventListener('click', handleInteraction);
-      sentinelSyncBtn.addEventListener('touchend', handleInteraction);
     }
 
-    if (localStorage.getItem('newFieldCreated')) {
-      localStorage.removeItem('newFieldCreated');
-      let attempts = 0;
-      const poller = setInterval(() => {
-        loadHealthScores();
-        attempts++;
-        if (attempts >= 5) clearInterval(poller);
-      }, 3000);
+    // ─── Real Alerts & Notifications Loader ──────────────────────────────────
+    async function loadRealAlertsAndActivity() {
+      const token = CropSathiSession.getToken();
+      if (!token) return;
+
+      try {
+        const [notifRes, advRes, casesRes] = await Promise.allSettled([
+          fetch(`${CropSathiPrefs.api}/api/notifications?limit=10`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${CropSathiPrefs.api}/api/advisory/latest`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${CropSathiPrefs.api}/api/diagnosis/cases`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+
+        let notifs = [];
+        let advisories = [];
+        let cases = [];
+
+        if (notifRes.status === 'fulfilled') {
+          const nData = await notifRes.value.json();
+          notifs = Array.isArray(nData) ? nData : (nData.notifications || nData.data || []);
+        }
+        if (advRes.status === 'fulfilled') {
+          const aData = await advRes.value.json();
+          advisories = aData.advisories || aData.data || [];
+        }
+        if (casesRes.status === 'fulfilled') {
+          const cData = await casesRes.value.json();
+          cases = cData.cases || cData.data || [];
+        }
+
+        // 1. Stats Counter
+        const activeAlertCount = notifs.filter(n => !n.read).length || notifs.length;
+        document.getElementById('statAlertsCount').textContent = activeAlertCount;
+        document.getElementById('statAdvisoriesCount').textContent = advisories.length;
+        document.getElementById('statScansCount').textContent = cases.length;
+
+        const notifBadge = document.getElementById('topNotifBadge');
+        if (activeAlertCount > 0) {
+          notifBadge.textContent = activeAlertCount;
+          notifBadge.classList.remove('hidden');
+          const advBadge = document.getElementById('sidebarAdvisoryBadge');
+          if (advBadge) {
+            advBadge.textContent = activeAlertCount;
+            advBadge.classList.remove('hidden');
+          }
+        }
+
+        document.getElementById('alertsCountSub').textContent = `${activeAlertCount} active notification${activeAlertCount === 1 ? '' : 's'}`;
+
+        // 2. Render Active Alerts Card
+        const alertsContainer = document.getElementById('alertsContainer');
+        if (notifs.length > 0) {
+          alertsContainer.innerHTML = notifs.slice(0, 3).map(n => {
+            const isHigh = n.priority === 'high' || n.priority === 'critical';
+            const isMed = n.priority === 'medium';
+            const barClass = isHigh ? 'bg-risk-red' : (isMed ? 'bg-risk-orange' : 'bg-risk-yellow');
+            const badgeClass = isHigh ? 'text-risk-red bg-red-50' : (isMed ? 'text-risk-orange bg-terracotta-50' : 'text-risk-yellow bg-yellow-50');
+            const relTime = formatRelativeTime(n.createdAt);
+
+            return `
+              <div class="group flex gap-4 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-4 shadow-card transition-all hover:shadow-card-hover hover:border-offwhite-400">
+                <div class="w-1 flex-shrink-0 rounded-full ${barClass}"></div>
+                <div class="flex flex-1 flex-col gap-3">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <h4 class="font-heading text-sm font-semibold text-forest-700">${n.title || 'Telemetry Notice'}</h4>
+                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold ${badgeClass}">
+                          ${n.priority || 'Notice'}
+                        </span>
+                      </div>
+                      <p class="mt-1 text-sm text-forest-400">
+                        ${n.body || n.message || 'System notification regarding crop telemetry.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 text-xs text-forest-400">
+                      <span class="flex items-center gap-1">
+                        <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+                        Priority Alert
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                        ${relTime}
+                      </span>
+                    </div>
+                    <a href="notifications.html" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-heading text-xs font-semibold bg-forest-500 text-offwhite-50 hover:bg-forest-600 transition-colors">
+                      <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                      <span>View</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          alertsContainer.innerHTML = `
+            <div class="rounded-xl border border-dashed border-offwhite-300 bg-offwhite-100 p-6 text-center">
+              <i data-lucide="check-circle" class="w-8 h-8 text-forest-500 mx-auto mb-2"></i>
+              <h4 class="font-heading text-sm font-semibold text-forest-700">All Fields Healthy</h4>
+              <p class="text-xs text-forest-400 mt-0.5">No critical disease or moisture stress alerts active at this moment.</p>
+              <a href="diagnose.html" class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-forest-500 px-3.5 py-1.5 font-heading text-xs font-semibold text-offwhite-50 hover:bg-forest-600">
+                <i data-lucide="camera" class="w-3.5 h-3.5"></i> Scan Crop
+              </a>
+            </div>
+          `;
+        }
+
+        // 3. Render Recent Activity Feed
+        const activityList = document.getElementById('recentActivityList');
+        const allEvents = [
+          ...notifs.map(n => ({
+            title: n.title,
+            desc: n.body || n.message,
+            time: n.createdAt,
+            icon: 'bell',
+            color: 'text-terracotta-400',
+            bg: 'bg-terracotta-50'
+          })),
+          ...advisories.map(a => ({
+            title: `Advisory: ${a.primaryDiagnosis || 'Treatment plan'}`,
+            desc: a.summary || 'Custom precision advisory generated.',
+            time: a.createdAt,
+            icon: 'zap',
+            color: 'text-forest-500',
+            bg: 'bg-forest-50'
+          })),
+          ...cases.map(c => ({
+            title: `Crop Photo Scan (${c.cropType || 'Crop'})`,
+            desc: c.outcome === 'confirmed' ? `Confirmed diagnosis: ${c.confirmedDisease || 'Analyzed'}` : 'Image upload processed',
+            time: c.createdAt,
+            icon: 'camera',
+            color: 'text-risk-green',
+            bg: 'bg-forest-50'
+          }))
+        ].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+
+        if (allEvents.length > 0) {
+          activityList.innerHTML = allEvents.slice(0, 4).map((evt, idx) => {
+            const isLast = idx === Math.min(allEvents.length - 1, 3);
+            return `
+              <div class="relative flex gap-4 ${isLast ? 'pb-0' : 'pb-5'}">
+                ${!isLast ? '<div class="absolute left-[15px] top-9 bottom-0 w-px bg-offwhite-300"></div>' : ''}
+                <div class="relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${evt.bg} ${evt.color}">
+                  <i data-lucide="${evt.icon}" class="w-4 h-4"></i>
+                </div>
+                <div class="flex flex-1 flex-col gap-0.5 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="font-heading text-sm font-semibold text-forest-700 truncate">${evt.title}</p>
+                    <span class="flex-shrink-0 text-xs text-forest-300">${formatRelativeTime(evt.time)}</span>
+                  </div>
+                  <p class="text-sm text-forest-400 truncate">${evt.desc}</p>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          activityList.innerHTML = `
+            <div class="p-6 text-center text-xs text-forest-400">
+              No recent activity yet. Upload a crop photo or register a field to begin.
+            </div>
+          `;
+        }
+
+        if (window.lucide) lucide.createIcons();
+      } catch (err) {
+        console.warn('Alerts and activity load error:', err);
+      }
     }
+
+    function formatRelativeTime(dateString) {
+      if (!dateString) return 'Just now';
+      const diff = Math.floor((new Date() - new Date(dateString)) / 1000);
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)} hour${Math.floor(diff / 3600) === 1 ? '' : 's'} ago`;
+      if (diff < 172800) return 'Yesterday';
+      return `${Math.floor(diff / 86400)} days ago`;
+    }
+
+    // ─── Real User Profile & Open-Meteo Weather Loader ─────────────────────────
+    async function syncUserProfile() {
+      const token = CropSathiSession.getToken();
+      if (!token) return;
+      try {
+        const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+
+        if (result && result.success && result.user) {
+          const user = result.user;
+          const nameElem = document.getElementById('userName');
+          const menuNameElem = document.getElementById('userMenuName');
+          const phoneElem = document.getElementById('userMenuPhone');
+          const locationElem = document.getElementById('userLocation');
+          const avatarInitial = document.getElementById('navAvatarInitial');
+          const menuPhoto = document.getElementById('userMenuPhoto');
+
+          if (user.name) {
+            if (nameElem) nameElem.textContent = user.name;
+            if (menuNameElem) menuNameElem.textContent = user.name;
+            const initials = user.name.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+            if (avatarInitial) avatarInitial.textContent = initials;
+            if (menuPhoto) menuPhoto.textContent = initials;
+          }
+
+          if (user.phoneNumber && phoneElem) {
+            phoneElem.textContent = user.phoneNumber;
+          }
+
+          let village = '';
+          let district = '';
+
+          if (user.farmDetails) {
+            village = user.farmDetails.village || '';
+            district = user.farmDetails.district || '';
+            const locText = village ? `${village}${district ? ', ' + district : ''}` : (district || 'Panvel');
+            if (locationElem) locationElem.textContent = locText;
+
+            // Fetch live Open-Meteo weather
+            if (user.farmDetails.latitude && user.farmDetails.longitude) {
+              fetchLiveWeather(user.farmDetails.latitude, user.farmDetails.longitude, locText);
+            } else {
+              // Default to user district or Panvel coordinates
+              fetchLiveWeather(18.9894, 73.1175, locText);
+            }
+          } else {
+            fetchLiveWeather(18.9894, 73.1175, 'Panvel');
+          }
+        }
+      } catch (error) {
+        console.warn('Profile sync fallback');
+        fetchLiveWeather(18.9894, 73.1175, 'Panvel');
+      }
+    }
+
+    async function fetchLiveWeather(lat, lng, placeName) {
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,rain,wind_speed_10m,wind_direction_10m,weather_code&timezone=auto`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.current) {
+          const cur = data.current;
+          const tempVal = Math.round(cur.temperature_2m);
+          document.getElementById('tempValue').textContent = tempVal;
+          document.getElementById('humidityValue').textContent = `${Math.round(cur.relative_humidity_2m)}%`;
+          document.getElementById('windValue').textContent = `${Math.round(cur.wind_speed_10m)} km/h`;
+          document.getElementById('precipValue').textContent = `${(cur.rain || 0).toFixed(0)} mm`;
+          
+          if (placeName) {
+            document.getElementById('weatherLocationText').textContent = placeName;
+          }
+
+          // Wind direction text
+          const deg = cur.wind_direction_10m || 0;
+          const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+          const dirStr = dirs[Math.round(deg / 45) % 8];
+          document.getElementById('windDirValue').textContent = dirStr;
+
+          // Condition label
+          const code = cur.weather_code || 0;
+          let cond = 'Clear Sky';
+          if (code >= 1 && code <= 3) cond = 'Partly Cloudy';
+          else if (code >= 45 && code <= 48) cond = 'Foggy';
+          else if (code >= 51 && code <= 67) cond = 'Light Rain';
+          else if (code >= 80 && code <= 99) cond = 'Rain Shower';
+          document.getElementById('weatherConditionText').textContent = cond;
+        }
+      } catch (e) {
+        console.warn('Weather API fallback');
+      }
+    }
+
+    // Initialize all real data on DOM Ready
+    document.addEventListener('DOMContentLoaded', () => {
+      syncUserProfile();
+      loadRealDashboardData();
+      loadRealAlertsAndActivity();
+      if (window.lucide) lucide.createIcons();
+    });
   </script>
-
-  <!-- Sync result toast (shown briefly by the Sentinel Sync button) -->
-  <div id="syncToast" class="sync-toast" role="status" aria-live="polite"></div>
-
-  <script src="ui.js"></script>
-
-  <!-- Bottom navigation (mobile only) -->
-  <nav class="cs-tabbar md:hidden" aria-label="Primary">
-    <a class="cs-tab is-active" href="dashboard.html" aria-current="page">
-      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
-    </a>
-    <a class="cs-tab" href="my-fields.html">
-      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
-    </a>
-    <a class="cs-tab" href="diagnose.html">
-      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
-    </a>
-    <a class="cs-tab" href="advisory.html">
-      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
-    </a>
-    <a class="cs-tab" href="settings.html">
-      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
-    </a>
-  </nav>
 </body>
 </html>

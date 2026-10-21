@@ -130,21 +130,37 @@
     if (cachedPhoto) applyAvatarPhoto(cachedPhoto);
     paintMenuHead(meta && meta.name, meta && meta.phone);
 
-    var token = readLS('token');
+    var token = (typeof window.CropSathiSession !== 'undefined') ? window.CropSathiSession.getToken() : readLS('token');
     if (!token || !apiBase()) return;
-    fetch(apiBase() + '/api/user/profile', { headers: { Authorization: 'Bearer ' + token } })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.success || !data.user) return;
-        var u = data.user;
-        writeJSON('cropsathi_profile_meta', { name: u.name || '', phone: u.phone || '' });
-        if (u.profilePhoto) writeLS('cropsathi_profile_photo', u.profilePhoto);
-        applyAvatarPhoto(u.profilePhoto || readLS('cropsathi_profile_photo'));
-        paintMenuHead(u.name, u.phone);
-        var navInit = doc.getElementById('navAvatarInitial');
-        if (navInit && u.name) navInit.textContent = u.name.trim().charAt(0).toUpperCase();
-      })
-      .catch(function () { /* keep cached values */ });
+
+    function applyUser(u) {
+      if (!u) return;
+      writeJSON('cropsathi_profile_meta', { name: u.name || '', phone: u.phone || u.phoneNumber || '' });
+      if (u.profilePhoto) writeLS('cropsathi_profile_photo', u.profilePhoto);
+      applyAvatarPhoto(u.profilePhoto || readLS('cropsathi_profile_photo'));
+      paintMenuHead(u.name, u.phone || u.phoneNumber);
+      var navInit = doc.getElementById('navAvatarInitial');
+      if (navInit && u.name) navInit.textContent = u.name.trim().charAt(0).toUpperCase();
+    }
+
+    if (typeof window.CropSathiCache !== 'undefined') {
+      window.CropSathiCache.fetchSWR(
+        apiBase() + '/api/user/profile',
+        { headers: { Authorization: 'Bearer ' + token } },
+        {
+          ttl: 300000, // 5 minutes cache
+          onCached: function (res) { if (res && res.success) applyUser(res.user); },
+          onFresh: function (res) { if (res && res.success) applyUser(res.user); }
+        }
+      ).catch(function () {});
+    } else {
+      fetch(apiBase() + '/api/user/profile', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data && data.success && data.user) applyUser(data.user);
+        })
+        .catch(function () { /* keep cached values */ });
+    }
   }
 
   /* ---- theme quick toggle (cycles light -> system -> dark) ---- */
@@ -234,10 +250,14 @@
     var logoutBtn = menu.querySelector('[data-menu-logout]');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
-        try {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        } catch (e) {}
+        if (typeof window.CropSathiSession !== 'undefined') {
+          window.CropSathiSession.clearSession();
+        } else {
+          try {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          } catch (e) {}
+        }
         window.location.href = 'login.html';
       });
     }

@@ -12,20 +12,30 @@ services:
       - key: PORT
         value: 5000
       # Set these in Render Dashboard → Environment:
-      # MONGODB_URI=mongodb+srv://...
-      # JWT_SECRET=your_secret_key
-      # GEMINI_API_KEY=AIza...
-      # CORS_ORIGIN=https://your-frontend.vercel.app
-      # ML_SERVICE_URL=http://<host>:<port> — plant disease CNN service
-      # (cropsathi-ml below). Internal host + port 10000, e.g.
-      # http://cropsathi-ml:10000, or the public https://cropsathi-ml.onrender.com.
+      # SUPABASE_URL=https://your-project.supabase.co
+      # SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+      # JWT_SECRET=your_secure_jwt_secret
+      # CORS_ORIGIN=https://your-cropsathi-app.vercel.app
+      # GEMINI_API_KEY=AIzaSy...
+      # COPENICUS_CLIENT_ID=your_copernicus_client_id
+      # COPENICUS_CLIENT_SECRET=your_copernicus_client_secret
+      # ML_SERVICE_URL=http://cropsathi-ml:10000 or https://cropsathi-ml.onrender.com
       - key: ML_SERVICE_URL
         sync: false
-      # COPENICUS_CLIENT_ID / COPENICUS_CLIENT_SECRET — free OAuth client
-      # credentials from Copernicus Data Space (register at
-      # dataspace.copernicus.eu, then create an OAuth client). REQUIRED for
-      # real satellite data: Sentinel-2 NDVI/NDRE AND Landsat 8/9 thermal
-      # (LST). Without them the backend serves simulated/formula fallbacks.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: COPERNICUS_CLIENT_ID
+        sync: false
+      - key: COPERNICUS_CLIENT_SECRET
+        sync: false
     healthCheckPath: /api/health
     autoDeploy: true
 

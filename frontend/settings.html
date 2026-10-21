@@ -3,195 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- iOS auto-zoom-on-input-focus is prevented via 16px form-field font-size
-       in ui.css, not by locking the viewport (locking it blocks pinch-zoom
-       and fails WCAG 1.4.4 Resize Text). -->
-  <title>CropSathi - Settings</title>
+  <title>CropSathi â€” Settings</title>
+  <meta name="description" content="Manage your CropSathi profile, preferences, notifications, security and data export settings.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Google Fonts: Be Vietnam Pro & Noto Sans -->
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="tailwind-config.js"></script>
   <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="ui.css">
 
-  <style>
-    body {
-      font-family: 'Noto Sans', sans-serif;
-      background-color: #fbf9f8;
-      color: #1b1c1c;
-    }
-    h1, h2, h3, h4, .font-headline {
-      font-family: 'Be Vietnam Pro', sans-serif;
-    }
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    .tactile-card {
-      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
-    }
-  </style>
-</head>  
-<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
+</head>
+<body class="bg-offwhite-100 font-body text-forest-700 min-h-screen flex has-tabbar">
 
-  <!-- Sidebar Navigation -->
-  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+  <!-- Desktop Sidebar -->
+  <aside class="hidden w-64 flex-shrink-0 border-r border-offwhite-300 bg-offwhite-50 lg:flex lg:flex-col fixed left-0 top-0 bottom-0 overflow-y-auto z-30 justify-between">
     <div>
-      <div class="flex items-center gap-3 mb-10">
-        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-[#ffffff] font-bold shadow-md">
-          <i data-lucide="sprout" class="w-6 h-6"></i>
+      <div class="flex items-center gap-3 px-6 py-6">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+          <i data-lucide="sprout" class="w-5 h-5 text-offwhite-50"></i>
         </div>
-        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+        <div>
+          <h1 class="font-heading text-lg font-bold text-forest-700 leading-tight">CropSathi</h1>
+          <p class="text-xs text-forest-400">Crop Health Monitor</p>
+        </div>
       </div>
-
-      <nav class="space-y-2">
-        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="layout-grid" class="w-5 h-5"></i>
-          <span data-i18n="nav_dashboard">Dashboard</span>
-        </a>
-        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="map-pin" class="w-5 h-5"></i>
-          <span data-i18n="nav_my_fields">My Fields</span>
-        </a>
-        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="camera" class="w-5 h-5"></i>
-          <span data-i18n="nav_diagnose">Diagnose</span>
-        </a>
-        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="lightbulb" class="w-5 h-5"></i>
-          <span data-i18n="nav_advisory">Advisory</span>
-        </a>
+      <nav class="flex-1 px-3 py-2">
+        <p class="px-3 pb-2 font-heading text-xs font-semibold uppercase tracking-wider text-forest-300">Menu</p>
+        <ul class="space-y-1">
+          <li><a href="dashboard.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors"><i data-lucide="layout-dashboard" class="w-5 h-5 text-forest-400"></i><span data-i18n="nav_dashboard">Dashboard</span></a></li>
+          <li><a href="my-fields.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors"><i data-lucide="map" class="w-5 h-5 text-forest-400"></i><span data-i18n="nav_my_fields">My Fields</span></a></li>
+          <li><a href="diagnose.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors"><i data-lucide="camera" class="w-5 h-5 text-forest-400"></i><span data-i18n="nav_diagnose">Diagnose</span></a></li>
+          <li><a href="advisory.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors"><i data-lucide="lightbulb" class="w-5 h-5 text-forest-400"></i><span data-i18n="nav_advisory">Advisory</span></a></li>
+          <li><a href="analytics.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors"><i data-lucide="bar-chart-3" class="w-5 h-5 text-forest-400"></i><span>Analytics</span></a></li>
+          <li><a href="settings.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold bg-forest-500 text-offwhite-50 shadow-card"><i data-lucide="settings" class="w-5 h-5"></i><span data-i18n="nav_settings">Settings</span></a></li>
+        </ul>
       </nav>
     </div>
-
-    <div class="pt-6 border-t border-[#e4e2e1]">
-      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 bg-[#eae8e7] text-[#006038] rounded-xl font-semibold transition shadow-sm">
-        <i data-lucide="settings" class="w-5 h-5"></i>
-        <span data-i18n="nav_settings">Settings</span>
-      </a>
+    <div class="px-3 py-4">
+      <div class="rounded-2xl border border-offwhite-300 bg-offwhite-200/50 p-4">
+        <div class="flex items-center gap-2">
+          <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
+          <span class="font-heading text-xs font-semibold text-forest-600">Need Help?</span>
+        </div>
+        <p class="mt-2 text-xs text-forest-400 leading-relaxed">Contact your Gram Sevak or call the Kisan helpline at 1800-180-1551.</p>
+        <a href="tel:18001801551" class="mt-3 block w-full text-center rounded-lg bg-forest-500 py-2 font-heading text-xs font-semibold text-offwhite-50 transition-colors hover:bg-forest-600">Get Support</a>
+      </div>
     </div>
   </aside>
 
-  <!-- Main Content Area -->
-  <main class="flex-1 w-full overflow-x-hidden p-4 pb-24 md:p-10 md:pb-10 max-w-7xl mx-auto md:ml-64">
+  <!-- Main Content Wrapper -->
+  <div class="flex min-w-0 flex-1 flex-col lg:ml-64">
 
-    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6 md:mb-8">
-
-      <!-- Brand lockup — mobile top app bar -->
-      <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi">
-        <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
-        <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
+    <!-- TopBar -->
+    <header class="sticky top-0 z-30 flex items-center justify-between border-b border-offwhite-300 bg-offwhite-100/90 px-4 py-3 backdrop-blur-md lg:px-8">
+      <a href="dashboard.html" class="flex items-center gap-2 lg:hidden" aria-label="CropSathi">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+          <i data-lucide="sprout" class="w-5 h-5"></i>
+        </div>
+        <span class="font-heading font-bold text-base text-forest-700">CropSathi</span>
       </a>
 
-      <!-- Title — drops to its own row on mobile -->
-      <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
-        <h1 class="text-2xl md:text-3xl font-bold text-[#1b1c1c]" data-i18n="settings_title">Settings</h1>
-        <p class="text-[#3f4941] text-sm flex items-center gap-1.5 mt-1">
-          <i data-lucide="settings" class="w-4 h-4 text-[#933302]"></i> <span data-i18n="settings_subtitle">Account & Preferences</span>
-        </p>
+      <div class="hidden sm:block">
+        <h2 class="font-heading text-base font-bold text-forest-700 leading-tight" data-i18n="settings_title">Settings</h2>
+        <p class="text-xs text-forest-400" data-i18n="settings_subtitle">Account &amp; Preferences</p>
       </div>
 
-      <!-- Actions -->
-      <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
-        <button type="button" class="cs-app-action cs-search-trigger md:hidden w-11 h-11" aria-label="Search" aria-expanded="false">
-          <i data-lucide="search"></i>
+      <div class="flex items-center gap-2 lg:gap-3 ml-auto">
+        <button type="button" class="cs-app-action cs-search-trigger sm:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-offwhite-300 bg-offwhite-50 text-forest-500 hover:border-forest-200 transition-colors" aria-label="Search" aria-expanded="false">
+          <i data-lucide="search" class="w-4 h-4"></i>
         </button>
-        <div class="relative hidden md:block">
-          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
-          <input type="text" placeholder="Search settings..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-60 text-[#1b1c1c]">
-        </div>
-        <a href="notifications.html" class="cs-app-action w-11 h-11" aria-label="Notifications">
-          <i data-lucide="bell"></i>
-          <span class="cs-dot"></span>
+        <a href="notifications.html" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-offwhite-300 bg-offwhite-50 text-forest-500 transition-colors hover:border-forest-200 shadow-card" aria-label="Notifications">
+          <i data-lucide="bell" class="w-4 h-4"></i>
+          <span class="cs-dot absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-terracotta-400"></span>
         </a>
-        <div class="user-menu">
-          <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
-            <span id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
-              <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]">R</span>
-            </span>
-            <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
-          </button>
-          <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
-            <div class="user-menu-head">
-              <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
-              <span class="user-menu-head-meta">
-                <span class="user-menu-head-name" id="userMenuName">Farmer</span>
-                <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
-              </span>
+        <!-- User Profile Dropdown Menu matching Bolt TopBar -->
+        <div class="user-menu relative" id="topProfileWrapper">
+          <button
+            type="button"
+            class="user-menu-trigger flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 p-1.5 pr-2 transition-colors hover:border-forest-200 lg:pr-3 shadow-card"
+            onclick="toggleProfileDropdown(event)"
+            aria-haspopup="menu"
+            aria-expanded="false"
+          >
+            <div id="navProfilePhoto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden">
+              <span id="navAvatarInitial">F</span>
             </div>
-            <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
-            <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
-            <span class="user-menu-sep" role="separator"></span>
-            <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+            <div class="hidden text-left lg:block">
+              <div class="flex items-center gap-1">
+                <p class="font-heading text-sm font-semibold text-forest-700 truncate max-w-[120px]" id="userName">Farmer</p>
+                <i data-lucide="chevron-down" id="topProfileChevron" class="w-3.5 h-3.5 text-forest-400 transition-transform duration-200"></i>
+              </div>
+              <p class="text-xs text-forest-400" id="userLocation">Farmer</p>
+            </div>
+          </button>
+          
+          <div id="topProfileMenuPanel" onclick="event.stopPropagation()" class="hidden absolute right-0 top-full mt-2 w-64 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in" role="menu">
+            <div class="flex items-center gap-3 rounded-xl bg-offwhite-200 p-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50" id="userMenuPhoto">
+                F
+              </div>
+              <div class="min-w-0">
+                <p class="font-heading text-sm font-semibold text-forest-700 truncate" id="userMenuName">Farmer</p>
+                <p class="text-xs text-forest-400 truncate" id="userMenuPhone">Verified Account</p>
+              </div>
+            </div>
+            <div class="mt-2 space-y-1">
+              <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="user" class="w-4 h-4 text-forest-400"></i>
+                <span>My Profile</span>
+              </a>
+              <a href="my-fields.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="map" class="w-4 h-4 text-forest-400"></i>
+                <span>My Fields</span>
+              </a>
+              <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
+                <span>Help & Support</span>
+              </a>
+              <div class="my-1 border-t border-offwhite-200"></div>
+              <button type="button" onclick="handleLogout()" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-terracotta-500 hover:bg-terracotta-50 transition-colors">
+                <i data-lucide="log-out" class="w-4 h-4 text-terracotta-500"></i>
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Mobile search row -->
-    <div class="cs-searchrow md:hidden">
-      <i data-lucide="search" aria-hidden="true"></i>
-      <input type="search" placeholder="Search settings..." aria-label="Search settings">
-      <button type="button" class="cs-searchrow-close" data-search-close aria-label="Close search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
+    <!-- Mobile Search Row -->
+    <div class="cs-searchrow md:hidden px-4 py-2 border-b border-offwhite-300 bg-offwhite-50">
+      <div class="flex items-center gap-2 bg-offwhite-200 rounded-xl px-3 py-1.5">
+        <i data-lucide="search" class="w-4 h-4 text-forest-400"></i>
+        <input type="search" placeholder="Search settings..." aria-label="Search settings" class="bg-transparent text-xs w-full text-forest-700 outline-none">
+        <button type="button" class="cs-searchrow-close text-forest-400" data-search-close aria-label="Close search">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
     </div>
 
-    <section class="space-y-8">
+    <!-- Main Content Area -->
+    <main class="flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-10 max-w-3xl">
+      <div class="mb-6">
+        <h1 class="font-heading text-xl font-bold text-forest-700 lg:text-2xl" data-i18n="settings_title">Settings</h1>
+        <p class="text-xs text-forest-400 mt-0.5" data-i18n="settings_subtitle">Account &amp; Preferences</p>
+      </div>
+
+      <section class="space-y-6">
 
       <!-- Profile Section -->
-      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
-        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_profile">Profile</h2>
+      <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl p-6 shadow-card">
+        <h2 class="font-heading text-base font-bold text-forest-700 mb-4" data-i18n="settings_profile">Profile</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-          
-          <!-- Profile Image Avatar with Initial Hook & Aligned Edit Button -->
-          <div class="flex flex-col items-center justify-center p-4 border-r-0 md:border-r border-[#e4e2e1] h-full">
-            <div id="headerProfilePhoto" class="w-24 h-24 rounded-full bg-[#eae8e7] flex items-center justify-center border-2 border-[#006038]/20 shadow-sm overflow-hidden">
-              <span id="userAvatarInitial" class="font-headline text-2xl font-bold text-[#006038]">R</span>
+
+          <!-- Avatar & Edit Button -->
+          <div class="flex flex-col items-center justify-center p-4 border-r-0 md:border-r border-offwhite-300 h-full">
+            <div id="headerProfilePhoto" class="w-24 h-24 rounded-full bg-offwhite-200 flex items-center justify-center border-2 border-forest-200 shadow-card overflow-hidden">
+              <span id="userAvatarInitial" class="font-heading text-2xl font-bold text-forest-500">R</span>
             </div>
-            
             <button onclick="pendingPhotoBase64 = null; removePhotoFlag = false; document.getElementById('profilePhotoInput').value = ''; document.getElementById('edit-profile-modal').classList.remove('hidden')"
-                    class="mt-4 w-full max-w-[180px] flex items-center justify-center gap-2 px-4 py-2 bg-[#006038] text-[#ffffff] text-sm font-semibold rounded-xl transition hover:bg-[#1a7a4c] shadow-sm">
+                    class="mt-4 w-full max-w-[180px] flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-forest-500 text-offwhite-50 text-xs font-heading font-semibold transition-colors hover:bg-forest-600 shadow-card">
               <i data-lucide="user-cog" class="w-4 h-4"></i>
               <span data-i18n="settings_edit_profile">Edit Profile</span>
             </button>
           </div>
 
           <!-- Profile Details Grid -->
-          <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-              <i data-lucide="user" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+          <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="flex items-center gap-3 p-3.5 bg-offwhite-100 rounded-xl border border-offwhite-300">
+              <i data-lucide="user" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_full_name">Full Name</p>
-                <p id="profileFullName" class="text-base font-bold text-[#1b1c1c] truncate">Rajesh Kumar</p>
+                <p class="text-[10px] font-heading font-semibold text-forest-400 uppercase tracking-wider" data-i18n="settings_full_name">Full Name</p>
+                <p id="profileFullName" class="text-sm font-bold text-forest-700 truncate mt-0.5">Rajesh Kumar</p>
               </div>
             </div>
-
-            <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-              <i data-lucide="phone" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+            <div class="flex items-center gap-3 p-3.5 bg-offwhite-100 rounded-xl border border-offwhite-300">
+              <i data-lucide="phone" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_mobile">Mobile Number</p>
-                <p id="profilePhone" class="text-base font-bold text-[#1b1c1c] truncate">+91 98765 43210</p>
+                <p class="text-[10px] font-heading font-semibold text-forest-400 uppercase tracking-wider" data-i18n="settings_mobile">Mobile Number</p>
+                <p id="profilePhone" class="text-sm font-bold text-forest-700 truncate mt-0.5">+91 98765 43210</p>
               </div>
             </div>
-
-            <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-              <i data-lucide="map-pin" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+            <div class="flex items-center gap-3 p-3.5 bg-offwhite-100 rounded-xl border border-offwhite-300">
+              <i data-lucide="map-pin" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_district">District</p>
-                <p id="profileLocation" class="text-base font-bold text-[#1b1c1c] truncate">Nashik</p>
+                <p class="text-[10px] font-heading font-semibold text-forest-400 uppercase tracking-wider" data-i18n="settings_district">District</p>
+                <p id="profileLocation" class="text-sm font-bold text-forest-700 truncate mt-0.5">Nashik</p>
               </div>
             </div>
-
-            <div class="flex items-center gap-3 p-3.5 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
-              <i data-lucide="badge-check" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+            <div class="flex items-center gap-3 p-3.5 bg-offwhite-100 rounded-xl border border-offwhite-300">
+              <i data-lucide="badge-check" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-[#3f4941]" data-i18n="settings_account_status">Account Status</p>
-                <p id="profileStatus" class="text-base font-bold text-[#006038] truncate" data-i18n="settings_verified">Verified Farmer</p>
+                <p class="text-[10px] font-heading font-semibold text-forest-400 uppercase tracking-wider" data-i18n="settings_account_status">Account Status</p>
+                <p id="profileStatus" class="text-sm font-bold text-forest-500 truncate mt-0.5" data-i18n="settings_verified">Verified Farmer</p>
               </div>
             </div>
           </div>
@@ -199,29 +208,29 @@
       </div>
 
       <!-- Preferences Section -->
-      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
-        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_preferences">Preferences</h2>
+      <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl p-6 shadow-card">
+        <h2 class="font-heading text-base font-bold text-forest-700 mb-4" data-i18n="settings_preferences">Preferences</h2>
         <div class="space-y-3">
           
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-offwhite-100 rounded-xl border border-offwhite-300">
             <div class="flex items-center gap-3">
-              <i data-lucide="languages" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
-              <span class="font-medium text-[#1b1c1c]" data-i18n="settings_language">App Language</span>
+              <i data-lucide="languages" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
+              <span class="text-sm font-medium text-forest-700" data-i18n="settings_language">App Language</span>
             </div>
-            <select id="languageSelect" onchange="CropSathiPrefs.applyLanguage(this.value)" class="w-full sm:w-auto max-w-full border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
+            <select id="languageSelect" onchange="CropSathiPrefs.applyLanguage(this.value)" class="w-full sm:w-auto max-w-full border border-offwhite-300 rounded-xl px-3 py-1.5 text-xs font-heading bg-offwhite-50 text-forest-700 focus:outline-none focus:ring-2 focus:ring-forest-400">
               <option value="en">English</option>
-              <option value="hi">Hindi (हिंदी)</option>
-              <option value="mr">Marathi (मराठी)</option>
-              <option value="bn">Bengali (বাংলা)</option>
-              <option value="te">Telugu (తెలుగు)</option>
-              <option value="ta">Tamil (தமிழ்)</option>
-              <option value="gu">Gujarati (ગુજરાતી)</option>
-              <option value="kn">Kannada (ಕನ್ನಡ)</option>
-              <option value="ml">Malayalam (മലയാളം)</option>
-              <option value="or">Odia (ଓଡ଼ିଆ)</option>
-              <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
-              <option value="as">Assamese (অসমীয়া)</option>
-              <option value="ur">Urdu (اردو)</option>
+              <option value="hi">Hindi (à¤¹à¤¿à¤‚à¤¦à¥€)</option>
+              <option value="mr">Marathi (à¤®à¤°à¤¾à¤ à¥€)</option>
+              <option value="bn">Bengali (à¦¬à¦¾à¦‚à¦²à¦¾)</option>
+              <option value="te">Telugu (à°¤à±†à°²à±à°—à±)</option>
+              <option value="ta">Tamil (à®¤à®®à®¿à®´à¯)</option>
+              <option value="gu">Gujarati (àª—à«àªœàª°àª¾àª¤à«€)</option>
+              <option value="kn">Kannada (à²•à²¨à³à²¨à²¡)</option>
+              <option value="ml">Malayalam (à´®à´²à´¯à´¾à´³à´‚)</option>
+              <option value="or">Odia (à¬“à¬¡à¬¼à¬¿à¬†)</option>
+              <option value="pa">Punjabi (à¨ªà©°à¨œà¨¾à¨¬à©€)</option>
+              <option value="as">Assamese (à¦…à¦¸à¦®à§€à¦¯à¦¼à¦¾)</option>
+              <option value="ur">Urdu (Ø§Ø±Ø¯Ùˆ)</option>
             </select>
           </div>
 
@@ -235,9 +244,9 @@
               </div>
             </div>
             <select id="unitsSelect" onchange="CropSathiPrefs.setPrefs({units: this.value})" class="w-full sm:w-auto max-w-full border border-[#e4e2e1] rounded-lg px-3 py-1.5 text-sm bg-[#fbf9f8] text-[#1b1c1c] focus:outline-none focus:ring-2 focus:ring-[#006038]">
-              <option value="metric_ha">Hectare / Kg / °C</option>
-              <option value="imperial_ac">Acre / Quintal / °C</option>
-              <option value="indian_bg">Bigha / Guntha / °C</option>
+              <option value="metric_ha">Hectare / Kg / Â°C</option>
+              <option value="imperial_ac">Acre / Quintal / Â°C</option>
+              <option value="indian_bg">Bigha / Guntha / Â°C</option>
             </select>
           </div>
 
@@ -285,7 +294,7 @@
               <i data-lucide="navigation" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
               <div class="min-w-0">
                 <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_location">Location</span>
-                <span id="preferenceLocationDisplay" class="text-xs text-[#3f4941] break-words block">20.0059° N, 73.7898° E (Panchavati, Nashik - 422003)</span>
+                <span id="preferenceLocationDisplay" class="text-xs text-[#3f4941] break-words block">20.0059Â° N, 73.7898Â° E (Panchavati, Nashik - 422003)</span>
               </div>
             </div>
             <button onclick="updateGPS()" class="w-full sm:w-auto flex items-center justify-center gap-1 text-xs font-semibold text-[#006038] hover:underline bg-[#f0eded] px-3 py-1.5 rounded-lg border border-[#e4e2e1] flex-shrink-0">
@@ -317,68 +326,59 @@
               </div>
             </div>
             <button onclick="alert('Exporting field records to PDF/CSV...')" class="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold text-[#006038] hover:bg-[#f0eded] px-3 py-1.5 rounded-lg border border-[#e4e2e1] flex-shrink-0">
-              <i data-lucide="file-text" class="w-3.5 h-3.5"></i> <span data-i18n="settings_export_btn">Export Records</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Support & Feedback Section -->
-      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
-        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_support">Support & Feedback</h2>
+              <i data-lucide="file-text" class="w-3.5 h-3.5"></      <!-- Support & Feedback Section -->
+      <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl p-6 shadow-card">
+        <h2 class="font-heading text-base font-bold text-forest-700 mb-4" data-i18n="settings_support">Support &amp; Feedback</h2>
         <div class="space-y-3">
-          <!-- Voice-Guided Support / Helpline Access -->
-          <a href="tel:18001801551" class="w-full flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+          <a href="tel:18001801551" class="w-full flex items-center justify-between gap-3 p-4 bg-offwhite-100 rounded-xl border border-offwhite-300 hover:bg-offwhite-200 transition-colors text-left">
             <div class="flex items-center gap-3 min-w-0">
-              <i data-lucide="phone-call" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <i data-lucide="phone-call" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
               <div class="min-w-0">
-                <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_helpline">Voice-Guided Support / Helpline</span>
-                <span class="text-xs text-[#3f4941] break-words block" data-i18n="settings_helpline_desc">Call Kisan Extension Support (1800-180-1551)</span>
+                <span class="text-sm font-medium text-forest-700 block truncate" data-i18n="settings_helpline">Voice-Guided Support / Helpline</span>
+                <span class="text-xs text-forest-400 break-words block" data-i18n="settings_helpline_desc">Call Kisan Extension Support (1800-180-1551)</span>
               </div>
             </div>
-            <i data-lucide="external-link" class="w-4 h-4 text-[#3f4941] flex-shrink-0"></i>
+            <i data-lucide="external-link" class="w-4 h-4 text-forest-400 flex-shrink-0"></i>
           </a>
-
-          <!-- Report an Issue / Feedback -->
-          <button onclick="document.getElementById('feedback-modal').classList.remove('hidden')" class="w-full flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+          <button onclick="document.getElementById('feedback-modal').classList.remove('hidden')" class="w-full flex items-center justify-between gap-3 p-4 bg-offwhite-100 rounded-xl border border-offwhite-300 hover:bg-offwhite-200 transition-colors text-left">
             <div class="flex items-center gap-3 min-w-0">
-              <i data-lucide="message-square-plus" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
+              <i data-lucide="message-square-plus" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
               <div class="min-w-0">
-                <span class="font-medium text-[#1b1c1c] block truncate" data-i18n="settings_feedback">Report an Issue / Feedback</span>
-                <span class="text-xs text-[#3f4941] break-words block" data-i18n="settings_feedback_desc">Share suggestions or report bugs directly to our team</span>
+                <span class="text-sm font-medium text-forest-700 block truncate" data-i18n="settings_feedback">Report an Issue / Feedback</span>
+                <span class="text-xs text-forest-400 break-words block" data-i18n="settings_feedback_desc">Share suggestions or report bugs directly to our team</span>
               </div>
             </div>
-            <i data-lucide="chevron-right" class="w-4 h-4 text-[#3f4941] flex-shrink-0"></i>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-forest-400 flex-shrink-0"></i>
           </button>
         </div>
       </div>
 
       <!-- Security Section -->
-      <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl p-6 tactile-card">
-        <h2 class="text-lg font-bold text-[#1b1c1c] font-headline mb-4" data-i18n="settings_security">Security</h2>
+      <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl p-6 shadow-card">
+        <h2 class="font-heading text-base font-bold text-forest-700 mb-4" data-i18n="settings_security">Security</h2>
         <div class="space-y-3">
           <button onclick="document.getElementById('change-password-modal').classList.remove('hidden')"
-                  class="w-full flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1] hover:bg-[#f0eded] transition text-left">
+                  class="w-full flex items-center justify-between gap-3 p-4 bg-offwhite-100 rounded-xl border border-offwhite-300 hover:bg-offwhite-200 transition-colors text-left">
             <div class="flex items-center gap-3 min-w-0">
-              <i data-lucide="lock" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
-              <span class="font-medium text-[#1b1c1c] truncate" data-i18n="settings_change_pw">Change Password</span>
+              <i data-lucide="lock" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
+              <span class="text-sm font-medium text-forest-700 truncate" data-i18n="settings_change_pw">Change Password</span>
             </div>
-            <i data-lucide="chevron-right" class="w-4 h-4 text-[#3f4941] flex-shrink-0"></i>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-forest-400 flex-shrink-0"></i>
           </button>
 
-          <div class="flex items-center justify-between gap-3 p-4 bg-[#ffffff] rounded-lg border border-[#e4e2e1]">
+          <div class="flex items-center justify-between gap-3 p-4 bg-offwhite-100 rounded-xl border border-offwhite-300">
             <div class="flex items-center gap-3 min-w-0">
-              <i data-lucide="shield-check" class="w-5 h-5 text-[#006038] flex-shrink-0"></i>
-              <span class="font-medium text-[#1b1c1c] truncate" data-i18n="settings_2fa">Two-Factor Authentication</span>
+              <i data-lucide="shield-check" class="w-5 h-5 text-forest-500 flex-shrink-0"></i>
+              <span class="text-sm font-medium text-forest-700 truncate" data-i18n="settings_2fa">Two-Factor Authentication</span>
             </div>
             <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-[#e4e2e1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006038]"></div>
+              <div class="w-11 h-6 bg-offwhite-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-forest-500"></div>
             </label>
           </div>
 
-          <div class="mt-6">
-            <button onclick="localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href='login.html';" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#ba1a1a] text-[#ffffff] font-semibold rounded-xl transition hover:bg-[#93000a] shadow-sm">
+          <div class="mt-4">
+            <button onclick="if(typeof CropSathiSession!=='undefined') CropSathiSession.clearSession(); else { localStorage.removeItem('token'); localStorage.removeItem('user'); } window.location.href='login.html';" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-risk-600 text-offwhite-50 font-heading font-semibold rounded-xl transition-colors hover:bg-risk-700 shadow-card">
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span data-i18n="settings_logout">Log Out</span>
             </button>
@@ -386,7 +386,9 @@
         </div>
       </div>
     </section>
-  </main>
+    </main>
+  </div>
+
 
   <!-- Edit Profile Modal -->
   <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -542,82 +544,89 @@
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="config.js"></script>
   <script src="preferences.js"></script>
+  <script src="nav-profile.js"></script>
   <script>
     if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
     lucide.createIcons();
 
     // Fetch and sync user data from backend
     async function syncSettingsProfile() {
-      const token = localStorage.getItem('token');
+      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
       if (!token) return;
-      try {
-        const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) return;
 
-        const data = await response.json();
-        if (data.success && data.user) {
-          const { name, phoneNumber, farmDetails, profilePhoto } = data.user;
+      function renderProfile(user) {
+        if (!user) return;
+        const { name, phoneNumber, farmDetails, profilePhoto } = user;
 
-          // Cache profile photo for other pages
-          if (profilePhoto) {
-            localStorage.setItem('cropsathi_profile_photo', profilePhoto);
-          } else {
-            localStorage.removeItem('cropsathi_profile_photo');
-          }
-
-          // Update Name and initial
-          if (name) {
-            const nameElem = document.getElementById('profileFullName');
-            const avatarElem = document.getElementById('userAvatarInitial');
-            const modalAvatar = document.getElementById('modalAvatarInitial');
-            const modalInput = document.getElementById('modalInputName');
-            const navAvatar = document.getElementById('navAvatarInitial');
-
-            if (nameElem) nameElem.textContent = name;
-            if (avatarElem) avatarElem.textContent = name.trim().charAt(0).toUpperCase();
-            if (modalAvatar) modalAvatar.textContent = name.trim().charAt(0).toUpperCase();
-            if (modalInput) modalInput.value = name;
-            if (navAvatar) navAvatar.textContent = name.trim().charAt(0).toUpperCase();
-          }
-
-          // Update profile photos
-          applyProfilePhoto(profilePhoto);
-
-          // Update District
-          if (farmDetails && farmDetails.district) {
-            const locElem = document.getElementById('profileLocation');
-            if (locElem) locElem.textContent = farmDetails.district;
-          }
-
-          // Update Phone
-          if (phoneNumber) {
-            const phoneElem = document.getElementById('profilePhone');
-            const modalPhone = document.getElementById('modalInputPhone');
-            const formatted = phoneNumber.startsWith('+91') ? phoneNumber : '+91 ' + phoneNumber;
-            if (phoneElem) phoneElem.textContent = formatted;
-            if (modalPhone) modalPhone.value = formatted;
-          }
-
-          // Update precise location in preferences
-          if (farmDetails && farmDetails.latitude != null && farmDetails.longitude != null) {
-            const latDir = farmDetails.latitude >= 0 ? 'N' : 'S';
-            const lngDir = farmDetails.longitude >= 0 ? 'E' : 'W';
-            const lat = Math.abs(farmDetails.latitude).toFixed(4);
-            const lng = Math.abs(farmDetails.longitude).toFixed(4);
-            const parts = [];
-            if (farmDetails.village) parts.push(farmDetails.village);
-            if (farmDetails.district) parts.push(farmDetails.district);
-            if (farmDetails.state) parts.push(farmDetails.state);
-            if (farmDetails.country) parts.push(farmDetails.country);
-            const locationLabel = parts.length > 0 ? `(${parts.join(', ')})` : '';
-            const prefLoc = document.getElementById('preferenceLocationDisplay');
-            if (prefLoc) prefLoc.textContent = `${lat}\u00B0 ${latDir}, ${lng}\u00B0 ${lngDir} ${locationLabel}`;
-          }
+        if (profilePhoto) {
+          localStorage.setItem('cropsathi_profile_photo', profilePhoto);
+        } else {
+          localStorage.removeItem('cropsathi_profile_photo');
         }
-      } catch (error) {
-        console.error('Settings sync failed:', error);
+
+        if (name) {
+          const nameElem = document.getElementById('profileFullName');
+          const avatarElem = document.getElementById('userAvatarInitial');
+          const modalAvatar = document.getElementById('modalAvatarInitial');
+          const modalInput = document.getElementById('modalInputName');
+          const navAvatar = document.getElementById('navAvatarInitial');
+
+          if (nameElem) nameElem.textContent = name;
+          if (avatarElem) avatarElem.textContent = name.trim().charAt(0).toUpperCase();
+          if (modalAvatar) modalAvatar.textContent = name.trim().charAt(0).toUpperCase();
+          if (modalInput) modalInput.value = name;
+          if (navAvatar) navAvatar.textContent = name.trim().charAt(0).toUpperCase();
+        }
+
+        applyProfilePhoto(profilePhoto);
+
+        if (farmDetails && farmDetails.district) {
+          const locElem = document.getElementById('profileLocation');
+          if (locElem) locElem.textContent = farmDetails.district;
+        }
+
+        if (phoneNumber) {
+          const phoneElem = document.getElementById('profilePhone');
+          const modalPhone = document.getElementById('modalInputPhone');
+          const formatted = phoneNumber.startsWith('+91') ? phoneNumber : '+91 ' + phoneNumber;
+          if (phoneElem) phoneElem.textContent = formatted;
+          if (modalPhone) modalPhone.value = formatted;
+        }
+
+        if (farmDetails && farmDetails.latitude != null && farmDetails.longitude != null) {
+          const latDir = farmDetails.latitude >= 0 ? 'N' : 'S';
+          const lngDir = farmDetails.longitude >= 0 ? 'E' : 'W';
+          const lat = Math.abs(farmDetails.latitude).toFixed(4);
+          const lng = Math.abs(farmDetails.longitude).toFixed(4);
+          const parts = [];
+          if (farmDetails.village) parts.push(farmDetails.village);
+          if (farmDetails.district) parts.push(farmDetails.district);
+          if (farmDetails.state) parts.push(farmDetails.state);
+          if (farmDetails.country) parts.push(farmDetails.country);
+          const locationLabel = parts.length > 0 ? `(${parts.join(', ')})` : '';
+          const prefLoc = document.getElementById('preferenceLocationDisplay');
+          if (prefLoc) prefLoc.textContent = `${lat}\u00B0 ${latDir}, ${lng}\u00B0 ${lngDir} ${locationLabel}`;
+        }
+      }
+
+      try {
+        if (typeof CropSathiCache !== 'undefined') {
+          await CropSathiCache.fetchSWR(`${CropSathiPrefs.api}/api/user/profile`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }, {
+            ttl: 300000,
+            onCached: (data) => { if (data?.success) renderProfile(data.user); },
+            onFresh: (data) => { if (data?.success) renderProfile(data.user); }
+          });
+        } else {
+          const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          if (data.success && data.user) renderProfile(data.user);
+        }
+      } catch (e) {
+        console.warn('syncSettingsProfile:', e);
       }
     }
 
@@ -892,7 +901,7 @@
 
     document.addEventListener('DOMContentLoaded', syncSettingsProfile);
 
-    // ── Notification Preferences ──
+    // â”€â”€ Notification Preferences â”€â”€
     async function loadNotificationPrefs() {
       const token = localStorage.getItem('token');
       if (!token) return;
@@ -946,28 +955,32 @@
 
   <script src="ui.js"></script>
 
-  <!-- Bottom navigation (mobile only) -->
-  <nav class="cs-tabbar md:hidden" aria-label="Primary">
-    <a class="cs-tab" href="dashboard.html">
-      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
-    </a>
-    <a class="cs-tab" href="my-fields.html">
-      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
-    </a>
-    <a class="cs-tab" href="diagnose.html">
-      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
-    </a>
-    <a class="cs-tab" href="advisory.html">
-      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
-    </a>
-    <a class="cs-tab is-active" href="settings.html" aria-current="page">
-      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
-    </a>
+  <!-- Mobile Bottom Tab Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 border-t border-offwhite-300 bg-offwhite-50/95 backdrop-blur-md lg:hidden cs-tabbar" aria-label="Primary Mobile Navigation">
+    <div class="flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="dashboard.html">
+        <div class="p-1 text-forest-400"><i data-lucide="layout-dashboard" class="w-5 h-5"></i></div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_dashboard">Dashboard</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="my-fields.html">
+        <div class="p-1 text-forest-400"><i data-lucide="map" class="w-5 h-5"></i></div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_my_fields">Fields</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 -mt-4 cs-tab" href="diagnose.html" aria-label="Scan Crop">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-terracotta-400 text-offwhite-50 shadow-elevated transition-transform active:scale-95">
+          <i data-lucide="camera" class="w-6 h-6"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-terracotta-500">Scan</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="advisory.html">
+        <div class="p-1 text-forest-400"><i data-lucide="lightbulb" class="w-5 h-5"></i></div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_advisory">Advisory</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab is-active" href="settings.html" aria-current="page">
+        <div class="p-1 text-forest-500"><i data-lucide="settings" class="w-5 h-5"></i></div>
+        <span class="text-[10px] font-semibold text-forest-500" data-i18n="nav_settings">Settings</span>
+      </a>
+    </div>
   </nav>
 </body>
 </html>
