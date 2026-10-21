@@ -3,322 +3,403 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CropSathi - Field Analytics</title>
+  <title>CropSathi — Field Analytics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="app.css">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="tailwind-config.js"></script>
   <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="ui.css">
+
   <style>
-    body { font-family: 'Noto Sans', sans-serif; background: #fbf9f8; color: #1b1c1c; }
-    h1, h2, h3, h4, .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
-    .tactile-card { box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05); }
-    .leaflet-control-zoom a { background-color: #006038 !important; color: white !important; border-radius: 8px !important; }
-    .leaflet-control-zoom a:hover { background-color: #1a7a4c !important; }
     .heatmap-cell { transition: opacity 0.3s; }
     .heatmap-cell:hover { opacity: 0.9 !important; stroke: #fff; stroke-width: 2; }
-    .info-card { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-    .layer-btn { transition: all 0.2s; position: relative; }
-    .layer-btn.active { background: #006038; color: white; border-color: #006038; }
-    .layer-btn:not(.active) { background: white; color: #6f7a71; border-color: #e4e2e1; }
-    .legend-gradient { height: 14px; border-radius: 7px; }
+    .legend-gradient { height: 12px; border-radius: 6px; }
     .viridis .legend-gradient { background: linear-gradient(to right, #440154, #31688e, #35b779, #fde725); }
     .rdylgn .legend-gradient { background: linear-gradient(to right, #d32f2f, #f57c00, #fbc02d, #7cb342, #2e7d32); }
     .thermal .legend-gradient { background: linear-gradient(to right, #1565c0, #42a5f5, #a5d6a7, #fff176, #ffb74d, #ef5350); }
-    .loading-overlay { background: rgba(251, 249, 248, 0.85); }
+    .loading-overlay { background: rgba(250, 249, 246, 0.85); backdrop-filter: blur(4px); }
     .layer-fetch-dot {
       display: none; position: absolute; top: 6px; right: 6px;
-      width: 7px; height: 7px; border-radius: 50%; background: #f57c00;
+      width: 7px; height: 7px; border-radius: 50%; background: #C1502E;
       animation: pulse-dot 1s ease-in-out infinite;
     }
     .layer-btn.active .layer-fetch-dot { background: #fff; }
     @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
     .layer-nodata-badge {
       display: none; position: absolute; top: 4px; right: 4px;
-      font-size: 9px; font-weight: 700; background: #f0eded; color: #6f7a71;
+      font-size: 9px; font-weight: 700; background: #F4F2EC; color: #3F8259;
       border-radius: 4px; padding: 1px 4px; line-height: 1.4;
     }
-    .dark body, .dark { background-color: #0f1712; color: #e4e2e1; }
-    .dark .info-card { background: rgba(26, 38, 29, 0.95); border-color: #2a3a2d; }
-    @media (max-width: 767px) {
-      .mobile-sidebar { transform: translateX(-100%); transition: transform 0.3s; }
-      .mobile-sidebar.open { transform: translateX(0); }
+    .leaflet-control-zoom a {
+      background-color: #1B4332 !important;
+      color: white !important;
+      border-radius: 8px !important;
+    }
+    .leaflet-control-zoom a:hover {
+      background-color: #163A2B !important;
     }
   </style>
   <script src="session.js"></script>
   <script>CropSathiSession.requireAuth();</script>
 </head>
-<body class="bg-[#fbf9f8] min-h-screen flex has-tabbar">
+<body class="bg-offwhite-100 font-body text-forest-700 min-h-screen flex has-tabbar">
 
-  <!-- Sidebar Navigation -->
-  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+  <!-- Desktop Sidebar matching Bolt Sidebar.tsx -->
+  <aside class="hidden w-64 flex-shrink-0 border-r border-offwhite-300 bg-offwhite-50 lg:flex lg:flex-col fixed left-0 top-0 bottom-0 overflow-y-auto z-30 justify-between">
     <div>
-      <div class="flex items-center gap-3 mb-10">
-        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-white font-bold shadow-md">
-          <i data-lucide="sprout" class="w-6 h-6"></i>
+      <div class="flex items-center gap-3 px-6 py-6">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+          <i data-lucide="sprout" class="w-5 h-5 text-offwhite-50"></i>
         </div>
-        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+        <div>
+          <h1 class="font-heading text-lg font-bold text-forest-700 leading-tight">CropSathi</h1>
+          <p class="text-xs text-forest-400">Crop Health Monitor</p>
+        </div>
       </div>
-      <nav class="space-y-2">
-        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="layout-grid" class="w-5 h-5"></i>
-          <span data-i18n="nav_dashboard">Dashboard</span>
-        </a>
-        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-white rounded-xl font-medium transition shadow-md">
-          <i data-lucide="map-pin" class="w-5 h-5"></i>
-          <span data-i18n="nav_my_fields">My Fields</span>
-        </a>
-        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="camera" class="w-5 h-5"></i>
-          <span data-i18n="nav_diagnose">Diagnose</span>
-        </a>
-        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="lightbulb" class="w-5 h-5"></i>
-          <span data-i18n="nav_advisory">Advisory</span>
-        </a>
+
+      <nav class="flex-1 px-3 py-2">
+        <p class="px-3 pb-2 font-heading text-xs font-semibold uppercase tracking-wider text-forest-300">
+          Menu
+        </p>
+        <ul class="space-y-1">
+          <li>
+            <a href="dashboard.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="layout-dashboard" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_dashboard">Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a href="my-fields.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="map" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_my_fields">My Fields</span>
+            </a>
+          </li>
+          <li>
+            <a href="diagnose.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="camera" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_diagnose">Diagnose</span>
+            </a>
+          </li>
+          <li>
+            <a href="advisory.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="lightbulb" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_advisory">Advisory</span>
+            </a>
+          </li>
+          <li>
+            <a href="analytics.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold bg-forest-500 text-offwhite-50 shadow-card">
+              <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+              <span>Analytics</span>
+            </a>
+          </li>
+          <li>
+            <a href="settings.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="settings" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_settings">Settings</span>
+            </a>
+          </li>
+        </ul>
       </nav>
     </div>
-    <div class="pt-6 border-t border-[#e4e2e1]">
-      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-        <i data-lucide="settings" class="w-5 h-5"></i>
-        <span data-i18n="nav_settings">Settings</span>
-      </a>
+
+    <div class="px-3 py-4">
+      <div class="rounded-2xl border border-offwhite-300 bg-offwhite-200/50 p-4">
+        <div class="flex items-center gap-2">
+          <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
+          <span class="font-heading text-xs font-semibold text-forest-600">Need Help?</span>
+        </div>
+        <p class="mt-2 text-xs text-forest-400 leading-relaxed">
+          Contact your Gram Sevak or call the Kisan helpline at 1800-180-1551.
+        </p>
+        <a href="settings.html" class="mt-3 block w-full text-center rounded-lg bg-forest-500 py-2 font-heading text-xs font-semibold text-offwhite-50 transition-colors hover:bg-forest-600">
+          Get Support
+        </a>
+      </div>
     </div>
   </aside>
 
-  <!-- Main Content Area -->
-  <main class="flex-1 w-full overflow-x-hidden p-4 pb-24 md:p-8 md:pb-10 md:ml-64 overflow-y-auto">
-
-    <!-- Top Header -->
-    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6">
-      <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi">
-        <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
-        <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
-      </a>
-      <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
-        <h1 class="text-xl md:text-2xl font-bold text-[#1b1c1c]" data-i18n="an_title">Field Analytics</h1>
-        <p class="text-[#6f7a71] text-sm flex items-center gap-1.5 mt-1">
-          <a href="dashboard.html" class="hover:text-[#006038] transition">Dashboard</a>
-          <span class="text-[#b0b0b0]">&rsaquo;</span>
-          <span class="text-[#3f4941]">Field Analytics</span>
-        </p>
-      </div>
-      <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
-        <button type="button" class="cs-app-action cs-search-trigger md:hidden w-11 h-11" aria-label="Search" aria-expanded="false">
-          <i data-lucide="search"></i>
-        </button>
-        <div class="relative hidden md:block">
-          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
-          <input type="text" placeholder="Search crops, tasks..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-56 text-[#1b1c1c]">
+  <!-- Main Content Wrapper -->
+  <div class="flex min-w-0 flex-1 flex-col lg:ml-64">
+    
+    <!-- TopBar Header -->
+    <header class="sticky top-0 z-30 flex items-center justify-between border-b border-offwhite-300 bg-offwhite-100/90 px-4 py-3 backdrop-blur-md lg:px-8">
+      <a href="dashboard.html" class="flex items-center gap-2 lg:hidden" aria-label="CropSathi">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+          <i data-lucide="sprout" class="w-5 h-5"></i>
         </div>
-        <a href="notifications.html" class="cs-app-action w-11 h-11" aria-label="Notifications">
-          <i data-lucide="bell"></i>
-          <span class="cs-dot"></span>
+        <span class="font-heading font-bold text-base text-forest-700">CropSathi</span>
+      </a>
+
+      <!-- Field Selector in TopBar (Bolt TopBar.tsx style) -->
+      <div class="relative flex-1 max-w-xs sm:max-w-sm ml-2 sm:ml-0">
+        <div class="flex items-center gap-2.5 rounded-xl border border-offwhite-300 bg-offwhite-50 px-3 py-1.5 shadow-card hover:border-forest-200 transition-colors cursor-pointer">
+          <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-forest-50 text-forest-500">
+            <i data-lucide="sprout" class="w-4 h-4"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <select id="farmSelector" class="w-full appearance-none bg-transparent font-heading text-xs font-semibold text-forest-700 outline-none cursor-pointer pr-6">
+              <option value="">Loading fields...</option>
+            </select>
+          </div>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-forest-400 pointer-events-none absolute right-3"></i>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-2 lg:gap-3 ml-auto">
+        <a href="notifications.html" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-offwhite-300 bg-offwhite-50 text-forest-500 transition-colors hover:border-forest-200 shadow-card" aria-label="Notifications">
+          <i data-lucide="bell" class="w-4.5 h-4.5"></i>
+          <span class="cs-dot absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-terracotta-400"></span>
         </a>
-        <div class="user-menu">
-          <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
-            <span id="navProfilePhoto" class="w-10 h-10 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
-              <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
-            </span>
-            <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
+
+        <!-- User Menu -->
+        <div class="user-menu relative">
+          <button type="button" class="user-menu-trigger flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 p-1.5 pr-2 transition-colors hover:border-forest-200 lg:pr-3 shadow-card" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+            <div id="navProfilePhoto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden">
+              <span id="navAvatarInitial">F</span>
+            </div>
+            <div class="hidden text-left lg:block">
+              <p class="font-heading text-xs font-semibold text-forest-700 truncate max-w-[100px]" id="userMenuNameTop">Farmer</p>
+              <p class="text-[10px] text-forest-400">Grower</p>
+            </div>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-forest-400 hidden lg:block user-menu-caret"></i>
           </button>
-          <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
-            <div class="user-menu-head">
-              <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
-              <span class="user-menu-head-meta">
-                <span class="user-menu-head-name" id="userMenuName">Farmer</span>
-                <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
+          
+          <div class="user-menu-panel cs-dropdown-panel" role="menu" aria-label="Account menu" aria-hidden="true">
+            <div class="user-menu-head flex items-center gap-3 rounded-xl bg-offwhite-200 p-3 mb-2">
+              <span class="user-menu-head-photo flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden" id="userMenuPhoto" aria-hidden="true">F</span>
+              <span class="user-menu-head-meta min-w-0">
+                <span class="user-menu-head-name font-heading text-sm font-semibold text-forest-700 block truncate" id="userMenuName">Farmer</span>
+                <span class="user-menu-head-sub text-xs text-forest-400 block truncate" id="userMenuSub">Signed in</span>
               </span>
             </div>
-            <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
-            <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
-            <span class="user-menu-sep" role="separator"></span>
-            <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+            <a class="user-menu-item flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-medium text-forest-600 hover:bg-offwhite-200 transition-colors" role="menuitem" href="settings.html">
+              <i data-lucide="settings" class="w-4 h-4 text-forest-400"></i>
+              <span class="um-item-label" data-i18n="nav_settings">Settings</span>
+            </a>
+            <button type="button" class="user-menu-item flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-medium text-forest-600 hover:bg-offwhite-200 transition-colors" role="menuitem" data-menu-theme>
+              <i data-lucide="moon" data-theme-icon class="w-4 h-4 text-forest-400"></i>
+              <span class="um-item-label" data-theme-label>Dark mode</span>
+            </button>
+            <div class="my-1 border-t border-offwhite-200"></div>
+            <button type="button" class="user-menu-item is-danger flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-semibold text-terracotta-500 hover:bg-terracotta-50 transition-colors" role="menuitem" data-menu-logout>
+              <i data-lucide="log-out" class="w-4 h-4 text-terracotta-500"></i>
+              <span class="um-item-label">Sign out</span>
+            </button>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Mobile search row -->
-    <div class="cs-searchrow md:hidden">
-      <i data-lucide="search" aria-hidden="true"></i>
-      <input type="search" placeholder="Search crops, tasks..." aria-label="Search">
-      <button type="button" class="cs-searchrow-close" data-search-close aria-label="Close search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
+    <!-- Main Content Area -->
+    <main class="flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-10 max-w-7xl">
 
-    <!-- Field Selector -->
-    <div class="mb-4">
-      <div class="relative inline-block w-full sm:w-auto">
-        <div class="flex items-center gap-2 bg-white border border-[#e4e2e1] rounded-xl px-4 py-3 cursor-pointer" onclick="document.getElementById('farmSelector').focus();">
-          <i data-lucide="sprout" class="w-5 h-5 text-[#006038]"></i>
-          <select id="farmSelector" class="appearance-none bg-transparent text-[#1b1c1c] font-semibold text-base focus:outline-none cursor-pointer pr-8 w-full">
-            <option value="">Loading fields...</option>
-          </select>
-          <i data-lucide="chevron-down" class="w-4 h-4 text-[#6f7a71] absolute right-3 pointer-events-none"></i>
+      <!-- Page Header -->
+      <div class="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 class="font-heading text-xl font-bold text-forest-700 lg:text-2xl" data-i18n="an_title">
+            Field Satellite Analytics
+          </h1>
+          <p class="text-xs text-forest-400 mt-0.5">
+            10-meter resolution multispectral raster overlays and crop stress insights
+          </p>
+        </div>
+
+        <!-- Layer Selector Tabs (Bolt Segmented Control) -->
+        <div class="flex items-center gap-2 bg-offwhite-50 border border-offwhite-300 p-1.5 rounded-2xl shadow-card">
+          <button id="btnNdvi" class="layer-btn active relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-heading text-xs font-semibold bg-forest-500 text-offwhite-50 shadow-card transition-colors" onclick="switchLayer('ndvi')">
+            <i data-lucide="leaf" class="w-3.5 h-3.5"></i>
+            <span>NDVI</span>
+            <span class="layer-fetch-dot" id="dotNdvi"></span>
+            <span class="layer-nodata-badge" id="emptyNdvi">No data</span>
+          </button>
+          <button id="btnNdre" class="layer-btn relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-heading text-xs font-semibold text-forest-600 hover:bg-offwhite-200 transition-colors" onclick="switchLayer('ndre')">
+            <i data-lucide="trees" class="w-3.5 h-3.5 text-forest-400"></i>
+            <span>NDRE</span>
+            <span class="layer-fetch-dot" id="dotNdre"></span>
+            <span class="layer-nodata-badge" id="emptyNdre">No data</span>
+          </button>
+          <button id="btnThermal" class="layer-btn relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-heading text-xs font-semibold text-forest-600 hover:bg-offwhite-200 transition-colors" onclick="switchLayer('thermal')">
+            <i data-lucide="thermometer" class="w-3.5 h-3.5 text-forest-400"></i>
+            <span>Thermal</span>
+            <span class="layer-fetch-dot" id="dotThermal"></span>
+            <span class="layer-nodata-badge" id="emptyThermal">No data</span>
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Layer Tabs -->
-    <div class="flex gap-3 mb-4">
-      <button id="btnNdvi" class="layer-btn active flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('ndvi')">
-        <i data-lucide="leaf" class="w-5 h-5"></i>
-        <span>NDVI</span>
-        <span class="layer-fetch-dot" id="dotNdvi"></span>
-        <span class="layer-nodata-badge" id="emptyNdvi">No data</span>
-      </button>
-      <button id="btnNdre" class="layer-btn flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('ndre')">
-        <i data-lucide="trees" class="w-5 h-5"></i>
-        <span>NDRE</span>
-        <span class="layer-fetch-dot" id="dotNdre"></span>
-        <span class="layer-nodata-badge" id="emptyNdre">No data</span>
-      </button>
-      <button id="btnThermal" class="layer-btn flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('thermal')">
-        <i data-lucide="thermometer" class="w-5 h-5"></i>
-        <span>Thermal</span>
-        <span class="layer-fetch-dot" id="dotThermal"></span>
-        <span class="layer-nodata-badge" id="emptyThermal">No data</span>
-      </button>
-    </div>
+      <!-- Two Column Layout: Map (2/3) + Insights (1/3) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-    <!-- Two Column Layout: Map + Insights -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- Map Column (8/12) -->
+        <div class="lg:col-span-8">
+          <div class="bg-offwhite-50 rounded-2xl border border-offwhite-300 overflow-hidden shadow-card">
+            <div id="map" class="relative w-full" style="height: 54vh; min-height: 420px;">
+              <div id="loadingOverlay" class="loading-overlay absolute inset-0 z-[1000] flex flex-col items-center justify-center">
+                <div class="animate-spin rounded-full h-9 w-9 border-3 border-forest-500 border-t-transparent mb-3" style="border-width: 3px;"></div>
+                <p class="text-xs font-heading font-semibold text-forest-600" data-i18n="an_loading">Loading multispectral raster...</p>
+              </div>
+            </div>
 
-      <!-- Map Column -->
-      <div class="lg:col-span-8">
-        <div class="bg-white rounded-2xl border border-[#e4e2e1] overflow-hidden tactile-card">
-          <div id="map" class="relative w-full max-w-full" style="height: 52vh; min-height: 380px;">
-            <div id="loadingOverlay" class="loading-overlay absolute inset-0 z-[1000] flex flex-col items-center justify-center">
-              <div class="animate-spin rounded-full h-10 w-10 border-4 border-[#006038] border-t-transparent mb-3"></div>
-              <p class="text-[#6f7a71] text-sm" data-i18n="an_loading">Analysing satellite data...</p>
+            <!-- Legend Bar -->
+            <div class="px-5 py-3.5 border-t border-offwhite-300 bg-offwhite-50" id="legendContainer">
+              <div class="rdylgn" id="legendBox">
+                <div class="flex justify-between items-center mb-1.5">
+                  <span class="font-heading text-xs font-bold text-forest-700 uppercase tracking-wide" id="legendTitle">NDVI Scale</span>
+                  <button id="colorBlindToggle" class="text-[10px] text-forest-600 font-semibold bg-offwhite-200 px-2.5 py-0.5 rounded-full hover:bg-offwhite-300 transition-colors" onclick="toggleColorBlind()">
+                    Standard
+                  </button>
+                </div>
+                <div class="legend-gradient w-full"></div>
+                <div class="flex justify-between mt-1 text-[10px] font-medium text-forest-400">
+                  <span id="legendMin">0.0</span>
+                  <span>0.5</span>
+                  <span id="legendMax">1.0</span>
+                </div>
+              </div>
             </div>
           </div>
-          <!-- Legend Bar -->
-          <div class="px-5 py-4 border-t border-[#e4e2e1]" id="legendContainer">
-            <div class="rdylgn" id="legendBox">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-sm font-bold text-[#1b1c1c] uppercase tracking-wide" id="legendTitle">NDVI Scale</span>
-                <button id="colorBlindToggle" class="text-xs text-[#6f7a71] font-medium bg-[#f0eded] px-3 py-1 rounded-full hover:bg-[#e4e2e1] transition" onclick="toggleColorBlind()">
-                  Standard
+        </div>
+
+        <!-- Field Insights Panel (4/12) matching Bolt MetricCard aesthetics -->
+        <div class="lg:col-span-4 space-y-4">
+          <div class="bg-offwhite-50 rounded-2xl border border-offwhite-300 p-5 shadow-card">
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-offwhite-200">
+              <h3 class="font-heading text-sm font-bold text-forest-700">Field Insights</h3>
+              <span class="text-[10px] font-semibold text-risk-green bg-forest-50 px-2 py-0.5 rounded-full">Telemetry Live</span>
+            </div>
+
+            <!-- Average Index Metric -->
+            <div class="rounded-xl border border-offwhite-300 bg-offwhite-50 p-4 mb-3 shadow-sm">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-xs font-semibold text-forest-400 uppercase tracking-wide">Mean Canopy Index</p>
+                  <p id="statAvg" class="font-serif font-bold text-3xl text-forest-700 mt-1">--</p>
+                </div>
+                <div class="w-9 h-9 rounded-xl bg-forest-50 flex items-center justify-center text-forest-500 shadow-sm">
+                  <i data-lucide="bar-chart-2" class="w-4.5 h-4.5"></i>
+                </div>
+              </div>
+              <p class="mt-2 text-[11px] text-forest-400 border-t border-offwhite-200 pt-2">Spatial average across all pixels inside boundary</p>
+            </div>
+
+            <!-- Anomaly Stress Metric -->
+            <div class="rounded-xl border border-offwhite-300 bg-offwhite-50 p-4 mb-3 shadow-sm">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-xs font-semibold text-forest-400 uppercase tracking-wide">Anomaly Variance</p>
+                  <p id="statAnomaly" class="font-serif font-bold text-3xl text-terracotta-400 mt-1">--</p>
+                </div>
+                <div class="w-9 h-9 rounded-xl bg-terracotta-50 flex items-center justify-center text-terracotta-400 shadow-sm">
+                  <i data-lucide="alert-triangle" class="w-4.5 h-4.5"></i>
+                </div>
+              </div>
+              <p class="mt-2 text-[11px] text-forest-400 border-t border-offwhite-200 pt-2">Deviation from normal baseline vigor</p>
+            </div>
+
+            <!-- Data Source & Observed -->
+            <div class="grid grid-cols-2 gap-2.5 mb-4">
+              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Source</p>
+                <p id="statSource" class="font-heading font-semibold text-xs text-forest-700 mt-1 truncate">--</p>
+              </div>
+              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Observed</p>
+                <p id="statObserved" class="font-heading font-semibold text-xs text-forest-700 mt-1 truncate">--</p>
+              </div>
+            </div>
+
+            <!-- Force Re-analyse Button -->
+            <button id="pollBtn" onclick="forceReanalyse()" class="w-full bg-forest-500 text-offwhite-50 py-2.5 px-4 rounded-xl font-heading font-semibold text-xs hover:bg-forest-600 transition-colors shadow-card flex items-center justify-center gap-2">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Force Re-analyse</span>
+            </button>
+          </div>
+
+          <!-- Tap to Inspect Floating Info Card -->
+          <div id="infoCard" class="hidden">
+            <div class="bg-offwhite-50 rounded-2xl p-4 border border-offwhite-300 shadow-elevated">
+              <div class="flex items-start gap-3">
+                <div id="infoIcon" class="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background: #3F8259;">
+                  <i data-lucide="check" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h4 id="infoLabel" class="font-heading font-semibold text-sm text-forest-700">Canopy Pixel</h4>
+                  <div class="flex items-baseline gap-1.5 mt-0.5">
+                    <span id="infoValue" class="font-serif text-2xl font-bold text-forest-700">0.78</span>
+                    <span id="infoUnit" class="text-xs text-forest-400 font-medium">NDVI</span>
+                  </div>
+                  <div id="infoDelta" class="flex items-center gap-1 mt-1 text-xs hidden">
+                    <span class="text-risk-green"><i data-lucide="arrow-up" class="w-3 h-3 inline-block"></i> 0.04</span>
+                    <span class="text-forest-400">vs last reading</span>
+                  </div>
+                </div>
+                <button onclick="closeInfoCard()" class="text-forest-400 hover:text-forest-700 p-1">
+                  <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
               </div>
-              <div class="legend-gradient w-full"></div>
-              <div class="flex justify-between mt-1.5">
-                <span class="text-xs text-[#6f7a71] font-medium" id="legendMin">0.0</span>
-                <span class="text-xs text-[#6f7a71] font-medium">0.5</span>
-                <span class="text-xs text-[#6f7a71] font-medium" id="legendMax">1.0</span>
-              </div>
             </div>
           </div>
         </div>
+
       </div>
+    </main>
+  </div>
 
-      <!-- Field Insights Panel -->
-      <div class="lg:col-span-4">
-        <div class="bg-white rounded-2xl border border-[#e4e2e1] p-5 tactile-card">
-          <h3 class="text-xs font-bold text-[#6f7a71] uppercase tracking-widest mb-4">Field Insights</h3>
-
-          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4 mb-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-[#e8f5e9] flex items-center justify-center">
-                <i data-lucide="bar-chart-2" class="w-5 h-5 text-[#006038]"></i>
-              </div>
-              <div>
-                <p class="text-xs text-[#6f7a71] font-medium">Average</p>
-                <p id="statAvg" class="font-headline font-bold text-xl text-[#1b1c1c]">--</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4 mb-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-[#fff3e0] flex items-center justify-center">
-                <i data-lucide="alert-triangle" class="w-5 h-5 text-[#f57c00]"></i>
-              </div>
-              <div>
-                <p class="text-xs text-[#6f7a71] font-medium">Anomaly</p>
-                <p id="statAnomaly" class="font-headline font-bold text-xl text-[#1b1c1c]">--</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4 mb-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-[#e3f2fd] flex items-center justify-center">
-                <i data-lucide="link" class="w-5 h-5 text-[#1565c0]"></i>
-              </div>
-              <div>
-                <p class="text-xs text-[#6f7a71] font-medium">Source</p>
-                <p id="statSource" class="font-headline font-bold text-lg text-[#1b1c1c]">--</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-[#f3e5f5] flex items-center justify-center">
-                <i data-lucide="calendar" class="w-5 h-5 text-[#7b1fa2]"></i>
-              </div>
-              <div>
-                <p class="text-xs text-[#6f7a71] font-medium">Observed</p>
-                <p id="statObserved" class="font-headline font-bold text-base text-[#1b1c1c]">--</p>
-              </div>
-            </div>
-          </div>
-
-          <button id="pollBtn" onclick="forceReanalyse()" class="w-full mt-4 bg-[#006038] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#004d2b] transition-colors flex items-center justify-center gap-2">
-            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-            <span>Force Re-analyse</span>
-          </button>
+  <!-- Mobile Bottom Tab Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 border-t border-offwhite-300 bg-offwhite-50/95 backdrop-blur-md lg:hidden cs-tabbar" aria-label="Primary Mobile Navigation">
+    <div class="flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="dashboard.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
         </div>
-      </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_dashboard">Dashboard</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="my-fields.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="map" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_my_fields">Fields</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 -mt-4 cs-tab" href="diagnose.html" aria-label="Scan Crop">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-terracotta-400 text-offwhite-50 shadow-elevated transition-transform active:scale-95">
+          <i data-lucide="camera" class="w-6 h-6"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-terracotta-500">Scan</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="advisory.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="lightbulb" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_advisory">Advisory</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="settings.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_settings">Settings</span>
+      </a>
     </div>
-
-    <!-- Info Card (tap-to-inspect) -->
-    <div id="infoCard" class="hidden mt-4">
-      <div class="info-card bg-white/95 rounded-2xl p-4 border border-[#e4e2e1] shadow-lg">
-        <div class="flex items-start gap-3">
-          <div id="infoIcon" class="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background: #7CB342;"><i data-lucide="circle-check" class="w-5 h-5" aria-hidden="true"></i></div>
-          <div class="flex-1 min-w-0">
-            <h3 id="infoLabel" class="font-headline font-bold text-[#1b1c1c] text-base">Healthy Canopy</h3>
-            <div class="flex items-baseline gap-2 mt-1">
-              <span id="infoValue" class="text-xl md:text-2xl font-bold text-[#006038]">0.78</span>
-              <span id="infoUnit" class="text-sm text-[#6f7a71]">NDVI</span>
-            </div>
-            <div id="infoDelta" class="flex items-center gap-1 mt-1 text-sm hidden">
-              <span class="text-[#006038]"><i data-lucide="arrow-up" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i> 0.04</span>
-              <span class="text-[#6f7a71]">vs last reading</span>
-            </div>
-          </div>
-          <button onclick="closeInfoCard()" class="text-[#6f7a71] hover:text-[#1b1c1c] p-1">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-      </div>
-    </div>
-
-  </main>
+  </nav>
 
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="config.js"></script>
   <script src="preferences.js"></script>
   <script src="nav-profile.js"></script>
+  
   <script>
-    // ── State ────────────────────────────────────────────────────────────
     let map = null, currentFarmId = null, currentLayer = 'ndvi';
     let colorBlindMode = false, heatmapLayer = null, boundaryLayer = null;
 
-    // Per-layer cache: { [farmId]: { ndvi: undefined|null|obj, ndre: ..., thermal: ... } }
-    // undefined = not fetched; null = fetched, no data; object = has grid
     const layerCache = {};
     const layerFetching = { ndvi: false, ndre: false, thermal: false };
 
-    // ── Palettes ─────────────────────────────────────────────────────────
     const PALETTES = {
       ndvi: { stops: [[-0.1,'#1565C0'],[0.1,'#D32F2F'],[0.2,'#E64A19'],[0.3,'#F57C00'],[0.4,'#FBC02D'],[0.5,'#C0CA33'],[0.6,'#7CB342'],[0.7,'#43A047'],[0.8,'#2E7D32'],[1.0,'#1B5E20']], unit:'NDVI', min:-0.1, max:1.0, endpoint:'ndvi-grid' },
       ndre: { stops: [[-0.1,'#1565C0'],[0.1,'#8D6E63'],[0.2,'#A1887F'],[0.3,'#FDD835'],[0.4,'#C0CA33'],[0.5,'#8BC34A'],[0.6,'#558B2F'],[0.7,'#1B5E20'],[1.0,'#0D3311']], unit:'NDRE', min:-0.1, max:1.0, endpoint:'ndre-grid' },
@@ -328,10 +409,9 @@
       thermalViridis: { stops: [[10,'#440154'],[20,'#31688e'],[30,'#b5de2b'],[50,'#fde725']], unit:'°C', min:10, max:50 },
     };
 
-    // ── Init ─────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', async () => {
       CropSathiPrefs.applyLanguage();
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
       initMap();
       await loadFarms();
     });
@@ -341,11 +421,10 @@
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
     }
 
-    // ── Farm loading ──────────────────────────────────────────────────────
     async function loadFarms() {
       try {
         const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
-        const sel  = document.getElementById('farmSelector');
+        const sel = document.getElementById('farmSelector');
 
         sel.onchange = async e => {
           if (e.target.value) {
@@ -365,7 +444,6 @@
           const farms = data.data;
           sel.innerHTML = '<option value="">Select a field...</option>' + farms.map(f => '<option value="' + f._id + '">' + (f.name || f.cropType || 'Unnamed Field') + '</option>').join('');
 
-          // Determine target field: URL param > Session active farm > First farm
           const activeId = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getActiveFarm() : null;
           const matched = activeId && farms.find(f => f._id === activeId);
           const targetFarm = matched ? matched : (farms.length > 0 ? farms[0] : null);
@@ -392,30 +470,26 @@
             }
           );
         } else {
-          const res  = await fetch(CropSathiPrefs.api + '/api/fields', { headers: { Authorization: 'Bearer ' + token } });
+          const res = await fetch(CropSathiPrefs.api + '/api/fields', { headers: { Authorization: 'Bearer ' + token } });
           const data = await res.json();
           await populateFarms(data);
         }
       } catch (err) { console.error('loadFarms:', err); showLoading(false); }
     }
 
-    // ── Select farm ───────────────────────────────────────────────────────
     async function selectFarm(farmId) {
       if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm(farmId);
       if (!layerCache[farmId]) layerCache[farmId] = { ndvi: undefined, ndre: undefined, thermal: undefined };
-      // Draw boundary first
       try {
         const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
         const r = await fetch(CropSathiPrefs.api + '/api/fields/' + farmId, { headers: { Authorization: 'Bearer ' + token } });
         const d = await r.json();
         if (d.success && d.data) drawFieldBoundary(d.data);
       } catch(e) { console.warn('boundary:', e.message); }
-      // Load active layer with spinner, others silently
       await loadLayer(farmId, currentLayer, true);
       ['ndvi','ndre','thermal'].filter(l => l !== currentLayer).forEach(l => loadLayer(farmId, l, false).catch(() => {}));
     }
 
-    // ── Load a single layer ───────────────────────────────────────────────
     async function loadLayer(farmId, layer, showSpinner, force) {
       if (!farmId) return;
       const cached = layerCache[farmId]?.[layer];
@@ -428,12 +502,12 @@
       setTabDot(layer, true);
       if (showSpinner && layer === currentLayer) showLoading(true);
       try {
-        const token = localStorage.getItem('token');
-        const ep  = PALETTES[layer]?.endpoint || (layer + '-grid');
+        const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
+        const ep = PALETTES[layer]?.endpoint || (layer + '-grid');
         const url = CropSathiPrefs.api + '/api/analytics/farms/' + farmId + '/' + ep + (force ? '?force=true' : '');
         const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-        const j   = await res.json();
-        const ld  = j.data || null;
+        const j = await res.json();
+        const ld = j.data || null;
         if (!layerCache[farmId]) layerCache[farmId] = {};
         layerCache[farmId][layer] = ld;
         if (layer === currentLayer && farmId === currentFarmId) { renderLayerData(layer, ld); updateStats(); }
@@ -450,37 +524,41 @@
       }
     }
 
-    // ── Tab helpers ───────────────────────────────────────────────────────
     function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
     function setTabDot(layer, on) { const d = document.getElementById('dot' + cap(layer)); if (d) d.style.display = on ? 'block' : 'none'; }
     function setTabEmpty(layer, on) { const b = document.getElementById('empty' + cap(layer)); if (b) b.style.display = on ? 'block' : 'none'; }
 
-    // ── Layer switching ───────────────────────────────────────────────────
     async function switchLayer(layer) {
       currentLayer = layer;
-      document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('btn' + cap(layer)).classList.add('active');
+      document.querySelectorAll('.layer-btn').forEach(b => {
+        b.classList.remove('active', 'bg-forest-500', 'text-offwhite-50', 'shadow-card');
+        b.classList.add('text-forest-600');
+      });
+      const activeBtn = document.getElementById('btn' + cap(layer));
+      if (activeBtn) {
+        activeBtn.classList.add('active', 'bg-forest-500', 'text-offwhite-50', 'shadow-card');
+        activeBtn.classList.remove('text-forest-600');
+      }
       const cached = layerCache[currentFarmId]?.[layer];
       if (cached !== undefined) { renderLayerData(layer, cached); updateStats(); }
       else if (currentFarmId) await loadLayer(currentFarmId, layer, true);
     }
 
-    // ── Render grid onto map ──────────────────────────────────────────────
     function renderLayerData(layer, ld) {
       if (heatmapLayer) map.removeLayer(heatmapLayer);
       closeInfoCard();
       if (!ld?.grid || !boundaryLayer) return;
-      const pk  = colorBlindMode ? (layer + 'Viridis') : layer;
+      const pk = colorBlindMode ? (layer + 'Viridis') : layer;
       const pal = PALETTES[pk] || PALETTES[layer];
-      const b   = boundaryLayer.getBounds();
+      const b = boundaryLayer.getBounds();
       const [s, n, w, e] = [b.getSouth(), b.getNorth(), b.getWest(), b.getEast()];
       const grid = ld.grid, rows = grid.length, cols = grid[0]?.length || rows;
       const ch = (n - s) / rows, cw = (e - w) / cols;
-      const g  = L.layerGroup();
+      const g = L.layerGroup();
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const cell = grid[r][c], val = cell.value ?? cell;
-          const col  = interpColor(val, pal.stops);
+          const col = interpColor(val, pal.stops);
           const rect = L.rectangle([[s+r*ch, w+c*cw],[s+(r+1)*ch, w+(c+1)*cw]], { fillColor: col, fillOpacity: 0.55, stroke: false, className: 'heatmap-cell' });
           rect._cd = { value: val, label: cell.label||'', color: cell.color||col, severity: cell.severity||'', delta: ld.delta?.[r]?.[c]??null };
           rect.on('click', () => showInfoCard(rect._cd));
@@ -491,7 +569,6 @@
       updateLegend(pal);
     }
 
-    // ── Color helpers ─────────────────────────────────────────────────────
     function interpColor(v, stops) {
       if (v <= stops[0][0]) return stops[0][1];
       if (v >= stops[stops.length-1][0]) return stops[stops.length-1][1];
@@ -509,18 +586,16 @@
       return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
     }
 
-    // ── Legend ────────────────────────────────────────────────────────────
     function updateLegend(pal) {
       const lb = document.getElementById('legendBox');
       lb.className = colorBlindMode ? 'viridis' : currentLayer === 'thermal' ? 'thermal' : 'rdylgn';
       document.getElementById('legendTitle').textContent = pal.unit + ' Scale';
-      document.getElementById('legendMin').textContent   = pal.min;
-      document.getElementById('legendMax').textContent   = pal.max;
+      document.getElementById('legendMin').textContent = pal.min;
+      document.getElementById('legendMax').textContent = pal.max;
       document.getElementById('colorBlindToggle').textContent = colorBlindMode ? 'Color-blind' : 'Standard';
     }
     function toggleColorBlind() { colorBlindMode = !colorBlindMode; renderLayerData(currentLayer, layerCache[currentFarmId]?.[currentLayer]); }
 
-    // ── Stats panel ───────────────────────────────────────────────────────
     function updateStats() {
       const d = layerCache[currentFarmId]?.[currentLayer];
       const ids = ['statAvg','statAnomaly','statSource','statObserved'];
@@ -539,47 +614,44 @@
       }
     }
 
-    // ── Info card ─────────────────────────────────────────────────────────
     function showInfoCard(cd) {
       document.getElementById('infoLabel').textContent = cd.label || 'No Data';
       document.getElementById('infoValue').textContent = cd.value?.toFixed?.(2) ?? cd.value ?? '--';
-      document.getElementById('infoUnit').textContent  = (PALETTES[colorBlindMode ? currentLayer+'Viridis' : currentLayer]?.unit) || '';
+      document.getElementById('infoUnit').textContent = (PALETTES[colorBlindMode ? currentLayer+'Viridis' : currentLayer]?.unit) || '';
       const icon = document.getElementById('infoIcon');
-      icon.style.background = cd.color || '#7CB342';
-      const iconName = ({none:'circle-check',low:'info',medium:'triangle-alert',high:'triangle-alert'}[cd.severity] || 'circle-check');
-      icon.innerHTML = '<i data-lucide="' + iconName + '" class="w-5 h-5" aria-hidden="true"></i>';
+      icon.style.background = cd.color || '#3F8259';
+      const iconName = ({none:'check',low:'info',medium:'alert-triangle',high:'alert-triangle'}[cd.severity] || 'check');
+      icon.innerHTML = '<i data-lucide="' + iconName + '" class="w-4 h-4 text-white"></i>';
       const delta = document.getElementById('infoDelta');
       if (cd.delta != null) {
         const pos = cd.delta > 0;
-        const arrow = pos ? '<i data-lucide="arrow-up" class="w-3.5 h-3.5 inline-block align-middle"></i>' : cd.delta < 0 ? '<i data-lucide="arrow-down" class="w-3.5 h-3.5 inline-block align-middle"></i>' : '<i data-lucide="minus" class="w-3.5 h-3.5 inline-block align-middle"></i>';
-        const col  = pos ? 'text-[#006038]' : cd.delta < 0 ? 'text-[#ba1a1a]' : 'text-[#6f7a71]';
-        delta.innerHTML = '<span class="' + col + '">' + arrow + ' ' + Math.abs(cd.delta).toFixed(3) + '</span> <span class="text-[#6f7a71]">vs last reading</span>';
+        const arrow = pos ? '<i data-lucide="trending-up" class="w-3.5 h-3.5 inline-block"></i>' : cd.delta < 0 ? '<i data-lucide="trending-down" class="w-3.5 h-3.5 inline-block"></i>' : '<i data-lucide="minus" class="w-3.5 h-3.5 inline-block"></i>';
+        const col = pos ? 'text-risk-green' : cd.delta < 0 ? 'text-risk-red' : 'text-forest-400';
+        delta.innerHTML = '<span class="' + col + '">' + arrow + ' ' + Math.abs(cd.delta).toFixed(3) + '</span> <span class="text-forest-400">vs last reading</span>';
         delta.classList.remove('hidden');
       } else { delta.classList.add('hidden'); }
       document.getElementById('infoCard').classList.remove('hidden');
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
     }
     function closeInfoCard() { document.getElementById('infoCard').classList.add('hidden'); }
 
-    // ── Field boundary ────────────────────────────────────────────────────
     function drawFieldBoundary(farm) {
       if (boundaryLayer) map.removeLayer(boundaryLayer);
       let coords = null;
       if (farm.boundary?.coordinates?.length > 0) coords = farm.boundary.coordinates[0].map(c => [c[1],c[0]]);
       else if (farm.polygon?.length) coords = farm.polygon.map(p => [p.lat,p.lng]);
       if (!coords) return;
-      boundaryLayer = L.polygon(coords, { color:'#006038', weight:3, fillColor:'#006038', fillOpacity:0.05 }).addTo(map);
+      boundaryLayer = L.polygon(coords, { color:'#1B4332', weight:2.5, fillColor:'#3F8259', fillOpacity:0.05 }).addTo(map);
       map.fitBounds(boundaryLayer.getBounds(), { padding:[40,40] });
     }
 
-    // ── Force Re-analyse ──────────────────────────────────────────────────
     async function forceReanalyse() {
       if (!currentFarmId) return;
       const btn = document.getElementById('pollBtn');
       btn.disabled = true; btn.querySelector('span').textContent = 'Re-analysing...';
       showLoading(true);
       try {
-        const token = localStorage.getItem('token');
+        const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
         const h = { Authorization: 'Bearer ' + token };
         await Promise.allSettled([
           fetch(CropSathiPrefs.api + '/api/analytics/farms/' + currentFarmId + '/poll-satellite', { method:'POST', headers:h }),
@@ -593,7 +665,6 @@
       finally { btn.disabled = false; btn.querySelector('span').textContent = 'Force Re-analyse'; showLoading(false); }
     }
 
-    // ── Auto-refresh ──────────────────────────────────────────────────────
     let autoRefreshInterval = null;
     function startAutoRefresh() {
       if (autoRefreshInterval) clearInterval(autoRefreshInterval);
@@ -601,34 +672,9 @@
     }
     window.addEventListener('beforeunload', () => { if (autoRefreshInterval) clearInterval(autoRefreshInterval); });
 
-    // ── UI helpers ────────────────────────────────────────────────────────
     function showLoading(show) { const el = document.getElementById('loadingOverlay'); if (el) el.style.display = show ? 'flex' : 'none'; }
   </script>
 
   <script src="ui.js"></script>
-
-  <!-- Bottom navigation (mobile only) -->
-  <nav class="cs-tabbar md:hidden" aria-label="Primary">
-    <a class="cs-tab" href="dashboard.html">
-      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
-    </a>
-    <a class="cs-tab is-active" href="my-fields.html" aria-current="page">
-      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
-    </a>
-    <a class="cs-tab" href="diagnose.html">
-      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
-    </a>
-    <a class="cs-tab" href="advisory.html">
-      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
-    </a>
-    <a class="cs-tab" href="settings.html">
-      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
-    </a>
-  </nav>
 </body>
 </html>
