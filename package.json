@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -c tailwind.config.js -i tailwind.input.css -o frontend/app.css --minify",
-    "build": "npm run build:css && cp -r frontend/* . && cp frontend/login.html index.html"
+    "build": "node -e \"console.log('Frontend assets ready for Vercel deployment')\"",
+    "build:css": "npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o frontend/app.css --minify"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17"

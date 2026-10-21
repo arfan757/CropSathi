@@ -1,5 +1,9 @@
 backend/
+ml-service/
+archive/
+docs/
 node_modules/
 .git/
 *.md
 render.yaml
+.env*

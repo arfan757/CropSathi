@@ -3,11 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CropSathi</title>
-  <meta http-equiv="refresh" content="0; url=login.html">
-  <script>location.replace('login.html');</script>
+  <title>CropSathi — Crop Health Monitor</title>
+  <script src="session.js"></script>
+  <script>
+    if (typeof CropSathiSession !== 'undefined' && CropSathiSession.getToken()) {
+      window.location.replace('dashboard.html');
+    } else {
+      window.location.replace('login.html');
+    }
+  </script>
 </head>
-<body>
+<body style="background-color: #F8F7F4; margin: 0;">
 </body>
 </html>
-<!--vercel deploy-->>
