@@ -63,7 +63,7 @@ export const createField = async (req, res) => {
       });
     }
 
-    // 2. Instantiate field in memory (generates field._id for Mongoose validation)
+    // 2. Instantiate and save field
     const userId = req.user?.id || req.user?._id;
     const field = new Field({
       userId,
@@ -77,6 +77,7 @@ export const createField = async (req, res) => {
       areaInAcres,
       soilType,
     });
+    await field.save();
 
     // 3. Optical Spectral Baseline Verification
     const ndviReading = await fetchNdviForFarm(field);
@@ -90,17 +91,15 @@ export const createField = async (req, res) => {
     console.log(`Field creation NDVI check: source=${ndviReading?.sceneSource}, ndvi=${ndviReading?.ndvi}, ndre=${ndviReading?.ndre}, valid=${isValidVegetation}`);
 
     if (!isValidVegetation) {
-      // Remove the temporary NDVI reading so no orphan records remain
+      // Remove the temporary NDVI reading and field so no orphan records remain
       await NdviReading.deleteMany({ farmId: field._id });
+      await field.deleteOne();
 
       return res.status(400).json({
         success: false,
         message: 'Invalid boundary: Non-agricultural land detected (NDVI < 0.20). Please select an active crop field.',
       });
     }
-
-    // 4. Save verified field to database
-    await field.save();
 
     res.status(201).json({
       success: true,

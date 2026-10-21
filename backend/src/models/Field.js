@@ -1,163 +1,264 @@
-import mongoose from 'mongoose';
+/**
+ * backend/src/models/Field.js
+ *
+ * Supabase-backed Field model adapter.
+ * Replaces Mongoose model so fieldController, cron jobs, and services
+ * read and write from Supabase PostgreSQL seamlessly.
+ */
+
+import { randomUUID } from 'crypto';
+import supabase from '../config/supabase.js';
 import { inferCropStage } from '../services/cropStageService.js';
 
-const fieldSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'User ID is required'],
-    },
-    name: {
-      type: String,
-      required: [true, 'Field name is required'],
-      trim: true,
-      maxlength: [100, 'Field name cannot exceed 100 characters'],
-    },
-    cropType: {
-      type: String,
-      required: [true, 'Crop type is required'],
-      enum: ['Wheat', 'Rice', 'Maize', 'Cotton', 'Sugarcane', 'Potato', 'Grapes', 'Soybean', 'Tur', 'Other'],
-    },
-    cropStage: {
-      type: String,
-      enum: ['sowing', 'vegetative', 'flowering', 'fruiting', 'maturity', 'harvested'],
-      // No default: the pre-save hook infers it from (cropType, sowingDate)
-      // on creation, and every consumer falls back to 'vegetative' or to
-      // read-time inference when it is absent. A former
-      // `default: 'vegetative'` silently pinned every field to vegetative
-      // forever because no UI ever sent a stage.
-      default: undefined,
-    },
-    sowingDate: {
-      type: Date,
-      required: [true, 'Sowing date is required'],
-    },
-    polygon: {
-      type: [{ lat: Number, lng: Number }],
-      validate: {
-        validator: function (v) {
-          return v && v.length >= 3;
-        },
-        message: 'Polygon must have at least 3 points',
-      },
-    },
-    boundary: {
-      type: {
-        type: String,
-        enum: ['Polygon'],
-        default: 'Polygon',
-      },
-      coordinates: {
-        type: [[[Number]]],
-      },
-    },
-    areaInHectares: {
-      type: Number,
-      default: 0,
-    },
-    areaInAcres: {
-      type: Number,
-      default: 0,
-    },
-    centerLat: {
-      type: Number,
-      default: null,
-    },
-    centerLng: {
-      type: Number,
-      default: null,
-    },
-    soilType: {
-      type: String,
-      enum: ['Alluvial', 'Black', 'Red', 'Laterite', 'Clayey', 'Sandy', 'Loamy', 'Other'],
-      default: 'Other',
-    },
-    status: {
-      type: String,
-      enum: ['active', 'inactive', 'archived'],
-      default: 'active',
-    },
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
-    lastWeatherPollAt: {
-      type: Date,
-      default: null,
-    },
-    lastRiskScoreAt: {
-      type: Date,
-      default: null,
-    },
-    lastPhotoPromptAt: {
-      type: Date,
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
+function buildBoundary(polygon) {
+  if (!polygon || polygon.length < 3) return null;
+  const ring = polygon.map(p => [p.lng, p.lat]);
+  ring.push(ring[0]);
+  return { type: 'Polygon', coordinates: [ring] };
+}
 
-// ─── Soft-delete: auto-exclude deleted docs from all queries ───────────────
-// In Mongoose pre-hooks, `this` is the Query, first param is `next` callback.
-function excludeSoftDeleted() {
-  const opts = this.options || {};
-  if (!opts.deletedAt) {
-    this.where({ deletedAt: null });
+function calcCentroid(polygon) {
+  if (!polygon || polygon.length === 0) return { lat: null, lng: null };
+  const lat = polygon.reduce((s, p) => s + p.lat, 0) / polygon.length;
+  const lng = polygon.reduce((s, p) => s + p.lng, 0) / polygon.length;
+  return { lat, lng };
+}
+
+function toWkt(boundary) {
+  if (!boundary || !boundary.coordinates) return null;
+  const ring = boundary.coordinates[0];
+  return `SRID=4326;POLYGON((${ring.map(c => `${c[0]} ${c[1]}`).join(',')}))`;
+}
+
+export class FieldDocument {
+  constructor(row = {}) {
+    this._id = row.id || row._id || randomUUID();
+    this.id = this._id;
+    this.userId = row.user_id || row.userId;
+    this.name = row.name;
+    this.cropType = row.crop_type || row.cropType;
+    this.cropStage = row.crop_stage || row.cropStage;
+    this.sowingDate = row.sowing_date || row.sowingDate;
+    this.polygon = row.polygon || [];
+    this.boundary = row.boundary || buildBoundary(this.polygon);
+    this.centerLat = row.center_lat ?? row.centerLat ?? calcCentroid(this.polygon).lat;
+    this.centerLng = row.center_lng ?? row.centerLng ?? calcCentroid(this.polygon).lng;
+    this.areaInHectares = Number(row.area_in_hectares ?? row.areaInHectares ?? 0);
+    this.areaInAcres = Number(row.area_in_acres ?? row.areaInAcres ?? 0);
+    this.soilType = row.soil_type || row.soilType || 'Other';
+    this.status = row.status || 'active';
+    this.isVegetationValid = row.is_vegetation_valid ?? row.isVegetationValid ?? true;
+    this.deletedAt = row.deleted_at ?? row.deletedAt ?? null;
+    this.lastWeatherPollAt = row.last_weather_poll_at ?? row.lastWeatherPollAt ?? null;
+    this.lastRiskScoreAt = row.last_risk_score_at ?? row.lastRiskScoreAt ?? null;
+    this.lastPhotoPromptAt = row.last_photo_prompt_at ?? row.lastPhotoPromptAt ?? null;
+    this.createdAt = row.created_at || row.createdAt || new Date().toISOString();
+    this.updatedAt = row.updated_at || row.updatedAt || new Date().toISOString();
+
+    // Auto-infer crop stage if missing
+    if (!this.cropStage && this.cropType && this.sowingDate) {
+      const inferred = inferCropStage(this.cropType, this.sowingDate);
+      if (inferred) this.cropStage = inferred;
+    }
+  }
+
+  toObject() {
+    return { ...this };
+  }
+
+  toJSON() {
+    return { ...this };
+  }
+
+  async deleteOne() {
+    await supabase.from('fields').delete().eq('id', this._id);
+    return { acknowledged: true };
+  }
+
+  async save() {
+    if (!this.cropStage && this.cropType && this.sowingDate) {
+      const inferred = inferCropStage(this.cropType, this.sowingDate);
+      if (inferred) this.cropStage = inferred;
+    }
+
+    const { lat, lng } = calcCentroid(this.polygon);
+    this.centerLat = lat;
+    this.centerLng = lng;
+    this.boundary = buildBoundary(this.polygon);
+    const boundaryWkt = toWkt(this.boundary);
+
+    const record = {
+      id: this._id,
+      user_id: this.userId,
+      name: this.name,
+      crop_type: this.cropType,
+      crop_stage: this.cropStage,
+      sowing_date: this.sowingDate,
+      polygon: this.polygon,
+      boundary: boundaryWkt,
+      center_lat: this.centerLat,
+      center_lng: this.centerLng,
+      area_in_hectares: this.areaInHectares,
+      area_in_acres: this.areaInAcres,
+      soil_type: this.soilType,
+      status: this.status,
+      is_vegetation_valid: this.isVegetationValid,
+      deleted_at: this.deletedAt,
+      last_weather_poll_at: this.lastWeatherPollAt,
+      last_risk_score_at: this.lastRiskScoreAt,
+      last_photo_prompt_at: this.lastPhotoPromptAt,
+    };
+
+    const { data, error } = await supabase
+      .from('fields')
+      .upsert(record, { onConflict: 'id' })
+      .select('*')
+      .single();
+
+    if (error) throw new Error(error.message);
+    return new FieldDocument(data);
   }
 }
 
-fieldSchema.pre('find', excludeSoftDeleted);
-fieldSchema.pre('findOne', excludeSoftDeleted);
-fieldSchema.pre('findById', excludeSoftDeleted);
-fieldSchema.pre('count', excludeSoftDeleted);
-fieldSchema.pre('countDocuments', excludeSoftDeleted);
-// Note: findOneAndUpdate / findByIdAndUpdate are NOT hooked here.
-// Controllers add deletedAt:null explicitly where needed, and restore needs to
-// bypass soft-delete to find already-deleted docs.
-fieldSchema.pre('aggregate', function () {
-  this.pipeline().unshift({ $match: { deletedAt: null } });
-});
-
-// ─── Indexes ───────────────────────────────────────────────────────────────
-fieldSchema.index({ userId: 1, deletedAt: 1 });
-fieldSchema.index({ status: 1, deletedAt: 1 });
-
-// ─── Calculate center + sync GeoJSON boundary before saving ────────────────
-fieldSchema.pre('save', function (next) {
-  // Auto-infer growth stage on creation when the farmer did not pick one
-  // explicitly. An explicit stage always wins; this only fills the gap so
-  // scoring (weights, NDVI expectation, weather stage gating) uses a
-  // stage consistent with the sowing date instead of the 'vegetative'
-  // default forever.
-  if (this.isNew && !this.cropStage && this.cropType && this.sowingDate) {
-    const inferred = inferCropStage(this.cropType, this.sowingDate);
-    if (inferred) this.cropStage = inferred;
+class FieldQuery {
+  constructor(executor) {
+    this.executor = executor;
+    this._sort = null;
+    this._limit = null;
   }
 
-  // Compute centroid from polygon
-  if (this.polygon && this.polygon.length > 0) {
-    const sumLat = this.polygon.reduce((sum, p) => sum + p.lat, 0);
-    const sumLng = this.polygon.reduce((sum, p) => sum + p.lng, 0);
-    this.centerLat = sumLat / this.polygon.length;
-    this.centerLng = sumLng / this.polygon.length;
+  sort(s) {
+    this._sort = s;
+    return this;
   }
 
-  // Auto-sync GeoJSON boundary from polygon if boundary not explicitly set
-  if (this.polygon && this.polygon.length >= 3 && (!this.boundary || !this.boundary.coordinates)) {
-    // GeoJSON Polygon: first ring must be closed (first == last point)
-    const ring = this.polygon.map(p => [p.lng, p.lat]);
-    ring.push(ring[0]); // close the ring
-    this.boundary = {
-      type: 'Polygon',
-      coordinates: [ring],
-    };
+  limit(l) {
+    this._limit = l;
+    return this;
   }
 
-  next();
-});
+  lean() {
+    return this;
+  }
 
-const Field = mongoose.model('Field', fieldSchema);
+  async then(resolve, reject) {
+    try {
+      const res = await this.executor(this._sort, this._limit);
+      resolve(res);
+    } catch (err) {
+      if (reject) reject(err);
+      else throw err;
+    }
+  }
+
+  async catch(reject) {
+    return this.then(x => x, reject);
+  }
+}
+
+const Field = function (fields) {
+  return new FieldDocument(fields);
+};
+
+Field.find = function (query = {}) {
+  return new FieldQuery(async (sort) => {
+    let q = supabase.from('fields').select('*');
+
+    const uid = query.userId || query.user_id;
+    if (uid) q = q.eq('user_id', uid);
+
+    if (query.deletedAt === null) {
+      q = q.is('deleted_at', null);
+    } else if (query.deletedAt && query.deletedAt.$ne === null) {
+      q = q.not('deleted_at', 'is', null);
+    }
+
+    if (query.status) q = q.eq('status', query.status);
+
+    if (sort?.createdAt === -1) {
+      q = q.order('created_at', { ascending: false });
+    } else {
+      q = q.order('created_at', { ascending: false });
+    }
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return (data || []).map(row => new FieldDocument(row));
+  });
+};
+
+Field.findOne = function (query = {}) {
+  return new FieldQuery(async () => {
+    let q = supabase.from('fields').select('*');
+
+    const id = query._id || query.id;
+    if (id) q = q.eq('id', id);
+
+    const uid = query.userId || query.user_id;
+    if (uid) q = q.eq('user_id', uid);
+
+    if (query.deletedAt === null) {
+      q = q.is('deleted_at', null);
+    } else if (query.deletedAt && query.deletedAt.$ne === null) {
+      q = q.not('deleted_at', 'is', null);
+    }
+
+    const { data, error } = await q.maybeSingle();
+    if (error || !data) return null;
+    return new FieldDocument(data);
+  });
+};
+
+Field.findById = function (id) {
+  return Field.findOne({ _id: id, deletedAt: null });
+};
+
+Field.findOneAndUpdate = async function (filter, updates, options = {}) {
+  const existing = await Field.findOne(filter);
+  if (!existing) return null;
+
+  const patch = {};
+  if (updates.name !== undefined) patch.name = updates.name;
+  if (updates.cropType !== undefined) patch.crop_type = updates.cropType;
+  if (updates.cropStage !== undefined) patch.crop_stage = updates.cropStage;
+  if (updates.sowingDate !== undefined) patch.sowing_date = updates.sowingDate;
+  if (updates.soilType !== undefined) patch.soil_type = updates.soilType;
+  if (updates.status !== undefined) patch.status = updates.status;
+  if (updates.areaInHectares !== undefined) patch.area_in_hectares = updates.areaInHectares;
+  if (updates.areaInAcres !== undefined) patch.area_in_acres = updates.areaInAcres;
+  if (updates.isVegetationValid !== undefined) patch.is_vegetation_valid = updates.isVegetationValid;
+  if (updates.deletedAt !== undefined) patch.deleted_at = updates.deletedAt;
+  if (updates.lastWeatherPollAt !== undefined) patch.last_weather_poll_at = updates.lastWeatherPollAt;
+  if (updates.lastRiskScoreAt !== undefined) patch.last_risk_score_at = updates.lastRiskScoreAt;
+  if (updates.lastPhotoPromptAt !== undefined) patch.last_photo_prompt_at = updates.lastPhotoPromptAt;
+
+  if (updates.polygon) {
+    patch.polygon = updates.polygon;
+    const boundary = buildBoundary(updates.polygon);
+    patch.boundary = toWkt(boundary);
+    const { lat, lng } = calcCentroid(updates.polygon);
+    patch.center_lat = lat;
+    patch.center_lng = lng;
+  }
+
+  const { data, error } = await supabase
+    .from('fields')
+    .update(patch)
+    .eq('id', existing._id)
+    .select('*')
+    .single();
+
+  if (error) throw new Error(error.message);
+  return new FieldDocument(data);
+};
+
+Field.countDocuments = async function (query = {}) {
+  let q = supabase.from('fields').select('*', { count: 'exact', head: true });
+  if (query.deletedAt === null) q = q.is('deleted_at', null);
+  if (query.status) q = q.eq('status', query.status);
+  const { count, error } = await q;
+  if (error) throw new Error(error.message);
+  return count || 0;
+};
+
 export default Field;
