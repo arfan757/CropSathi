@@ -2,6 +2,7 @@ import Field from '../models/Field.js';
 import NdviReading from '../models/NdviReading.js';
 import { computeRiskScore } from '../services/riskService.js';
 import { fetchNdviForFarm, isVegetationDetected } from '../services/ndviService.js';
+import { computeThermalReading } from '../services/thermalService.js';
 import { inferCropStage, daysSinceSowing, isValidCropStage } from '../services/cropStageService.js';
 
 // @desc    Infer growth stage from crop type + sowing date (single source of truth)
@@ -106,9 +107,15 @@ export const createField = async (req, res) => {
       data: field,
     });
 
-    // 5. Initial background risk calculation
+    // 5. Background data pre-fetch: risk score + thermal reading
+    // NDVI/NDRE were already fetched above (validation step).
+    // Thermal is fetched here so analytics page has all 3 layers on first visit.
     computeRiskScore(field._id).catch((err) => {
       console.error(`⚠️ Initial risk score failed for field ${field._id}:`, err.message);
+    });
+
+    computeThermalReading(field).catch((err) => {
+      console.error(`⚠️ Initial thermal fetch failed for field ${field._id}:`, err.message);
     });
   } catch (error) {
     res.status(500).json({

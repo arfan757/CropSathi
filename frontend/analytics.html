@@ -20,7 +20,7 @@
     .heatmap-cell { transition: opacity 0.3s; }
     .heatmap-cell:hover { opacity: 0.9 !important; stroke: #fff; stroke-width: 2; }
     .info-card { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-    .layer-btn { transition: all 0.2s; }
+    .layer-btn { transition: all 0.2s; position: relative; }
     .layer-btn.active { background: #006038; color: white; border-color: #006038; }
     .layer-btn:not(.active) { background: white; color: #6f7a71; border-color: #e4e2e1; }
     .legend-gradient { height: 14px; border-radius: 7px; }
@@ -28,18 +28,29 @@
     .rdylgn .legend-gradient { background: linear-gradient(to right, #d32f2f, #f57c00, #fbc02d, #7cb342, #2e7d32); }
     .thermal .legend-gradient { background: linear-gradient(to right, #1565c0, #42a5f5, #a5d6a7, #fff176, #ffb74d, #ef5350); }
     .loading-overlay { background: rgba(251, 249, 248, 0.85); }
+    .layer-fetch-dot {
+      display: none; position: absolute; top: 6px; right: 6px;
+      width: 7px; height: 7px; border-radius: 50%; background: #f57c00;
+      animation: pulse-dot 1s ease-in-out infinite;
+    }
+    .layer-btn.active .layer-fetch-dot { background: #fff; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+    .layer-nodata-badge {
+      display: none; position: absolute; top: 4px; right: 4px;
+      font-size: 9px; font-weight: 700; background: #f0eded; color: #6f7a71;
+      border-radius: 4px; padding: 1px 4px; line-height: 1.4;
+    }
     .dark body, .dark { background-color: #0f1712; color: #e4e2e1; }
-    .dark .bg-\[\#fbf9f8\] { background-color: #161f18; }
-    .dark .bg-white { background-color: #1a261d; }
-    .dark .bg-\[\#f6f3f2\] { background-color: #131a15; }
     .dark .info-card { background: rgba(26, 38, 29, 0.95); border-color: #2a3a2d; }
-    /* Mobile sidebar toggle */
     @media (max-width: 767px) {
       .mobile-sidebar { transform: translateX(-100%); transition: transform 0.3s; }
       .mobile-sidebar.open { transform: translateX(0); }
     }
   </style>
-</head>  <body class="bg-[#fbf9f8] min-h-screen flex has-tabbar">
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
+</head>
+<body class="bg-[#fbf9f8] min-h-screen flex has-tabbar">
 
   <!-- Sidebar Navigation -->
   <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
@@ -59,11 +70,11 @@
           <i data-lucide="map-pin" class="w-5 h-5"></i>
           <span data-i18n="nav_my_fields">My Fields</span>
         </a>
-        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
           <i data-lucide="camera" class="w-5 h-5"></i>
           <span data-i18n="nav_diagnose">Diagnose</span>
         </a>
-        <a href="#" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
           <i data-lucide="lightbulb" class="w-5 h-5"></i>
           <span data-i18n="nav_advisory">Advisory</span>
         </a>
@@ -82,14 +93,10 @@
 
     <!-- Top Header -->
     <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6">
-
-      <!-- Brand lockup — mobile top app bar -->
       <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi">
         <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
         <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
       </a>
-
-      <!-- Title -->
       <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
         <h1 class="text-xl md:text-2xl font-bold text-[#1b1c1c]" data-i18n="an_title">Field Analytics</h1>
         <p class="text-[#6f7a71] text-sm flex items-center gap-1.5 mt-1">
@@ -98,8 +105,6 @@
           <span class="text-[#3f4941]">Field Analytics</span>
         </p>
       </div>
-
-      <!-- Actions -->
       <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
         <button type="button" class="cs-app-action cs-search-trigger md:hidden w-11 h-11" aria-label="Search" aria-expanded="false">
           <i data-lucide="search"></i>
@@ -148,7 +153,7 @@
     <!-- Field Selector -->
     <div class="mb-4">
       <div class="relative inline-block w-full sm:w-auto">
-        <div class="flex items-center gap-2 bg-white border border-[#e4e2e1] rounded-xl px-4 py-3 cursor-pointer" onclick="document.getElementById('farmSelector').focus(); document.getElementById('farmSelector').click();">
+        <div class="flex items-center gap-2 bg-white border border-[#e4e2e1] rounded-xl px-4 py-3 cursor-pointer" onclick="document.getElementById('farmSelector').focus();">
           <i data-lucide="sprout" class="w-5 h-5 text-[#006038]"></i>
           <select id="farmSelector" class="appearance-none bg-transparent text-[#1b1c1c] font-semibold text-base focus:outline-none cursor-pointer pr-8 w-full">
             <option value="">Loading fields...</option>
@@ -163,14 +168,20 @@
       <button id="btnNdvi" class="layer-btn active flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('ndvi')">
         <i data-lucide="leaf" class="w-5 h-5"></i>
         <span>NDVI</span>
+        <span class="layer-fetch-dot" id="dotNdvi"></span>
+        <span class="layer-nodata-badge" id="emptyNdvi">No data</span>
       </button>
       <button id="btnNdre" class="layer-btn flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('ndre')">
         <i data-lucide="trees" class="w-5 h-5"></i>
         <span>NDRE</span>
+        <span class="layer-fetch-dot" id="dotNdre"></span>
+        <span class="layer-nodata-badge" id="emptyNdre">No data</span>
       </button>
       <button id="btnThermal" class="layer-btn flex-1 py-3 px-4 rounded-xl text-sm font-semibold border flex flex-col items-center gap-1" onclick="switchLayer('thermal')">
         <i data-lucide="thermometer" class="w-5 h-5"></i>
         <span>Thermal</span>
+        <span class="layer-fetch-dot" id="dotThermal"></span>
+        <span class="layer-nodata-badge" id="emptyThermal">No data</span>
       </button>
     </div>
 
@@ -211,7 +222,6 @@
         <div class="bg-white rounded-2xl border border-[#e4e2e1] p-5 tactile-card">
           <h3 class="text-xs font-bold text-[#6f7a71] uppercase tracking-widest mb-4">Field Insights</h3>
 
-          <!-- Average Score -->
           <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4 mb-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-lg bg-[#e8f5e9] flex items-center justify-center">
@@ -224,7 +234,6 @@
             </div>
           </div>
 
-          <!-- Anomaly Score -->
           <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4 mb-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-lg bg-[#fff3e0] flex items-center justify-center">
@@ -237,8 +246,7 @@
             </div>
           </div>
 
-          <!-- Source -->
-          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4">
+          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4 mb-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-lg bg-[#e3f2fd] flex items-center justify-center">
                 <i data-lucide="link" class="w-5 h-5 text-[#1565c0]"></i>
@@ -250,7 +258,18 @@
             </div>
           </div>
 
-          <!-- Force Re-analyse Button -->
+          <div class="bg-[#f9f9f9] border border-[#f0eded] rounded-xl p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-[#f3e5f5] flex items-center justify-center">
+                <i data-lucide="calendar" class="w-5 h-5 text-[#7b1fa2]"></i>
+              </div>
+              <div>
+                <p class="text-xs text-[#6f7a71] font-medium">Observed</p>
+                <p id="statObserved" class="font-headline font-bold text-base text-[#1b1c1c]">--</p>
+              </div>
+            </div>
+          </div>
+
           <button id="pollBtn" onclick="forceReanalyse()" class="w-full mt-4 bg-[#006038] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#004d2b] transition-colors flex items-center justify-center gap-2">
             <i data-lucide="refresh-cw" class="w-4 h-4"></i>
             <span>Force Re-analyse</span>
@@ -259,7 +278,7 @@
       </div>
     </div>
 
-    <!-- Info Card (tap-to-inspect) — overlaid on map -->
+    <!-- Info Card (tap-to-inspect) -->
     <div id="infoCard" class="hidden mt-4">
       <div class="info-card bg-white/95 rounded-2xl p-4 border border-[#e4e2e1] shadow-lg">
         <div class="flex items-start gap-3">
@@ -270,7 +289,7 @@
               <span id="infoValue" class="text-xl md:text-2xl font-bold text-[#006038]">0.78</span>
               <span id="infoUnit" class="text-sm text-[#6f7a71]">NDVI</span>
             </div>
-            <div id="infoDelta" class="flex items-center gap-1 mt-1 text-sm">
+            <div id="infoDelta" class="flex items-center gap-1 mt-1 text-sm hidden">
               <span class="text-[#006038]"><i data-lucide="arrow-up" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i> 0.04</span>
               <span class="text-[#6f7a71]">vs last reading</span>
             </div>
@@ -290,66 +309,26 @@
   <script src="preferences.js"></script>
   <script src="nav-profile.js"></script>
   <script>
-    // ─── State ────────────────────────────────────────────────────────────
-    let map = null;
-    let currentFarmId = null;
-    let currentLayer = 'ndvi';
-    let colorBlindMode = false;
-    let heatmapLayer = null;
-    let boundaryLayer = null;
-    let currentGridData = null;
+    // ── State ────────────────────────────────────────────────────────────
+    let map = null, currentFarmId = null, currentLayer = 'ndvi';
+    let colorBlindMode = false, heatmapLayer = null, boundaryLayer = null;
 
-    // ─── Color Palettes ──────────────────────────────────────────────────
+    // Per-layer cache: { [farmId]: { ndvi: undefined|null|obj, ndre: ..., thermal: ... } }
+    // undefined = not fetched; null = fetched, no data; object = has grid
+    const layerCache = {};
+    const layerFetching = { ndvi: false, ndre: false, thermal: false };
+
+    // ── Palettes ─────────────────────────────────────────────────────────
     const PALETTES = {
-      ndvi: {
-        stops: [
-          [-0.1, '#1565C0'], [0.1, '#D32F2F'], [0.2, '#E64A19'],
-          [0.3, '#F57C00'], [0.4, '#FBC02D'], [0.5, '#C0CA33'],
-          [0.6, '#7CB342'], [0.7, '#43A047'], [0.8, '#2E7D32'], [1.0, '#1B5E20']
-        ],
-        unit: 'NDVI', min: -0.1, max: 1.0,
-      },
-      ndviViridis: {
-        stops: [
-          [-0.1, '#440154'], [0.1, '#482878'], [0.2, '#3e4989'],
-          [0.3, '#31688e'], [0.4, '#26828e'], [0.5, '#1f9e89'],
-          [0.6, '#35b779'], [0.7, '#6ece58'], [0.8, '#b5de2b'], [1.0, '#fde725']
-        ],
-        unit: 'NDVI', min: -0.1, max: 1.0,
-      },
-      ndre: {
-        stops: [
-          [-0.1, '#1565C0'], [0.1, '#8D6E63'], [0.2, '#A1887F'],
-          [0.3, '#FDD835'], [0.4, '#C0CA33'], [0.5, '#8BC34A'],
-          [0.6, '#558B2F'], [0.7, '#1B5E20'], [1.0, '#0D3311']
-        ],
-        unit: 'NDRE', min: -0.1, max: 1.0,
-      },
-      ndreViridis: {
-        stops: [
-          [-0.1, '#440154'], [0.1, '#482878'], [0.2, '#3e4989'],
-          [0.3, '#31688e'], [0.4, '#26828e'], [0.5, '#1f9e89'],
-          [0.6, '#35b779'], [0.7, '#6ece58'], [0.8, '#b5de2b'], [1.0, '#fde725']
-        ],
-        unit: 'NDRE', min: -0.1, max: 1.0,
-      },
-      thermal: {
-        stops: [
-          [10, '#1565C0'], [20, '#42A5F5'], [25, '#A5D6A7'],
-          [30, '#FFF176'], [35, '#FFB74D'], [40, '#EF5350'], [50, '#B71C1C']
-        ],
-        unit: '°C', min: 10, max: 50,
-      },
-      thermalViridis: {
-        stops: [
-          [10, '#440154'], [20, '#31688e'], [25, '#35b779'],
-          [30, '#b5de2b'], [35, '#fde725'], [40, '#fde725'], [50, '#fde725']
-        ],
-        unit: '°C', min: 10, max: 50,
-      },
+      ndvi: { stops: [[-0.1,'#1565C0'],[0.1,'#D32F2F'],[0.2,'#E64A19'],[0.3,'#F57C00'],[0.4,'#FBC02D'],[0.5,'#C0CA33'],[0.6,'#7CB342'],[0.7,'#43A047'],[0.8,'#2E7D32'],[1.0,'#1B5E20']], unit:'NDVI', min:-0.1, max:1.0, endpoint:'ndvi-grid' },
+      ndre: { stops: [[-0.1,'#1565C0'],[0.1,'#8D6E63'],[0.2,'#A1887F'],[0.3,'#FDD835'],[0.4,'#C0CA33'],[0.5,'#8BC34A'],[0.6,'#558B2F'],[0.7,'#1B5E20'],[1.0,'#0D3311']], unit:'NDRE', min:-0.1, max:1.0, endpoint:'ndre-grid' },
+      thermal: { stops: [[10,'#1565C0'],[20,'#42A5F5'],[25,'#A5D6A7'],[30,'#FFF176'],[35,'#FFB74D'],[40,'#EF5350'],[50,'#B71C1C']], unit:'°C', min:10, max:50, endpoint:'thermal-grid' },
+      ndviViridis: { stops: [[-0.1,'#440154'],[0.1,'#482878'],[0.3,'#31688e'],[0.5,'#1f9e89'],[0.7,'#6ece58'],[1.0,'#fde725']], unit:'NDVI', min:-0.1, max:1.0 },
+      ndreViridis: { stops: [[-0.1,'#440154'],[0.1,'#482878'],[0.3,'#31688e'],[0.5,'#1f9e89'],[0.7,'#6ece58'],[1.0,'#fde725']], unit:'NDRE', min:-0.1, max:1.0 },
+      thermalViridis: { stops: [[10,'#440154'],[20,'#31688e'],[30,'#b5de2b'],[50,'#fde725']], unit:'°C', min:10, max:50 },
     };
 
-    // ─── Initialization ──────────────────────────────────────────────────
+    // ── Init ─────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', async () => {
       CropSathiPrefs.applyLanguage();
       lucide.createIcons();
@@ -362,207 +341,219 @@
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
     }
 
-    // ─── Farm Loading ────────────────────────────────────────────────────
+    // ── Farm loading ──────────────────────────────────────────────────────
     async function loadFarms() {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${CropSathiPrefs.api}/api/fields`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        const selector = document.getElementById('farmSelector');
+        const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
+        const sel  = document.getElementById('farmSelector');
 
-        if (!data.success || !data.data?.length) {
-          selector.innerHTML = '<option value="">No fields found</option>';
-          return;
-        }
-
-        const farms = data.data;
-        selector.innerHTML = '<option value="">Select a field...</option>' +
-          farms.map(f => `<option value="${f._id}">${f.name || f.cropType || 'Unnamed Field'}</option>`).join('');
-
-        selector.addEventListener('change', (e) => {
+        sel.onchange = async e => {
           if (e.target.value) {
             currentFarmId = e.target.value;
-            loadAnalyticsData(currentFarmId);
-            startAutoRefresh(); // Start auto-refresh for this field
+            if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm(currentFarmId);
+            await selectFarm(currentFarmId);
+            startAutoRefresh();
           }
-        });
+        };
 
-        if (farms.length === 1) {
-          selector.value = farms[0]._id;
-          currentFarmId = farms[0]._id;
-          loadAnalyticsData(currentFarmId);
-          startAutoRefresh(); // Start auto-refresh
+        async function populateFarms(data) {
+          if (!data || !data.success || !data.data?.length) {
+            sel.innerHTML = '<option value="">No fields found</option>';
+            showLoading(false);
+            return;
+          }
+          const farms = data.data;
+          sel.innerHTML = '<option value="">Select a field...</option>' + farms.map(f => '<option value="' + f._id + '">' + (f.name || f.cropType || 'Unnamed Field') + '</option>').join('');
+
+          // Determine target field: URL param > Session active farm > First farm
+          const activeId = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getActiveFarm() : null;
+          const matched = activeId && farms.find(f => f._id === activeId);
+          const targetFarm = matched ? matched : (farms.length > 0 ? farms[0] : null);
+
+          if (targetFarm && targetFarm._id !== currentFarmId) {
+            sel.value = targetFarm._id;
+            currentFarmId = targetFarm._id;
+            if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm(currentFarmId);
+            await selectFarm(currentFarmId);
+            startAutoRefresh();
+          } else if (!targetFarm) {
+            showLoading(false);
+          }
         }
-      } catch (err) {
-        console.error('Failed to load farms:', err);
-      }
+
+        if (typeof CropSathiCache !== 'undefined') {
+          await CropSathiCache.fetchSWR(
+            CropSathiPrefs.api + '/api/fields',
+            { headers: { Authorization: 'Bearer ' + token } },
+            {
+              ttl: 60000,
+              onCached: populateFarms,
+              onFresh: populateFarms
+            }
+          );
+        } else {
+          const res  = await fetch(CropSathiPrefs.api + '/api/fields', { headers: { Authorization: 'Bearer ' + token } });
+          const data = await res.json();
+          await populateFarms(data);
+        }
+      } catch (err) { console.error('loadFarms:', err); showLoading(false); }
     }
 
-    // ─── Load Analytics Data ─────────────────────────────────────────────
-    async function loadAnalyticsData(farmId, force = false) {
-      showLoading(true);
+    // ── Select farm ───────────────────────────────────────────────────────
+    async function selectFarm(farmId) {
+      if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm(farmId);
+      if (!layerCache[farmId]) layerCache[farmId] = { ndvi: undefined, ndre: undefined, thermal: undefined };
+      // Draw boundary first
+      try {
+        const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
+        const r = await fetch(CropSathiPrefs.api + '/api/fields/' + farmId, { headers: { Authorization: 'Bearer ' + token } });
+        const d = await r.json();
+        if (d.success && d.data) drawFieldBoundary(d.data);
+      } catch(e) { console.warn('boundary:', e.message); }
+      // Load active layer with spinner, others silently
+      await loadLayer(farmId, currentLayer, true);
+      ['ndvi','ndre','thermal'].filter(l => l !== currentLayer).forEach(l => loadLayer(farmId, l, false).catch(() => {}));
+    }
+
+    // ── Load a single layer ───────────────────────────────────────────────
+    async function loadLayer(farmId, layer, showSpinner, force) {
+      if (!farmId) return;
+      const cached = layerCache[farmId]?.[layer];
+      if (!force && cached !== undefined) {
+        if (layer === currentLayer && farmId === currentFarmId) { renderLayerData(layer, cached); updateStats(); showLoading(false); }
+        return;
+      }
+      if (layerFetching[layer]) return;
+      layerFetching[layer] = true;
+      setTabDot(layer, true);
+      if (showSpinner && layer === currentLayer) showLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-
-        // Step 1: Auto-fetch fresh satellite data if needed (no cached data or force refresh)
-        if (force) {
-          try {
-            await fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/poll-satellite`, {
-              method: 'POST',
-              headers,
-            });
-          } catch (pollErr) {
-            console.warn('Auto-fetch satellite failed:', pollErr.message);
-          }
-        }
-
-        // Step 2: Load grid data (will auto-fetch if missing via ensureNdviData/ensureThermalData)
-        const forceParam = force ? '?force=true' : '';
-        const [ndviRes, ndreRes, thermalRes] = await Promise.all([
-          fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/ndvi-grid${forceParam}`, { headers }),
-          fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/ndre-grid${forceParam}`, { headers }),
-          fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/thermal-grid${forceParam}`, { headers }),
-        ]);
-
-        const ndviData = await ndviRes.json();
-        const ndreData = await ndreRes.json();
-        const thermalData = await thermalRes.json();
-
-        // Step 3: If no data exists at all, trigger a fresh fetch and retry
-        const hasData = ndviData.data || ndreData.data || thermalData.data;
-        if (!hasData && !force) {
-          console.log('No cached data found, auto-fetching satellite data...');
-          await loadAnalyticsData(farmId, true);
-          return;
-        }
-
-        const farmRes = await fetch(`${CropSathiPrefs.api}/api/fields/${farmId}`, { headers });
-        const farmData = await farmRes.json();
-        if (farmData.success && farmData.data) drawFieldBoundary(farmData.data);
-
-        currentGridData = { ndvi: ndviData.data, ndre: ndreData.data, thermal: thermalData.data };
-        renderActiveLayer();
-        updateStats();
-      } catch (err) {
-        console.error('Failed to load analytics:', err);
+        const ep  = PALETTES[layer]?.endpoint || (layer + '-grid');
+        const url = CropSathiPrefs.api + '/api/analytics/farms/' + farmId + '/' + ep + (force ? '?force=true' : '');
+        const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+        const j   = await res.json();
+        const ld  = j.data || null;
+        if (!layerCache[farmId]) layerCache[farmId] = {};
+        layerCache[farmId][layer] = ld;
+        if (layer === currentLayer && farmId === currentFarmId) { renderLayerData(layer, ld); updateStats(); }
+        setTabEmpty(layer, !ld?.grid);
+      } catch(err) {
+        console.error('loadLayer ' + layer + ':', err);
+        if (!layerCache[farmId]) layerCache[farmId] = {};
+        layerCache[farmId][layer] = null;
+        setTabEmpty(layer, true);
       } finally {
-        showLoading(false);
+        layerFetching[layer] = false;
+        setTabDot(layer, false);
+        if (showSpinner && layer === currentLayer) showLoading(false);
       }
     }
 
-    // ─── Field Boundary ──────────────────────────────────────────────────
-    function drawFieldBoundary(farm) {
-      if (boundaryLayer) map.removeLayer(boundaryLayer);
-      let coords = null;
-      if (farm.boundary?.coordinates?.length > 0) {
-        coords = farm.boundary.coordinates[0].map(c => [c[1], c[0]]);
-      } else if (farm.polygon?.length) {
-        coords = farm.polygon.map(p => [p.lat, p.lng]);
-      }
-      if (!coords) return;
-      boundaryLayer = L.polygon(coords, { color: '#006038', weight: 3, fillColor: '#006038', fillOpacity: 0.05 }).addTo(map);
-      map.fitBounds(boundaryLayer.getBounds(), { padding: [40, 40] });
+    // ── Tab helpers ───────────────────────────────────────────────────────
+    function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+    function setTabDot(layer, on) { const d = document.getElementById('dot' + cap(layer)); if (d) d.style.display = on ? 'block' : 'none'; }
+    function setTabEmpty(layer, on) { const b = document.getElementById('empty' + cap(layer)); if (b) b.style.display = on ? 'block' : 'none'; }
+
+    // ── Layer switching ───────────────────────────────────────────────────
+    async function switchLayer(layer) {
+      currentLayer = layer;
+      document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn' + cap(layer)).classList.add('active');
+      const cached = layerCache[currentFarmId]?.[layer];
+      if (cached !== undefined) { renderLayerData(layer, cached); updateStats(); }
+      else if (currentFarmId) await loadLayer(currentFarmId, layer, true);
     }
 
-    // ─── Heatmap Rendering ───────────────────────────────────────────────
-    function renderActiveLayer() {
+    // ── Render grid onto map ──────────────────────────────────────────────
+    function renderLayerData(layer, ld) {
       if (heatmapLayer) map.removeLayer(heatmapLayer);
       closeInfoCard();
-      const layerData = currentGridData?.[currentLayer];
-      if (!layerData?.grid) return;
-      const paletteKey = colorBlindMode ? `${currentLayer}Viridis` : currentLayer;
-      const palette = PALETTES[paletteKey];
-      if (!boundaryLayer) return;
-
-      const bounds = boundaryLayer.getBounds();
-      const { south, north, west, east } = { south: bounds.getSouth(), north: bounds.getNorth(), west: bounds.getWest(), east: bounds.getEast() };
-      const grid = layerData.grid;
-      const rows = grid.length, cols = grid[0]?.length || rows;
-      const cellH = (north - south) / rows, cellW = (east - west) / cols;
-      const group = L.layerGroup();
-
+      if (!ld?.grid || !boundaryLayer) return;
+      const pk  = colorBlindMode ? (layer + 'Viridis') : layer;
+      const pal = PALETTES[pk] || PALETTES[layer];
+      const b   = boundaryLayer.getBounds();
+      const [s, n, w, e] = [b.getSouth(), b.getNorth(), b.getWest(), b.getEast()];
+      const grid = ld.grid, rows = grid.length, cols = grid[0]?.length || rows;
+      const ch = (n - s) / rows, cw = (e - w) / cols;
+      const g  = L.layerGroup();
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          const cell = grid[r][c];
-          const value = cell.value ?? cell;
-          const color = interpolateColor(value, palette.stops);
-          const rect = L.rectangle(
-            [[south + r * cellH, west + c * cellW], [south + (r + 1) * cellH, west + (c + 1) * cellW]],
-            { fillColor: color, fillOpacity: 0.55, stroke: false, className: 'heatmap-cell' }
-          );
-          rect._cellData = { value, label: cell.label || '', color: cell.color || color, severity: cell.severity || '', delta: layerData.delta?.[r]?.[c] ?? null };
-          rect.on('click', () => showInfoCard(rect._cellData));
-          group.addLayer(rect);
+          const cell = grid[r][c], val = cell.value ?? cell;
+          const col  = interpColor(val, pal.stops);
+          const rect = L.rectangle([[s+r*ch, w+c*cw],[s+(r+1)*ch, w+(c+1)*cw]], { fillColor: col, fillOpacity: 0.55, stroke: false, className: 'heatmap-cell' });
+          rect._cd = { value: val, label: cell.label||'', color: cell.color||col, severity: cell.severity||'', delta: ld.delta?.[r]?.[c]??null };
+          rect.on('click', () => showInfoCard(rect._cd));
+          g.addLayer(rect);
         }
       }
-      heatmapLayer = group.addTo(map);
-      updateLegend(palette);
+      heatmapLayer = g.addTo(map);
+      updateLegend(pal);
     }
 
-    // ─── Color Interpolation ─────────────────────────────────────────────
-    function interpolateColor(value, stops) {
-      if (value <= stops[0][0]) return stops[0][1];
-      if (value >= stops[stops.length - 1][0]) return stops[stops.length - 1][1];
-      for (let i = 0; i < stops.length - 1; i++) {
-        const [v0, c0] = stops[i], [v1, c1] = stops[i + 1];
-        if (value >= v0 && value <= v1) return lerpColor(c0, c1, (value - v0) / (v1 - v0));
+    // ── Color helpers ─────────────────────────────────────────────────────
+    function interpColor(v, stops) {
+      if (v <= stops[0][0]) return stops[0][1];
+      if (v >= stops[stops.length-1][0]) return stops[stops.length-1][1];
+      for (let i = 0; i < stops.length-1; i++) {
+        const [v0,c0] = stops[i], [v1,c1] = stops[i+1];
+        if (v >= v0 && v <= v1) return lerpHex(c0, c1, (v-v0)/(v1-v0));
       }
-      return stops[stops.length - 1][1];
+      return stops[stops.length-1][1];
+    }
+    function lerpHex(h1, h2, t) {
+      const p = (h, i) => parseInt(h.slice(1+i*2, 3+i*2), 16);
+      const r = Math.round(p(h1,0)+(p(h2,0)-p(h1,0))*t);
+      const g = Math.round(p(h1,1)+(p(h2,1)-p(h1,1))*t);
+      const b = Math.round(p(h1,2)+(p(h2,2)-p(h1,2))*t);
+      return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
     }
 
-    function lerpColor(hex1, hex2, t) {
-      const parse = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
-      const r = Math.round(parse(hex1, 0) + (parse(hex2, 0) - parse(hex1, 0)) * t);
-      const g = Math.round(parse(hex1, 1) + (parse(hex2, 1) - parse(hex1, 1)) * t);
-      const b = Math.round(parse(hex1, 2) + (parse(hex2, 2) - parse(hex1, 2)) * t);
-      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-    }
-
-    // ─── Layer Switching ─────────────────────────────────────────────────
-    function switchLayer(layer) {
-      currentLayer = layer;
-      document.querySelectorAll('.layer-btn').forEach(btn => { btn.classList.remove('active'); });
-      document.getElementById(`btn${layer.charAt(0).toUpperCase() + layer.slice(1)}`).classList.add('active');
-      renderActiveLayer();
-    }
-
-    // ─── Legend ───────────────────────────────────────────────────────────
-    function updateLegend(palette) {
-      const legendBox = document.getElementById('legendBox');
-      legendBox.className = '';
-      legendBox.classList.add(colorBlindMode ? 'viridis' : currentLayer === 'thermal' ? 'thermal' : 'rdylgn');
-      document.getElementById('legendTitle').textContent = `${palette.unit} Scale`;
-      document.getElementById('legendMin').textContent = palette.min;
-      document.getElementById('legendMax').textContent = palette.max;
+    // ── Legend ────────────────────────────────────────────────────────────
+    function updateLegend(pal) {
+      const lb = document.getElementById('legendBox');
+      lb.className = colorBlindMode ? 'viridis' : currentLayer === 'thermal' ? 'thermal' : 'rdylgn';
+      document.getElementById('legendTitle').textContent = pal.unit + ' Scale';
+      document.getElementById('legendMin').textContent   = pal.min;
+      document.getElementById('legendMax').textContent   = pal.max;
       document.getElementById('colorBlindToggle').textContent = colorBlindMode ? 'Color-blind' : 'Standard';
     }
+    function toggleColorBlind() { colorBlindMode = !colorBlindMode; renderLayerData(currentLayer, layerCache[currentFarmId]?.[currentLayer]); }
 
-    function toggleColorBlind() {
-      colorBlindMode = !colorBlindMode;
-      renderActiveLayer();
+    // ── Stats panel ───────────────────────────────────────────────────────
+    function updateStats() {
+      const d = layerCache[currentFarmId]?.[currentLayer];
+      const ids = ['statAvg','statAnomaly','statSource','statObserved'];
+      if (!d) { ids.forEach(id => { document.getElementById(id).textContent = '--'; }); return; }
+      const avg = d.average ?? (d.grid?.flat?.().reduce((s,c) => s+(c.value??c), 0) / (d.grid?.flat?.().length||1));
+      document.getElementById('statAvg').textContent = (avg != null && typeof avg === 'number') ? avg.toFixed(2) : '--';
+      const an = d.anomalyScore ?? d.anomalyC;
+      document.getElementById('statAnomaly').textContent = typeof an === 'number' ? an.toFixed(2) : '--';
+      const srcMap = { 'sentinel-2':'Sentinel-2','landsat-8-9':'Landsat 8/9','simulated':'Simulated','formula':'Formula' };
+      document.getElementById('statSource').textContent = srcMap[d.sceneSource] || d.sceneSource || '--';
+      if (d.observedAt) {
+        const dt = new Date(d.observedAt);
+        document.getElementById('statObserved').textContent = dt.toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' });
+      } else {
+        document.getElementById('statObserved').textContent = '--';
+      }
     }
 
-    // ─── Info Card ───────────────────────────────────────────────────────
-    function showInfoCard(cellData) {
-      document.getElementById('infoLabel').textContent = cellData.label || 'No Data';
-      document.getElementById('infoValue').textContent = cellData.value?.toFixed?.(2) ?? cellData.value ?? '--';
-      document.getElementById('infoUnit').textContent = PALETTES[colorBlindMode ? `${currentLayer}Viridis` : currentLayer]?.unit || '';
+    // ── Info card ─────────────────────────────────────────────────────────
+    function showInfoCard(cd) {
+      document.getElementById('infoLabel').textContent = cd.label || 'No Data';
+      document.getElementById('infoValue').textContent = cd.value?.toFixed?.(2) ?? cd.value ?? '--';
+      document.getElementById('infoUnit').textContent  = (PALETTES[colorBlindMode ? currentLayer+'Viridis' : currentLayer]?.unit) || '';
       const icon = document.getElementById('infoIcon');
-      icon.style.background = cellData.color || '#7CB342';
-      icon.innerHTML = '<i data-lucide="' + ({ none: 'circle-check', low: 'info', medium: 'triangle-alert', high: 'triangle-alert' }[cellData.severity] || 'circle-check') + '" class="w-5 h-5" aria-hidden="true"></i>';
+      icon.style.background = cd.color || '#7CB342';
+      const iconName = ({none:'circle-check',low:'info',medium:'triangle-alert',high:'triangle-alert'}[cd.severity] || 'circle-check');
+      icon.innerHTML = '<i data-lucide="' + iconName + '" class="w-5 h-5" aria-hidden="true"></i>';
       const delta = document.getElementById('infoDelta');
-      if (cellData.delta != null) {
-        const pos = cellData.delta > 0;
-        const deltaArrow = pos
-          ? '<i data-lucide="arrow-up" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i>'
-          : cellData.delta < 0
-            ? '<i data-lucide="arrow-down" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i>'
-            : '<i data-lucide="minus" class="w-3.5 h-3.5 inline-block align-middle" aria-hidden="true"></i>';
-        const deltaColor = pos ? 'text-[#006038]' : cellData.delta < 0 ? 'text-[#ba1a1a]' : 'text-[#6f7a71]';
-        delta.innerHTML = `<span class="${deltaColor}">${deltaArrow} ${Math.abs(cellData.delta).toFixed(3)}</span> <span class="text-[#6f7a71]">vs last reading</span>`;
+      if (cd.delta != null) {
+        const pos = cd.delta > 0;
+        const arrow = pos ? '<i data-lucide="arrow-up" class="w-3.5 h-3.5 inline-block align-middle"></i>' : cd.delta < 0 ? '<i data-lucide="arrow-down" class="w-3.5 h-3.5 inline-block align-middle"></i>' : '<i data-lucide="minus" class="w-3.5 h-3.5 inline-block align-middle"></i>';
+        const col  = pos ? 'text-[#006038]' : cd.delta < 0 ? 'text-[#ba1a1a]' : 'text-[#6f7a71]';
+        delta.innerHTML = '<span class="' + col + '">' + arrow + ' ' + Math.abs(cd.delta).toFixed(3) + '</span> <span class="text-[#6f7a71]">vs last reading</span>';
         delta.classList.remove('hidden');
       } else { delta.classList.add('hidden'); }
       document.getElementById('infoCard').classList.remove('hidden');
@@ -570,19 +561,18 @@
     }
     function closeInfoCard() { document.getElementById('infoCard').classList.add('hidden'); }
 
-    // ─── Stats ───────────────────────────────────────────────────────────
-    function updateStats() {
-      const data = currentGridData?.[currentLayer];
-      if (!data) return;
-      const avg = data.average ?? data.grid?.flat?.().reduce((s, c) => s + (c.value ?? c), 0) / (data.grid?.flat?.().length || 1);
-      document.getElementById('statAvg').textContent = avg != null ? avg.toFixed(2) : '--';
-      const anomaly = data.anomalyScore ?? data.anomalyC ?? '--';
-      document.getElementById('statAnomaly').textContent = typeof anomaly === 'number' ? anomaly.toFixed(2) : anomaly;
-      const sourceMap = { 'sentinel-2': 'Sentinel-2', 'landsat-8-9': 'Landsat 8/9', 'simulated': 'Simulated', 'formula': 'Formula' };
-      document.getElementById('statSource').textContent = sourceMap[data.sceneSource] || data.sceneSource || '--';
+    // ── Field boundary ────────────────────────────────────────────────────
+    function drawFieldBoundary(farm) {
+      if (boundaryLayer) map.removeLayer(boundaryLayer);
+      let coords = null;
+      if (farm.boundary?.coordinates?.length > 0) coords = farm.boundary.coordinates[0].map(c => [c[1],c[0]]);
+      else if (farm.polygon?.length) coords = farm.polygon.map(p => [p.lat,p.lng]);
+      if (!coords) return;
+      boundaryLayer = L.polygon(coords, { color:'#006038', weight:3, fillColor:'#006038', fillOpacity:0.05 }).addTo(map);
+      map.fitBounds(boundaryLayer.getBounds(), { padding:[40,40] });
     }
 
-    // ─── Force Re-analyse ─────────────────────────────────────────────────
+    // ── Force Re-analyse ──────────────────────────────────────────────────
     async function forceReanalyse() {
       if (!currentFarmId) return;
       const btn = document.getElementById('pollBtn');
@@ -590,46 +580,29 @@
       showLoading(true);
       try {
         const token = localStorage.getItem('token');
-
-        // Fetch fresh satellite data + recompute health score
-        await fetch(`${CropSathiPrefs.api}/api/analytics/farms/${currentFarmId}/poll-satellite`, {
-          method: 'POST', headers: { Authorization: `Bearer ${token}` },
-        });
-
-        // Also trigger weather poll + full risk score recomputation
-        await fetch(`${CropSathiPrefs.api}/api/monitoring/farms/${currentFarmId}/poll-weather`, {
-          method: 'POST', headers: { Authorization: `Bearer ${token}` },
-        });
-
-        // Reload with fresh data
-        await loadAnalyticsData(currentFarmId, true);
-      } catch (err) { alert('Network error: ' + err.message); }
+        const h = { Authorization: 'Bearer ' + token };
+        await Promise.allSettled([
+          fetch(CropSathiPrefs.api + '/api/analytics/farms/' + currentFarmId + '/poll-satellite', { method:'POST', headers:h }),
+          fetch(CropSathiPrefs.api + '/api/monitoring/farms/' + currentFarmId + '/poll-weather',  { method:'POST', headers:h }),
+        ]);
+        layerCache[currentFarmId] = { ndvi:undefined, ndre:undefined, thermal:undefined };
+        ['ndvi','ndre','thermal'].forEach(l => setTabEmpty(l, false));
+        await loadLayer(currentFarmId, currentLayer, true, true);
+        ['ndvi','ndre','thermal'].filter(l => l !== currentLayer).forEach(l => loadLayer(currentFarmId, l, false, true).catch(()=>{}));
+      } catch(err) { alert('Network error: ' + err.message); }
       finally { btn.disabled = false; btn.querySelector('span').textContent = 'Force Re-analyse'; showLoading(false); }
     }
 
-    // ─── Auto-refresh: Poll data every 5 minutes while on page ───────────────
+    // ── Auto-refresh ──────────────────────────────────────────────────────
     let autoRefreshInterval = null;
-
     function startAutoRefresh() {
-      // Clear any existing interval
       if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-
-      // Refresh data every 5 minutes (300000ms)
-      autoRefreshInterval = setInterval(() => {
-        if (currentFarmId) {
-          console.log('Auto-refreshing analytics data...');
-          loadAnalyticsData(currentFarmId, false);
-        }
-      }, 5 * 60 * 1000);
+      autoRefreshInterval = setInterval(() => { if (currentFarmId) loadLayer(currentFarmId, currentLayer, false, false); }, 5*60*1000);
     }
+    window.addEventListener('beforeunload', () => { if (autoRefreshInterval) clearInterval(autoRefreshInterval); });
 
-    // Stop auto-refresh when leaving page
-    window.addEventListener('beforeunload', () => {
-      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-    });
-
-    // ─── UI Helpers ──────────────────────────────────────────────────────
-    function showLoading(show) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; }
+    // ── UI helpers ────────────────────────────────────────────────────────
+    function showLoading(show) { const el = document.getElementById('loadingOverlay'); if (el) el.style.display = show ? 'flex' : 'none'; }
   </script>
 
   <script src="ui.js"></script>

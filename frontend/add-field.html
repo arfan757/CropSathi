@@ -21,6 +21,8 @@
     .leaflet-control-zoom a { background-color: #006038 !important; color: white !important; }
     .leaflet-control-zoom a:hover { background-color: #1a7a4c !important; }
   </style>
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
 </head>  <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex flex-col has-tabbar">
 
   <!-- Header -->
@@ -482,8 +484,15 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) { localStorage.setItem('newFieldCreated', 'true'); window.location.href = 'dashboard.html'; return; }
-        else { alert(data.message || 'Error saving field'); }
+        if (data.success) {
+          if (typeof CropSathiCache !== 'undefined') CropSathiCache.invalidate('fields');
+          if (data.data && data.data._id && typeof CropSathiSession !== 'undefined') {
+            CropSathiSession.setActiveFarm(data.data._id);
+          }
+          localStorage.setItem('newFieldCreated', 'true');
+          window.location.href = 'dashboard.html';
+          return;
+        } else { alert(data.message || 'Error saving field'); }
       } catch (e) { console.error('Error saving field:', e); alert('Error saving field. Please try again.'); }
       isSaving = false;
       saveBtn.classList.remove('opacity-75');

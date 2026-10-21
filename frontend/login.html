@@ -14,7 +14,8 @@
   <style>
     body { font-family: 'Noto Sans', sans-serif; background-color: #fbf9f8; color: #1b1c1c; }
     h1, h2, h3, .font-headline { font-family: 'Be Vietnam Pro', sans-serif; }
-  </style>
+  <script src="session.js"></script>
+  <script>CropSathiSession.redirectIfAuth('dashboard.html');</script>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
   <div class="w-full max-w-sm">
@@ -117,8 +118,7 @@
         });
         const data = await res.json();
         if (data.success && data.token) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
+          CropSathiSession.setSession(data.token, data.user);
           window.location.href = 'dashboard.html';
         } else {
           banner.textContent = data.message || 'Login failed';
@@ -149,8 +149,7 @@
         });
         const data = await res.json();
         if (data.success && data.token) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
+          CropSathiSession.setSession(data.token, data.user);
           window.location.href = 'dashboard.html';
         } else {
           banner.textContent = data.message || 'Registration failed';
@@ -163,9 +162,7 @@
     });
 
     // If already logged in, skip to dashboard
-    if (localStorage.getItem('token')) {
-      window.location.href = 'dashboard.html';
-    }
+    CropSathiSession.redirectIfAuth('dashboard.html');
   </script>
 </body>
 </html>

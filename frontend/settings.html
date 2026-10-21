@@ -35,6 +35,8 @@
       box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
     }
   </style>
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
 </head>  
 <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
 
@@ -378,7 +380,7 @@
           </div>
 
           <div class="mt-6">
-            <button onclick="localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href='login.html';" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#ba1a1a] text-[#ffffff] font-semibold rounded-xl transition hover:bg-[#93000a] shadow-sm">
+            <button onclick="if(typeof CropSathiSession!=='undefined') CropSathiSession.clearSession(); else { localStorage.removeItem('token'); localStorage.removeItem('user'); } window.location.href='login.html';" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#ba1a1a] text-[#ffffff] font-semibold rounded-xl transition hover:bg-[#93000a] shadow-sm">
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span data-i18n="settings_logout">Log Out</span>
             </button>
@@ -548,76 +550,82 @@
 
     // Fetch and sync user data from backend
     async function syncSettingsProfile() {
-      const token = localStorage.getItem('token');
+      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
       if (!token) return;
-      try {
-        const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) return;
 
-        const data = await response.json();
-        if (data.success && data.user) {
-          const { name, phoneNumber, farmDetails, profilePhoto } = data.user;
+      function renderProfile(user) {
+        if (!user) return;
+        const { name, phoneNumber, farmDetails, profilePhoto } = user;
 
-          // Cache profile photo for other pages
-          if (profilePhoto) {
-            localStorage.setItem('cropsathi_profile_photo', profilePhoto);
-          } else {
-            localStorage.removeItem('cropsathi_profile_photo');
-          }
-
-          // Update Name and initial
-          if (name) {
-            const nameElem = document.getElementById('profileFullName');
-            const avatarElem = document.getElementById('userAvatarInitial');
-            const modalAvatar = document.getElementById('modalAvatarInitial');
-            const modalInput = document.getElementById('modalInputName');
-            const navAvatar = document.getElementById('navAvatarInitial');
-
-            if (nameElem) nameElem.textContent = name;
-            if (avatarElem) avatarElem.textContent = name.trim().charAt(0).toUpperCase();
-            if (modalAvatar) modalAvatar.textContent = name.trim().charAt(0).toUpperCase();
-            if (modalInput) modalInput.value = name;
-            if (navAvatar) navAvatar.textContent = name.trim().charAt(0).toUpperCase();
-          }
-
-          // Update profile photos
-          applyProfilePhoto(profilePhoto);
-
-          // Update District
-          if (farmDetails && farmDetails.district) {
-            const locElem = document.getElementById('profileLocation');
-            if (locElem) locElem.textContent = farmDetails.district;
-          }
-
-          // Update Phone
-          if (phoneNumber) {
-            const phoneElem = document.getElementById('profilePhone');
-            const modalPhone = document.getElementById('modalInputPhone');
-            const formatted = phoneNumber.startsWith('+91') ? phoneNumber : '+91 ' + phoneNumber;
-            if (phoneElem) phoneElem.textContent = formatted;
-            if (modalPhone) modalPhone.value = formatted;
-          }
-
-          // Update precise location in preferences
-          if (farmDetails && farmDetails.latitude != null && farmDetails.longitude != null) {
-            const latDir = farmDetails.latitude >= 0 ? 'N' : 'S';
-            const lngDir = farmDetails.longitude >= 0 ? 'E' : 'W';
-            const lat = Math.abs(farmDetails.latitude).toFixed(4);
-            const lng = Math.abs(farmDetails.longitude).toFixed(4);
-            const parts = [];
-            if (farmDetails.village) parts.push(farmDetails.village);
-            if (farmDetails.district) parts.push(farmDetails.district);
-            if (farmDetails.state) parts.push(farmDetails.state);
-            if (farmDetails.country) parts.push(farmDetails.country);
-            const locationLabel = parts.length > 0 ? `(${parts.join(', ')})` : '';
-            const prefLoc = document.getElementById('preferenceLocationDisplay');
-            if (prefLoc) prefLoc.textContent = `${lat}\u00B0 ${latDir}, ${lng}\u00B0 ${lngDir} ${locationLabel}`;
-          }
+        if (profilePhoto) {
+          localStorage.setItem('cropsathi_profile_photo', profilePhoto);
+        } else {
+          localStorage.removeItem('cropsathi_profile_photo');
         }
-      } catch (error) {
-        console.error('Settings sync failed:', error);
+
+        if (name) {
+          const nameElem = document.getElementById('profileFullName');
+          const avatarElem = document.getElementById('userAvatarInitial');
+          const modalAvatar = document.getElementById('modalAvatarInitial');
+          const modalInput = document.getElementById('modalInputName');
+          const navAvatar = document.getElementById('navAvatarInitial');
+
+          if (nameElem) nameElem.textContent = name;
+          if (avatarElem) avatarElem.textContent = name.trim().charAt(0).toUpperCase();
+          if (modalAvatar) modalAvatar.textContent = name.trim().charAt(0).toUpperCase();
+          if (modalInput) modalInput.value = name;
+          if (navAvatar) navAvatar.textContent = name.trim().charAt(0).toUpperCase();
+        }
+
+        applyProfilePhoto(profilePhoto);
+
+        if (farmDetails && farmDetails.district) {
+          const locElem = document.getElementById('profileLocation');
+          if (locElem) locElem.textContent = farmDetails.district;
+        }
+
+        if (phoneNumber) {
+          const phoneElem = document.getElementById('profilePhone');
+          const modalPhone = document.getElementById('modalInputPhone');
+          const formatted = phoneNumber.startsWith('+91') ? phoneNumber : '+91 ' + phoneNumber;
+          if (phoneElem) phoneElem.textContent = formatted;
+          if (modalPhone) modalPhone.value = formatted;
+        }
+
+        if (farmDetails && farmDetails.latitude != null && farmDetails.longitude != null) {
+          const latDir = farmDetails.latitude >= 0 ? 'N' : 'S';
+          const lngDir = farmDetails.longitude >= 0 ? 'E' : 'W';
+          const lat = Math.abs(farmDetails.latitude).toFixed(4);
+          const lng = Math.abs(farmDetails.longitude).toFixed(4);
+          const parts = [];
+          if (farmDetails.village) parts.push(farmDetails.village);
+          if (farmDetails.district) parts.push(farmDetails.district);
+          if (farmDetails.state) parts.push(farmDetails.state);
+          if (farmDetails.country) parts.push(farmDetails.country);
+          const locationLabel = parts.length > 0 ? `(${parts.join(', ')})` : '';
+          const prefLoc = document.getElementById('preferenceLocationDisplay');
+          if (prefLoc) prefLoc.textContent = `${lat}\u00B0 ${latDir}, ${lng}\u00B0 ${lngDir} ${locationLabel}`;
+        }
+      }
+
+      try {
+        if (typeof CropSathiCache !== 'undefined') {
+          await CropSathiCache.fetchSWR(`${CropSathiPrefs.api}/api/user/profile`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }, {
+            ttl: 300000,
+            onCached: (data) => { if (data?.success) renderProfile(data.user); },
+            onFresh: (data) => { if (data?.success) renderProfile(data.user); }
+          });
+        } else {
+          const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          if (data.success && data.user) renderProfile(data.user);
+        }
+      } catch (e) {
+        console.warn('syncSettingsProfile:', e);
       }
     }
 

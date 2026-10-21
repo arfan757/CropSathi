@@ -65,7 +65,7 @@ async function autoUpdateLocation() {
       //    (PUT /api/user/profile is GET-only — location lives on
       //    /api/auth/update-location, which takes flat coordinates +
       //    an addressComponents object, not a nested farmDetails.)
-      const token = localStorage.getItem('token');
+      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
       if (token && typeof CropSathiPrefs !== 'undefined') {
         await fetch(`${CropSathiPrefs.api}/api/auth/update-location`, {
           method: 'PUT',

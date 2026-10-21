@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="ui.css">
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
 
   <script>
     async function syncUserProfile() {
@@ -458,7 +460,7 @@
       const dashOffset = arcLength - (arcLength * (hasData ? score : 0)) / 100;
 
       return `
-        <div class="bg-white p-5 rounded-xl border ${borderColor} flex flex-col items-center tactile-card shrink-0" style="min-width:220px;">
+        <div onclick="if(typeof CropSathiSession!=='undefined') CropSathiSession.setActiveFarm('${field.farmId}'); window.location.href='analytics.html?fieldId=${field.farmId}';" class="bg-white p-5 rounded-xl border ${borderColor} flex flex-col items-center tactile-card shrink-0 cursor-pointer transition hover:border-[#006038] hover:shadow-md" style="min-width:220px;" title="Click to view satellite analytics">
           <div class="flex items-start justify-between w-full gap-2 mb-1">
             <div class="flex items-center gap-2 min-w-0">
               <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background-color: ${color}15;">
@@ -498,31 +500,45 @@
     }
 
     async function loadHealthScores() {
-      const token = localStorage.getItem('token');
+      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
       if (!token) return;
 
       const skeletonEls = document.querySelectorAll('.health-skeleton');
       const emptyEl = document.getElementById('healthEmpty');
       const container = document.getElementById('cropScrollContainer');
 
-      try {
-        const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-
-        if (!data.success || !data.data?.fields?.length) {
+      function renderHealth(data) {
+        if (!data || !data.success || !data.data?.fields?.length) {
           skeletonEls.forEach(el => el.classList.add('hidden'));
           emptyEl?.classList.remove('hidden');
           return;
         }
-
+        skeletonEls.forEach(el => el.classList.add('hidden'));
+        emptyEl?.classList.add('hidden');
         const fields = data.data.fields;
         const html = fields.map(renderHealthCard).join('');
-
         container.innerHTML = html;
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
+      }
 
+      try {
+        if (typeof CropSathiCache !== 'undefined') {
+          await CropSathiCache.fetchSWR(
+            `${CropSathiPrefs.api}/api/dashboard/health`,
+            { headers: { Authorization: `Bearer ${token}` } },
+            {
+              ttl: 60000,
+              onCached: renderHealth,
+              onFresh: renderHealth
+            }
+          );
+        } else {
+          const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          renderHealth(data);
+        }
       } catch (err) {
         console.error('Failed to load health scores:', err);
         skeletonEls.forEach(el => el.classList.add('hidden'));

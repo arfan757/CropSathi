@@ -47,6 +47,8 @@
       background-color: #1a7a4c !important;
     }
   </style>
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
 </head>  <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
 
   <!-- Sidebar Navigation -->
@@ -284,7 +286,7 @@
   <script src="nav-profile.js"></script>
   <script>
     // Check authentication
-    const token = localStorage.getItem('token');
+    const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
     if (!token) {
       window.location.href = 'login.html';
     }
@@ -304,46 +306,63 @@
       'Other': 'sprout',
     };
 
-    // Load user profile and fields
+    // Load user profile and fields with SWR cache
     async function loadData() {
       try {
-        // Load user profile for location
-        const profileResponse = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+        // Load user profile (cached)
+        CropSathiCache.fetchSWR(`${CropSathiPrefs.api}/api/user/profile`, {
           headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const profileData = await profileResponse.json();
+        }, {
+          ttl: 300000,
+          onCached: (profileData) => applyUserProfile(profileData),
+          onFresh: (profileData) => applyUserProfile(profileData)
+        }).catch(() => {});
 
-        if (profileData.success) {
-          // Update profile photo and avatar initial
-          const navAvatar = document.getElementById('navAvatarInitial');
-          if (navAvatar && profileData.user.name) {
-            navAvatar.textContent = profileData.user.name.trim().charAt(0).toUpperCase();
-          }
-          applyProfilePhoto(profileData.user.profilePhoto);
-
-          if (profileData.user.farmDetails) {
-            const { village, district } = profileData.user.farmDetails;
-            const locationText = village || district || 'Location not set';
-            document.getElementById('locationDisplay').innerHTML = `
-              <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> ${locationText}
-            `;
-            lucide.createIcons();
-          }
-        }
-
-        // Load fields
-        const fieldsResponse = await fetch(`${CropSathiPrefs.api}/api/fields`, {
+        // Load fields with SWR (renders instantly at 0ms if cached!)
+        await CropSathiCache.fetchSWR(`${CropSathiPrefs.api}/api/fields`, {
           headers: { 'Authorization': `Bearer ${token}` }
+        }, {
+          ttl: 60000,
+          onCached: (fieldsData) => {
+            if (fieldsData && fieldsData.success && fieldsData.data?.length) {
+              allFields = fieldsData.data;
+              renderFields(allFields);
+            }
+          },
+          onFresh: (fieldsData) => {
+            if (fieldsData && fieldsData.success) {
+              allFields = fieldsData.data || [];
+              if (allFields.length) {
+                renderFields(allFields);
+              } else {
+                showEmptyState();
+              }
+            }
+          }
         });
-        const fieldsData = await fieldsResponse.json();
-
-        if (fieldsData.success) {
-          allFields = fieldsData.data;
-          renderFields(allFields);
-        }
       } catch (error) {
         console.error('Error loading data:', error);
-        showEmptyState();
+        if (!allFields.length) showEmptyState();
+      }
+    }
+
+    function applyUserProfile(profileData) {
+      if (!profileData || !profileData.success || !profileData.user) return;
+      const navAvatar = document.getElementById('navAvatarInitial');
+      if (navAvatar && profileData.user.name) {
+        navAvatar.textContent = profileData.user.name.trim().charAt(0).toUpperCase();
+      }
+      if (typeof applyProfilePhoto === 'function') {
+        applyProfilePhoto(profileData.user.profilePhoto);
+      }
+      if (profileData.user.farmDetails) {
+        const { village, district } = profileData.user.farmDetails;
+        const locationText = village || district || 'Location not set';
+        const locElem = document.getElementById('locationDisplay');
+        if (locElem) {
+          locElem.innerHTML = `<i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> ${locationText}`;
+          if (window.lucide) lucide.createIcons();
+        }
       }
     }
 
@@ -406,6 +425,10 @@
             <button onclick="viewField('${field._id}')" class="flex-1 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] text-sm font-semibold px-4 py-2.5 rounded-full transition">
               ${CropSathiPrefs.t('mf_view_details')}
             </button>
+            <a href="analytics.html?fieldId=${field._id}" onclick="if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm('${field._id}')" class="px-3.5 py-2.5 bg-[#f0eded] hover:bg-[#eae8e7] text-[#006038] text-xs font-semibold rounded-full flex items-center gap-1.5 transition" title="View Satellite Analytics">
+              <i data-lucide="line-chart" class="w-4 h-4 text-[#006038]"></i>
+              <span>Analytics</span>
+            </a>
             <button onclick="deleteField('${field._id}', '${field.name}')" class="w-10 h-10 bg-[#f0eded] hover:bg-red-50 rounded-full flex items-center justify-center transition" title="Delete field">
               <i data-lucide="trash-2" class="w-4 h-4 text-[#933302]"></i>
             </button>
@@ -439,6 +462,9 @@
       const field = allFields.find(f => f._id === fieldId);
       if (!field) return;
       currentDetailField = field;
+      if (typeof CropSathiSession !== 'undefined') {
+        CropSathiSession.setActiveFarm(fieldId);
+      }
 
       // Populate modal data
       document.getElementById('detailTitle').textContent = field.name;
@@ -544,6 +570,7 @@
         const data = await response.json();
 
         if (data.success) {
+          if (typeof CropSathiCache !== 'undefined') CropSathiCache.invalidate('fields');
           // Remove from local array
           allFields = allFields.filter(f => f._id !== fieldId);
           renderFields(allFields);
