@@ -3,298 +3,396 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CropSathi - My Fields</title>
+  <title>CropSathi — My Fields</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Google Fonts: Be Vietnam Pro & Noto Sans as specified in design.md -->
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="preconnect" href="https://images.unsplash.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="app.css">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="tailwind-config.js"></script>
   <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="ui.css">
 
   <style>
-    /* Typography Rules from design.md */
-    body {
-      font-family: 'Noto Sans', sans-serif;
-      background-color: #fbf9f8;
-      color: #1b1c1c;
-    }
-    h1, h2, h3, h4, .font-headline {
-      font-family: 'Be Vietnam Pro', sans-serif;
-    }
-    /* Modern Tactile Card Shadow from design.md */
-    .tactile-card {
-      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
-    }
-    /* Modal backdrop */
     .modal-backdrop {
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: rgba(10, 26, 19, 0.6);
       backdrop-filter: blur(4px);
     }
-    /* Detail map */
     #detailMap {
-      height: 100%;
-      min-height: 300px;
-      border-radius: 12px;
+      height: 320px;
+      border-radius: 1rem;
     }
     .leaflet-control-zoom a {
-      background-color: #006038 !important;
+      background-color: #1B4332 !important;
       color: white !important;
+      border-radius: 8px !important;
     }
     .leaflet-control-zoom a:hover {
-      background-color: #1a7a4c !important;
+      background-color: #163A2B !important;
     }
   </style>
   <script src="session.js"></script>
   <script>CropSathiSession.requireAuth();</script>
-</head>  <body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
+</head>
+<body class="bg-offwhite-100 font-body text-forest-700 min-h-screen flex has-tabbar">
 
-  <!-- Sidebar Navigation -->
-  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+  <!-- Desktop Sidebar matching Bolt Sidebar.tsx -->
+  <aside class="hidden w-64 flex-shrink-0 border-r border-offwhite-300 bg-offwhite-50 lg:flex lg:flex-col fixed left-0 top-0 bottom-0 overflow-y-auto z-30 justify-between">
     <div>
-      <!-- Brand Logo (Forest Green primary theme) -->
-      <div class="flex items-center gap-3 mb-10">
-        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-[#ffffff] font-bold shadow-md">
-          <i data-lucide="sprout" class="w-6 h-6"></i>
+      <!-- Brand Lockup -->
+      <div class="flex items-center gap-3 px-6 py-6">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+          <i data-lucide="sprout" class="w-5 h-5 text-offwhite-50"></i>
         </div>
-        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+        <div>
+          <h1 class="font-heading text-lg font-bold text-forest-700 leading-tight">CropSathi</h1>
+          <p class="text-xs text-forest-400">Crop Health Monitor</p>
+        </div>
       </div>
 
-      <!-- Navigation Links -->
-      <nav class="space-y-2">
-        <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="layout-grid" class="w-5 h-5"></i>
-          <span data-i18n="nav_dashboard">Dashboard</span>
-        </a>
-        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-[#ffffff] rounded-xl font-semibold transition shadow-sm">
-          <i data-lucide="map-pin" class="w-5 h-5"></i>
-          <span data-i18n="nav_my_fields">My Fields</span>
-        </a>
-        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="camera" class="w-5 h-5"></i>
-          <span data-i18n="nav_diagnose">Diagnose</span>
-        </a>
-        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-          <i data-lucide="lightbulb" class="w-5 h-5"></i>
-          <span data-i18n="nav_advisory">Advisory</span>
-        </a>
+      <!-- Navigation Menu -->
+      <nav class="flex-1 px-3 py-2">
+        <p class="px-3 pb-2 font-heading text-xs font-semibold uppercase tracking-wider text-forest-300">
+          Menu
+        </p>
+        <ul class="space-y-1">
+          <li>
+            <a href="dashboard.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="layout-dashboard" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_dashboard">Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a href="my-fields.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold bg-forest-500 text-offwhite-50 shadow-card">
+              <i data-lucide="map" class="w-5 h-5"></i>
+              <span data-i18n="nav_my_fields">My Fields</span>
+            </a>
+          </li>
+          <li>
+            <a href="diagnose.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="camera" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_diagnose">Diagnose</span>
+            </a>
+          </li>
+          <li>
+            <a href="advisory.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="lightbulb" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_advisory">Advisory</span>
+            </a>
+          </li>
+          <li>
+            <a href="analytics.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="bar-chart-3" class="w-5 h-5 text-forest-400"></i>
+              <span>Analytics</span>
+            </a>
+          </li>
+          <li>
+            <a href="settings.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+              <i data-lucide="settings" class="w-5 h-5 text-forest-400"></i>
+              <span data-i18n="nav_settings">Settings</span>
+            </a>
+          </li>
+        </ul>
       </nav>
     </div>
 
-    <!-- Bottom Settings / Profile -->
-    <div class="pt-6 border-t border-[#e4e2e1]">
-      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
-        <i data-lucide="settings" class="w-5 h-5"></i>
-        <span data-i18n="nav_settings">Settings</span>
-      </a>
+    <!-- Need Help Box -->
+    <div class="px-3 py-4">
+      <div class="rounded-2xl border border-offwhite-300 bg-offwhite-200/50 p-4">
+        <div class="flex items-center gap-2">
+          <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
+          <span class="font-heading text-xs font-semibold text-forest-600">Need Help?</span>
+        </div>
+        <p class="mt-2 text-xs text-forest-400 leading-relaxed">
+          Contact your Gram Sevak or call the Kisan helpline at 1800-180-1551.
+        </p>
+        <a href="settings.html" class="mt-3 block w-full text-center rounded-lg bg-forest-500 py-2 font-heading text-xs font-semibold text-offwhite-50 transition-colors hover:bg-forest-600">
+          Get Support
+        </a>
+      </div>
     </div>
   </aside>
 
-  <!-- Main Content Area -->
-  <main class="flex-1 w-full overflow-x-hidden p-4 pb-24 md:p-10 md:pb-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
-
-    <!-- Top Header -->
-    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6 md:mb-8">
-
-      <!-- Brand lockup — mobile top app bar -->
-      <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi">
-        <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
-        <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
+  <!-- Main Content Wrapper -->
+  <div class="flex min-w-0 flex-1 flex-col lg:ml-64">
+    
+    <!-- TopBar Header -->
+    <header class="sticky top-0 z-30 flex items-center justify-between border-b border-offwhite-300 bg-offwhite-100/90 px-4 py-3 backdrop-blur-md lg:px-8">
+      <!-- Mobile Logo -->
+      <a href="dashboard.html" class="flex items-center gap-2 lg:hidden" aria-label="CropSathi">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+          <i data-lucide="sprout" class="w-5 h-5"></i>
+        </div>
+        <span class="font-heading font-bold text-base text-forest-700">CropSathi</span>
       </a>
 
-      <!-- Title — drops to its own row on mobile -->
-      <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
-        <h1 class="text-2xl md:text-3xl font-bold text-[#1b1c1c]" data-i18n="mf_title">My Fields</h1>
-        <p class="text-[#3f4941] text-sm flex items-center gap-1 mt-1" id="locationDisplay">
-          <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> Loading location...
+      <!-- Page Title & Location -->
+      <div class="hidden sm:block">
+        <h2 class="font-heading text-base font-bold text-forest-700 leading-tight" data-i18n="mf_title">My Fields</h2>
+        <p class="text-xs text-forest-400 flex items-center gap-1 mt-0.5" id="locationDisplay">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5 text-terracotta-400"></i>
+          <span>Loading location...</span>
         </p>
       </div>
 
       <!-- Actions -->
-      <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
-        <button type="button" class="cs-app-action cs-search-trigger md:hidden w-11 h-11" aria-label="Search" aria-expanded="false">
-          <i data-lucide="search"></i>
+      <div class="flex items-center gap-2 lg:gap-3 ml-auto">
+        <button type="button" class="cs-app-action cs-search-trigger sm:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-offwhite-300 bg-offwhite-50 text-forest-500 hover:border-forest-200 transition-colors" aria-label="Search" aria-expanded="false">
+          <i data-lucide="search" class="w-4 h-4"></i>
         </button>
-        <div class="relative hidden md:block">
-          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
-          <input type="text" placeholder="Search fields..." id="searchInput" data-i18n-placeholder="mf_search_fields"
-            class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-60 text-[#1b1c1c]">
-        </div>
-        <a href="notifications.html" class="cs-app-action w-11 h-11" aria-label="Notifications">
-          <i data-lucide="bell"></i>
-          <span class="cs-dot"></span>
+
+        <a href="notifications.html" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-offwhite-300 bg-offwhite-50 text-forest-500 transition-colors hover:border-forest-200 shadow-card" aria-label="Notifications">
+          <i data-lucide="bell" class="w-4.5 h-4.5"></i>
+          <span class="cs-dot absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-terracotta-400"></span>
         </a>
-        <div class="user-menu">
-          <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
-            <span id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
-              <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
-            </span>
-            <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
+
+        <!-- User Menu -->
+        <div class="user-menu relative">
+          <button type="button" class="user-menu-trigger flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 p-1.5 pr-2 transition-colors hover:border-forest-200 lg:pr-3 shadow-card" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+            <div id="navProfilePhoto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden">
+              <span id="navAvatarInitial">F</span>
+            </div>
+            <div class="hidden text-left lg:block">
+              <p class="font-heading text-xs font-semibold text-forest-700 truncate max-w-[100px]" id="userMenuNameTop">Farmer</p>
+              <p class="text-[10px] text-forest-400">Grower</p>
+            </div>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-forest-400 hidden lg:block user-menu-caret"></i>
           </button>
-          <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
-            <div class="user-menu-head">
-              <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
-              <span class="user-menu-head-meta">
-                <span class="user-menu-head-name" id="userMenuName">Farmer</span>
-                <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
+          
+          <div class="user-menu-panel cs-dropdown-panel" role="menu" aria-label="Account menu" aria-hidden="true">
+            <div class="user-menu-head flex items-center gap-3 rounded-xl bg-offwhite-200 p-3 mb-2">
+              <span class="user-menu-head-photo flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden" id="userMenuPhoto" aria-hidden="true">F</span>
+              <span class="user-menu-head-meta min-w-0">
+                <span class="user-menu-head-name font-heading text-sm font-semibold text-forest-700 block truncate" id="userMenuName">Farmer</span>
+                <span class="user-menu-head-sub text-xs text-forest-400 block truncate" id="userMenuSub">Signed in</span>
               </span>
             </div>
-            <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
-            <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
-            <span class="user-menu-sep" role="separator"></span>
-            <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+            <a class="user-menu-item flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-medium text-forest-600 hover:bg-offwhite-200 transition-colors" role="menuitem" href="settings.html">
+              <i data-lucide="settings" class="w-4 h-4 text-forest-400"></i>
+              <span class="um-item-label" data-i18n="nav_settings">Settings</span>
+            </a>
+            <button type="button" class="user-menu-item flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-medium text-forest-600 hover:bg-offwhite-200 transition-colors" role="menuitem" data-menu-theme>
+              <i data-lucide="moon" data-theme-icon class="w-4 h-4 text-forest-400"></i>
+              <span class="um-item-label" data-theme-label>Dark mode</span>
+            </button>
+            <div class="my-1 border-t border-offwhite-200"></div>
+            <button type="button" class="user-menu-item is-danger flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-semibold text-terracotta-500 hover:bg-terracotta-50 transition-colors" role="menuitem" data-menu-logout>
+              <i data-lucide="log-out" class="w-4 h-4 text-terracotta-500"></i>
+              <span class="um-item-label">Sign out</span>
+            </button>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Mobile search row (filters fields via #searchInput) -->
-    <div class="cs-searchrow md:hidden">
-      <i data-lucide="search" aria-hidden="true"></i>
-      <input type="search" placeholder="Search fields..." aria-label="Search fields" data-i18n-placeholder="mf_search_fields" data-sync="#searchInput">
-      <button type="button" class="cs-searchrow-close" data-search-close aria-label="Close search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="mb-6 flex flex-wrap gap-2.5 md:gap-3">
-      <a href="add-field.html"
-        class="inline-flex items-center justify-center gap-2 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] font-semibold flex-1 min-w-[150px] px-4 md:px-6 md:flex-none py-3 rounded-full transition shadow-sm text-sm">
-        <i data-lucide="plus" class="w-5 h-5"></i>
-        <span data-i18n="mf_add_field">Add New Field</span>
-      </a>
-      <a href="analytics.html"
-        class="inline-flex items-center justify-center gap-2 bg-white border border-[#006038]/25 hover:bg-[#e8efe5] text-[#006038] font-semibold flex-1 min-w-[150px] px-4 md:px-6 md:flex-none py-3 rounded-full transition text-sm">
-        <i data-lucide="bar-chart-2" class="w-5 h-5 text-[#006038]"></i>
-        <span data-i18n="mf_view_analytics">View Analytics</span>
-      </a>
-    </div>
-
-    <!-- Loading State -->
-    <div id="loadingState" class="text-center py-12">
-      <div class="inline-block w-8 h-8 border-4 border-[#006038] border-t-transparent rounded-full animate-spin"></div>
-      <p class="mt-4 text-[#3f4941]" data-i18n="mf_loading">Loading your fields...</p>
-    </div>
-
-    <!-- Empty State -->
-    <div id="emptyState" class="hidden text-center py-16">
-      <div class="w-20 h-20 bg-[#f0eded] rounded-full flex items-center justify-center mx-auto mb-4">
-        <i data-lucide="map-pin" class="w-10 h-10 text-[#6f7a71]"></i>
+    <!-- Mobile Search Row -->
+    <div class="cs-searchrow md:hidden px-4 py-2 border-b border-offwhite-300 bg-offwhite-50">
+      <div class="flex items-center gap-2 bg-offwhite-200 rounded-xl px-3 py-1.5">
+        <i data-lucide="search" class="w-4 h-4 text-forest-400"></i>
+        <input type="search" placeholder="Search fields by name or crop..." class="bg-transparent text-xs w-full text-forest-700 outline-none" data-sync="#searchInput">
+        <button type="button" class="cs-searchrow-close text-forest-400" data-search-close aria-label="Close search">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
-      <h3 class="font-headline font-bold text-xl text-[#1b1c1c] mb-2" data-i18n="mf_no_fields">No fields yet</h3>
-      <p class="text-[#3f4941] mb-6" data-i18n="mf_no_fields_desc">Add your first field to start tracking crop health and yield.</p>
-      <a href="add-field.html"
-        class="inline-flex items-center gap-2 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] font-semibold px-6 py-3 rounded-full transition shadow-sm">
-        <i data-lucide="plus" class="w-5 h-5"></i>
-        <span data-i18n="mf_add_first">Add Your First Field</span>
-      </a>
     </div>
 
-    <!-- Fields Grid -->
-    <section id="fieldsGrid" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Field cards will be rendered here dynamically -->
-    </section>
-
-  </main>
-
-  <!-- Field Detail Modal -->
-  <div id="fieldDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop" onclick="closeDetailModal(event)">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
-
-      <!-- Modal Header -->
-      <div class="p-5 border-b border-[#e4e2e1] flex items-center justify-between">
+    <!-- Main Content Area -->
+    <main class="flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-10 max-w-7xl">
+      
+      <!-- Top Action Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h2 id="detailTitle" class="text-xl font-bold text-[#1b1c1c] font-headline">Field Name</h2>
-          <p id="detailCrop" class="text-sm text-[#3f4941] capitalize">Crop Type</p>
+          <h1 class="font-heading text-xl font-bold text-forest-700 lg:text-2xl" data-i18n="mf_title">
+            My Fields
+          </h1>
+          <p class="text-xs text-forest-400 mt-0.5">
+            Manage your registered agricultural boundaries and telemetry
+          </p>
         </div>
-        <button onclick="closeDetailModal()" class="w-10 h-10 rounded-full hover:bg-[#f0eded] flex items-center justify-center transition" aria-label="Close">
-          <i data-lucide="x" class="w-5 h-5 text-[#3f4941]" aria-hidden="true"></i>
+
+        <div class="flex items-center gap-3">
+          <!-- Search input -->
+          <div class="relative flex-1 sm:w-64">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-forest-400"></i>
+            <input type="text" id="searchInput" placeholder="Filter fields or crops..." class="w-full bg-offwhite-50 text-xs pl-9 pr-4 py-2.5 rounded-xl border border-offwhite-300 focus:border-forest-400 outline-none text-forest-700 shadow-card transition-colors">
+          </div>
+
+          <!-- Add Field CTA -->
+          <a href="add-field.html" class="flex items-center gap-2 rounded-xl bg-forest-500 px-4 py-2.5 font-heading text-xs font-semibold text-offwhite-50 transition-colors hover:bg-forest-600 shadow-card shrink-0">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span data-i18n="mf_add_field">Add Field</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Loading State Skeleton -->
+      <div id="loadingState" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
+        <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl p-5 shadow-card space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-offwhite-200"></div>
+            <div class="flex-1 space-y-2">
+              <div class="h-4 bg-offwhite-200 rounded w-2/3"></div>
+              <div class="h-3 bg-offwhite-200 rounded w-1/3"></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 py-2">
+            <div class="h-14 bg-offwhite-200 rounded-xl"></div>
+            <div class="h-14 bg-offwhite-200 rounded-xl"></div>
+          </div>
+          <div class="h-10 bg-offwhite-200 rounded-xl"></div>
+        </div>
+        <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl p-5 shadow-card space-y-4 hidden md:block">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-offwhite-200"></div>
+            <div class="flex-1 space-y-2">
+              <div class="h-4 bg-offwhite-200 rounded w-2/3"></div>
+              <div class="h-3 bg-offwhite-200 rounded w-1/3"></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 py-2">
+            <div class="h-14 bg-offwhite-200 rounded-xl"></div>
+            <div class="h-14 bg-offwhite-200 rounded-xl"></div>
+          </div>
+          <div class="h-10 bg-offwhite-200 rounded-xl"></div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="hidden text-center py-16 px-4 bg-offwhite-50 border border-offwhite-300 rounded-2xl shadow-card max-w-lg mx-auto">
+        <div class="w-14 h-14 rounded-2xl bg-forest-50 text-forest-500 flex items-center justify-center mx-auto mb-4 shadow-sm">
+          <i data-lucide="map" class="w-7 h-7 text-forest-500"></i>
+        </div>
+        <h3 class="font-heading text-base font-bold text-forest-700" data-i18n="mf_empty_title">No fields registered yet</h3>
+        <p class="text-xs text-forest-400 mt-1 max-w-xs mx-auto" data-i18n="mf_empty_subtitle">
+          Map your field polygon boundaries to unlock live NDVI satellite telemetry and advisory.
+        </p>
+        <a href="add-field.html" class="mt-5 inline-flex items-center gap-2 rounded-xl bg-forest-500 px-5 py-2.5 font-heading text-xs font-semibold text-offwhite-50 hover:bg-forest-600 transition-colors shadow-card">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span data-i18n="mf_add_field">Add Field</span>
+        </a>
+      </div>
+
+      <!-- Fields Grid -->
+      <div id="fieldsGrid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </main>
+  </div>
+
+  <!-- Field Detail Modal with Leaflet Map -->
+  <div id="fieldDetailModal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4" onclick="closeDetailModal(event)">
+    <div class="bg-offwhite-50 border border-offwhite-300 rounded-3xl p-6 w-full max-w-3xl shadow-elevated max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div class="flex items-start justify-between gap-4 mb-4 pb-3 border-b border-offwhite-200">
+        <div>
+          <h3 id="detailTitle" class="font-heading font-bold text-lg text-forest-700">Field Details</h3>
+          <p id="detailCrop" class="text-xs text-forest-400 flex items-center gap-1.5 mt-1"></p>
+        </div>
+        <button onclick="closeDetailModal()" class="flex h-8 w-8 items-center justify-center rounded-full bg-offwhite-200 text-forest-500 hover:bg-offwhite-300 transition-colors" aria-label="Close modal">
+          <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
 
-      <!-- Modal Body -->
-      <div class="flex-1 overflow-y-auto p-5">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <!-- Interactive Satellite Boundary Map -->
+      <div class="rounded-2xl overflow-hidden border border-offwhite-300 mb-5 shadow-card">
+        <div id="detailMap"></div>
+      </div>
 
-          <!-- Left: Map -->
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area (Hectares)</p>
+          <p id="detailAreaHa" class="text-base font-bold font-serif text-forest-700 mt-0.5">--</p>
+        </div>
+        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area (Acres)</p>
+          <p id="detailAreaAc" class="text-base font-bold font-serif text-forest-700 mt-0.5">--</p>
+        </div>
+        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Growth Stage</p>
+          <p id="detailStage" class="text-sm font-semibold text-forest-700 mt-1 capitalize">--</p>
+        </div>
+        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Sowing Date</p>
+          <p id="detailSowing" class="text-xs font-semibold text-forest-700 mt-1">--</p>
+        </div>
+        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Polygon GPS</p>
+          <p id="detailPoints" class="text-xs font-semibold text-forest-700 mt-1">--</p>
+        </div>
+        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300 flex items-center justify-between">
           <div>
-            <div id="detailMap" class="border-2 border-[#e4e2e1] rounded-xl"></div>
-            <p class="text-xs text-[#3f4941] mt-2 text-center">Field boundary on satellite view</p>
+            <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Telemetry</p>
+            <p class="text-xs font-semibold text-risk-green mt-1">Active Sync</p>
           </div>
-
-          <!-- Right: Details -->
-          <div class="space-y-4">
-            <!-- Stats -->
-            <div class="grid grid-cols-2 gap-3">
-              <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
-                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Area</p>
-                <p id="detailAreaHa" class="text-xl font-bold text-[#006038] mt-0.5">0 ha</p>
-              </div>
-              <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
-                <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Area (Acres)</p>
-                <p id="detailAreaAc" class="text-xl font-bold text-[#1b1c1c] mt-0.5">0 ac</p>
-              </div>
-            </div>
-
-            <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
-              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Sowing Date</p>
-              <p id="detailSowing" class="text-sm font-semibold text-[#1b1c1c] mt-0.5">—</p>
-            </div>
-
-            <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
-              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Crop Stage</p>
-              <p id="detailStage" class="text-sm font-semibold text-[#1b1c1c] mt-0.5 capitalize">—</p>
-            </div>
-
-            <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
-              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Polygon Points</p>
-              <p id="detailPoints" class="text-sm font-semibold text-[#1b1c1c] mt-0.5">0 points</p>
-            </div>
-
-            <div class="bg-[#f6f3f2] p-3.5 rounded-xl border border-[#e4e2e1]">
-              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wider">Status</p>
-              <div class="flex items-center gap-2 mt-1">
-                <span class="w-2.5 h-2.5 rounded-full bg-[#006038] animate-pulse"></span>
-                <p class="text-sm font-semibold text-[#006038]">Active</p>
-              </div>
-            </div>
-          </div>
-
+          <span class="flex h-2.5 w-2.5 rounded-full bg-risk-green"></span>
         </div>
       </div>
 
-      <!-- Modal Footer -->
-      <div class="p-5 border-t border-[#e4e2e1] flex justify-end gap-3">
-        <button onclick="closeDetailModal()" class="px-5 py-2.5 text-sm font-semibold text-[#3f4941] bg-[#f0eded] hover:bg-[#eae8e7] rounded-full transition">
-          <span data-i18n="fd_close">Close</span>
+      <!-- Modal Action Buttons -->
+      <div class="flex items-center justify-between gap-3 pt-3 border-t border-offwhite-200">
+        <button onclick="editField()" class="flex items-center gap-1.5 rounded-xl border border-offwhite-300 bg-offwhite-50 px-4 py-2 font-heading text-xs font-semibold text-forest-700 hover:bg-offwhite-200 transition-colors">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+          <span>Edit Boundary</span>
         </button>
-        <button onclick="editField()" class="px-5 py-2.5 text-sm font-semibold text-white bg-[#006038] hover:bg-[#1a7a4c] rounded-full transition shadow-sm flex items-center gap-2">
-          <i data-lucide="pencil" class="w-4 h-4"></i>
-          <span data-i18n="fd_edit">Edit Field</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeDetailModal()" class="rounded-xl border border-offwhite-300 px-4 py-2 font-heading text-xs font-semibold text-forest-500 hover:bg-offwhite-200 transition-colors">
+            Close
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <!-- Mobile Bottom Tab Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 border-t border-offwhite-300 bg-offwhite-50/95 backdrop-blur-md lg:hidden cs-tabbar" aria-label="Primary Mobile Navigation">
+    <div class="flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="dashboard.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_dashboard">Dashboard</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab is-active" href="my-fields.html" aria-current="page">
+        <div class="p-1 text-forest-500">
+          <i data-lucide="map" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-forest-500" data-i18n="nav_my_fields">Fields</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 -mt-4 cs-tab" href="diagnose.html" aria-label="Scan Crop">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-terracotta-400 text-offwhite-50 shadow-elevated transition-transform active:scale-95">
+          <i data-lucide="camera" class="w-6 h-6"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-terracotta-500">Scan</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="advisory.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="lightbulb" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_advisory">Advisory</span>
+      </a>
+      <a class="relative flex flex-col items-center gap-1 px-2 py-1 cs-tab" href="settings.html">
+        <div class="p-1 text-forest-400">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-medium text-forest-400" data-i18n="nav_settings">Settings</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Leaflet & Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="config.js"></script>
   <script src="preferences.js"></script>
   <script src="nav-profile.js"></script>
+  
   <script>
-    // Check authentication
     const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
-    if (!token) {
-      window.location.href = 'login.html';
-    }
+    if (!token) { window.location.href = 'login.html'; }
 
-    // Global state
     let allFields = [];
 
-    // Crop type emoji mapping
     const cropEmojis = {
       'Wheat': 'wheat',
       'Rice': 'wheat',
@@ -306,10 +404,8 @@
       'Other': 'sprout',
     };
 
-    // Load user profile and fields with SWR cache
     async function loadData() {
       try {
-        // Load user profile (cached)
         CropSathiCache.fetchSWR(`${CropSathiPrefs.api}/api/user/profile`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }, {
@@ -318,7 +414,6 @@
           onFresh: (profileData) => applyUserProfile(profileData)
         }).catch(() => {});
 
-        // Load fields with SWR (renders instantly at 0ms if cached!)
         await CropSathiCache.fetchSWR(`${CropSathiPrefs.api}/api/fields`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }, {
@@ -352,21 +447,25 @@
       if (navAvatar && profileData.user.name) {
         navAvatar.textContent = profileData.user.name.trim().charAt(0).toUpperCase();
       }
+      const topName = document.getElementById('userMenuNameTop');
+      if (topName && profileData.user.name) {
+        topName.textContent = profileData.user.name;
+      }
       if (typeof applyProfilePhoto === 'function') {
         applyProfilePhoto(profileData.user.profilePhoto);
       }
       if (profileData.user.farmDetails) {
         const { village, district } = profileData.user.farmDetails;
-        const locationText = village || district || 'Location not set';
+        const locationText = village ? `${village}, ${district}` : (district || 'Location not set');
         const locElem = document.getElementById('locationDisplay');
         if (locElem) {
-          locElem.innerHTML = `<i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> ${locationText}`;
+          locElem.innerHTML = `<i data-lucide="map-pin" class="w-3.5 h-3.5 text-terracotta-400"></i> ${locationText}`;
           if (window.lucide) lucide.createIcons();
         }
       }
     }
 
-    // Render field cards
+    // Render field cards with Bolt styling
     function renderFields(fields) {
       const grid = document.getElementById('fieldsGrid');
       const loading = document.getElementById('loadingState');
@@ -383,75 +482,75 @@
       grid.classList.remove('hidden');
 
       grid.innerHTML = fields.map((field) => `
-        <div class="bg-[#f6f3f2] border border-[#e4e2e1] rounded-xl tactile-card p-5">
-          <!-- Card Header -->
-          <div class="flex items-start justify-between gap-3 mb-4">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-11 h-11 rounded-xl bg-white border border-[#e4e2e1] flex items-center justify-center shrink-0 shadow-sm">
-                <i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-5 h-5 text-[#006038]"></i>
+        <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl shadow-card hover:shadow-card-hover hover:border-forest-200 transition-all p-5 flex flex-col justify-between">
+          <!-- Card Top Row -->
+          <div>
+            <div class="flex items-start justify-between gap-3 mb-4">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-11 h-11 rounded-xl bg-forest-50 flex items-center justify-center shrink-0 shadow-sm text-forest-500">
+                  <i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-heading font-semibold text-base text-forest-700 leading-tight truncate">${CropSathiPrefs.escapeHtml(field.name)}</h3>
+                  <p class="text-xs text-forest-400 mt-0.5 truncate">${CropSathiPrefs.escapeHtml(field.cropType)}${field.cropStage ? ' · ' + CropSathiPrefs.escapeHtml(field.cropStage) : ''} · ${field.areaInHectares.toFixed(1)} ha</p>
+                </div>
               </div>
-              <div class="min-w-0">
-                <h3 class="font-bold text-[#1b1c1c] font-headline text-base leading-tight truncate">${CropSathiPrefs.escapeHtml(field.name)}</h3>
-                <p class="text-xs text-[#3f4941] mt-0.5 truncate">${CropSathiPrefs.escapeHtml(field.cropType)}${field.cropStage ? ' · ' + CropSathiPrefs.escapeHtml(field.cropStage) : ''} · ${field.areaInHectares.toFixed(1)} hectares</p>
+              <span class="bg-forest-50 text-risk-green px-2.5 py-1 rounded-full text-[10px] font-semibold flex items-center gap-1.5 shrink-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-risk-green animate-pulse"></span>
+                Active
+              </span>
+            </div>
+
+            <!-- Stats 2x2 Grid -->
+            <div class="grid grid-cols-2 gap-2.5 mb-4">
+              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area</p>
+                <p class="text-base font-bold font-serif text-forest-700 mt-0.5">${field.areaInHectares.toFixed(1)} ha</p>
               </div>
-            </div>
-            <div class="bg-[#006038] text-[#ffffff] px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shrink-0">
-              <span class="w-2 h-2 rounded-full bg-[#abffc9] animate-pulse"></span>
-              Active
-            </div>
-          </div>
-          <!-- Stats Grid -->
-          <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
-              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Area</p>
-              <p class="text-lg font-bold text-[#006038] mt-0.5">${field.areaInHectares.toFixed(1)} ha</p>
-            </div>
-            <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
-              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Area (Acres)</p>
-              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5">${field.areaInAcres.toFixed(1)} ac</p>
-            </div>
-            <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
-              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Crop Type</p>
-              <p class="text-sm font-semibold text-[#1b1c1c] mt-0.5">${CropSathiPrefs.escapeHtml(field.cropType)}</p>
-            </div>
-            <div class="bg-[#f0eded] p-3 rounded-lg border border-[#e4e2e1]">
-              <p class="text-[10px] font-semibold text-[#3f4941] uppercase tracking-wide">Sowing Date</p>
-              <p class="text-sm font-semibold text-[#1b1c1c] mt-0.5">${new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area (Acres)</p>
+                <p class="text-base font-bold font-serif text-forest-700 mt-0.5">${field.areaInAcres.toFixed(1)} ac</p>
+              </div>
+              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Crop Type</p>
+                <p class="text-xs font-semibold text-forest-700 mt-1 truncate">${CropSathiPrefs.escapeHtml(field.cropType)}</p>
+              </div>
+              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Sowing Date</p>
+                <p class="text-xs font-semibold text-forest-700 mt-1 truncate">${new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              </div>
             </div>
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex gap-2">
-            <button onclick="viewField('${field._id}')" class="flex-1 bg-[#006038] hover:bg-[#1a7a4c] text-[#ffffff] text-sm font-semibold px-4 py-2.5 rounded-full transition">
+          <div class="flex items-center gap-2 pt-3 border-t border-offwhite-200">
+            <button onclick="viewField('${field._id}')" class="flex-1 bg-forest-500 hover:bg-forest-600 text-offwhite-50 text-xs font-heading font-semibold py-2.5 px-3 rounded-xl transition-colors text-center shadow-card">
               ${CropSathiPrefs.t('mf_view_details')}
             </button>
-            <a href="analytics.html?fieldId=${field._id}" onclick="if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm('${field._id}')" class="px-3.5 py-2.5 bg-[#f0eded] hover:bg-[#eae8e7] text-[#006038] text-xs font-semibold rounded-full flex items-center gap-1.5 transition" title="View Satellite Analytics">
-              <i data-lucide="line-chart" class="w-4 h-4 text-[#006038]"></i>
+            <a href="analytics.html?fieldId=${field._id}" onclick="if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm('${field._id}')" class="px-3 py-2.5 bg-offwhite-200 hover:bg-offwhite-300 text-forest-700 text-xs font-heading font-semibold rounded-xl flex items-center gap-1.5 transition-colors" title="View Satellite Analytics">
+              <i data-lucide="bar-chart-3" class="w-4 h-4 text-forest-500"></i>
               <span>Analytics</span>
             </a>
-            <button onclick="deleteField('${field._id}', '${field.name}')" class="w-10 h-10 bg-[#f0eded] hover:bg-red-50 rounded-full flex items-center justify-center transition" title="Delete field">
-              <i data-lucide="trash-2" class="w-4 h-4 text-[#933302]"></i>
+            <button onclick="deleteField('${field._id}', '${field.name}')" class="w-9 h-9 bg-offwhite-200 hover:bg-terracotta-50 text-terracotta-500 rounded-xl flex items-center justify-center transition-colors shrink-0" title="Delete field">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
       `).join('');
 
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
     }
 
-    // Show empty state
     function showEmptyState() {
       document.getElementById('loadingState').classList.add('hidden');
       document.getElementById('fieldsGrid').classList.add('hidden');
       document.getElementById('emptyState').classList.remove('hidden');
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
     }
 
-    // View field details - open modal with map
     let detailMap = null;
     let currentDetailField = null;
 
-    // Edit field - navigate to add-field page with data
     function editField() {
       if (!currentDetailField) return;
       localStorage.setItem('editField', JSON.stringify(currentDetailField));
@@ -466,36 +565,30 @@
         CropSathiSession.setActiveFarm(fieldId);
       }
 
-      // Populate modal data
       document.getElementById('detailTitle').textContent = field.name;
-      document.getElementById('detailCrop').innerHTML = `<i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-4 h-4 text-[#006038]"></i> ${field.cropType}`;
+      document.getElementById('detailCrop').innerHTML = `<i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-4 h-4 text-forest-500"></i> ${field.cropType}`;
       document.getElementById('detailAreaHa').textContent = `${field.areaInHectares.toFixed(2)} ha`;
       document.getElementById('detailAreaAc').textContent = `${field.areaInAcres.toFixed(2)} ac`;
       document.getElementById('detailSowing').textContent = field.sowingDate
-        ? new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+        ? new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
         : '—';
       document.getElementById('detailStage').textContent = field.cropStage || '—';
       document.getElementById('detailPoints').textContent = field.polygon ? `${field.polygon.length} points` : '0 points';
 
-      // Show modal
       document.getElementById('fieldDetailModal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
 
-      // Initialize map after modal is visible
       setTimeout(() => {
         initDetailMap(field);
       }, 150);
     }
 
-    // Initialize detail map with polygon
     function initDetailMap(field) {
-      // Destroy previous map if exists
       if (detailMap) {
         detailMap.remove();
         detailMap = null;
       }
 
-      // Calculate center from polygon or use defaults
       let centerLat = 20.5937;
       let centerLng = 78.9629;
       let zoom = 15;
@@ -507,35 +600,29 @@
 
       detailMap = L.map('detailMap').setView([centerLat, centerLng], zoom);
 
-      // Satellite tiles
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '© Esri, Maxar, Earthstar Geographics',
         maxZoom: 19
       }).addTo(detailMap);
 
-      // Draw polygon if exists
       if (field.polygon && field.polygon.length >= 3) {
         const latlngs = field.polygon.map(p => [p.lat, p.lng]);
 
         const polygon = L.polygon(latlngs, {
-          color: '#006038',
+          color: '#1B4332',
           weight: 3,
-          fillColor: '#006038',
-          fillOpacity: 0.25
+          fillColor: '#3F8259',
+          fillOpacity: 0.3
         }).addTo(detailMap);
 
-        // Fit map to polygon bounds
         detailMap.fitBounds(polygon.getBounds(), { padding: [30, 30] });
+        polygon.bindPopup(`Area: ${field.areaInHectares.toFixed(2)} ha`).openPopup();
 
-        // Add popup
-        polygon.bindPopup(`Area: ${field.areaInHectares.toFixed(2)} hectares`).openPopup();
-
-        // Add corner markers
         field.polygon.forEach((p, i) => {
           L.circleMarker([p.lat, p.lng], {
             radius: 5,
-            fillColor: '#006038',
-            color: '#ffffff',
+            fillColor: '#1B4332',
+            color: '#FFFFFF',
             weight: 2,
             fillOpacity: 1
           }).addTo(detailMap).bindPopup(`Point ${i + 1}`);
@@ -543,9 +630,7 @@
       }
     }
 
-    // Close detail modal
     function closeDetailModal(event) {
-      // Only close when clicking the backdrop itself (not child elements)
       if (event && event.target !== event.currentTarget) return;
       document.getElementById('fieldDetailModal').classList.add('hidden');
       document.body.style.overflow = 'auto';
@@ -555,7 +640,6 @@
       }
     }
 
-    // Delete field
     async function deleteField(fieldId, fieldName) {
       if (!confirm(`Are you sure you want to delete "${fieldName}"? This cannot be undone.`)) {
         return;
@@ -571,7 +655,6 @@
 
         if (data.success) {
           if (typeof CropSathiCache !== 'undefined') CropSathiCache.invalidate('fields');
-          // Remove from local array
           allFields = allFields.filter(f => f._id !== fieldId);
           renderFields(allFields);
         } else {
@@ -583,7 +666,6 @@
       }
     }
 
-    // Search functionality
     document.getElementById('searchInput').addEventListener('input', function (e) {
       const query = e.target.value.toLowerCase();
       const filtered = allFields.filter(field =>
@@ -593,34 +675,10 @@
       renderFields(filtered);
     });
 
-    // Load data on page load
     loadData();
-    lucide.createIcons();  </script>
+    if (window.lucide) lucide.createIcons();
+  </script>
 
   <script src="ui.js"></script>
-
-  <!-- Bottom navigation (mobile only) -->
-  <nav class="cs-tabbar md:hidden" aria-label="Primary">
-    <a class="cs-tab" href="dashboard.html">
-      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
-    </a>
-    <a class="cs-tab is-active" href="my-fields.html" aria-current="page">
-      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
-    </a>
-    <a class="cs-tab" href="diagnose.html">
-      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
-    </a>
-    <a class="cs-tab" href="advisory.html">
-      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
-    </a>
-    <a class="cs-tab" href="settings.html">
-      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
-      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
-    </a>
-  </nav>
 </body>
 </html>
