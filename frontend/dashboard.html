@@ -37,6 +37,17 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+
+    /* Bulletproof Weather Card Styling — Stays crisp, vibrant, and mint in all modes */
+    #weatherCardBg {
+      background: linear-gradient(135deg, #e7f7f5 0%, #effaf4 50%, #dff1e5 100%) !important;
+      border: 1.5px solid #8bcfd0 !important;
+      color: #062f2d !important;
+      box-shadow: 0 10px 30px rgba(38, 113, 111, 0.12) !important;
+    }
+    #weatherCardBg * {
+      box-sizing: border-box;
+    }
   </style>
 </head>
 <body class="bg-offwhite-100 font-body text-forest-700 min-h-screen flex has-tabbar">
@@ -70,20 +81,20 @@
           <li>
             <a href="my-fields.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
               <i data-lucide="map" class="w-5 h-5 text-forest-400"></i>
-              <span class="flex-1 text-left" data-i18n="nav_my_fields">Fields</span>
+              <span class="flex-1 text-left" data-i18n="nav_my_fields">My Fields</span>
             </a>
           </li>
           <li>
             <a href="diagnose.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
               <i data-lucide="camera" class="w-5 h-5 text-forest-400"></i>
-              <span class="flex-1 text-left" data-i18n="nav_diagnose">Scan Crop</span>
+              <span class="flex-1 text-left" data-i18n="nav_diagnose">Diagnose</span>
             </a>
           </li>
           <li>
             <a href="advisory.html" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
               <i data-lucide="lightbulb" class="w-5 h-5 text-forest-400"></i>
               <span class="flex-1 text-left" data-i18n="nav_advisory">Advisory</span>
-              <span class="flex h-5 min-w-5 items-center justify-center rounded-full bg-terracotta-400 px-1.5 text-xs font-semibold text-offwhite-50">3</span>
+              <span id="sidebarAdvisoryBadge" class="hidden flex h-5 min-w-5 items-center justify-center rounded-full bg-terracotta-400 px-1.5 text-xs font-semibold text-offwhite-50">0</span>
             </a>
           </li>
           <li>
@@ -148,17 +159,17 @@
           aria-expanded="false"
         >
           <div id="topFieldEmoji" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-50 text-lg leading-none">
-            🫘
+            🌾
           </div>
           <div class="hidden text-left sm:block">
             <div class="flex items-center gap-1.5">
-              <p id="topFieldName" class="font-heading text-sm font-semibold text-forest-700 leading-none">Plot B — Riverside</p>
+              <p id="topFieldName" class="font-heading text-sm font-semibold text-forest-700 leading-none">Loading fields...</p>
               <i data-lucide="chevron-down" id="topFieldChevron" class="w-3.5 h-3.5 text-forest-400 transition-transform duration-200"></i>
             </div>
-            <p id="topFieldMeta" class="text-xs text-forest-400 mt-1 leading-none">Soybean · 3 acres</p>
+            <p id="topFieldMeta" class="text-xs text-forest-400 mt-1 leading-none">Field Health Overview</p>
           </div>
           <div class="block text-left sm:hidden">
-            <p id="topFieldCropMobile" class="font-heading text-sm font-semibold text-forest-700">Soybean</p>
+            <p id="topFieldCropMobile" class="font-heading text-sm font-semibold text-forest-700">Fields</p>
           </div>
         </button>
 
@@ -168,11 +179,16 @@
           class="hidden absolute left-0 top-full mt-2 w-72 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in"
           role="listbox"
         >
-          <p class="px-3 py-2 font-heading text-xs font-semibold uppercase tracking-wider text-forest-300">
-            Select Field
-          </p>
-          <div id="topFieldListItems" class="space-y-1">
-            <!-- Dynamically populated -->
+          <div class="flex items-center justify-between px-3 py-2">
+            <p class="font-heading text-xs font-semibold uppercase tracking-wider text-forest-300">
+              Select Field
+            </p>
+            <a href="add-field.html" class="text-xs font-semibold text-forest-500 hover:underline flex items-center gap-1">
+              <i data-lucide="plus" class="w-3 h-3"></i> Add
+            </a>
+          </div>
+          <div id="topFieldListItems" class="space-y-1 max-h-60 overflow-y-auto no-scrollbar">
+            <!-- Dynamically populated from real DB fields -->
           </div>
         </div>
       </div>
@@ -182,8 +198,8 @@
         <!-- Notifications Bell -->
         <a href="notifications.html" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-offwhite-300 bg-offwhite-50 text-forest-500 transition-colors hover:border-forest-200 shadow-card" aria-label="Notifications">
           <i data-lucide="bell" class="w-4.5 h-4.5 text-forest-500"></i>
-          <span class="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-terracotta-400 px-1 text-xs font-bold text-offwhite-50">
-            2
+          <span id="topNotifBadge" class="hidden absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-terracotta-400 px-1 text-xs font-bold text-offwhite-50">
+            0
           </span>
         </a>
 
@@ -197,25 +213,25 @@
             aria-expanded="false"
           >
             <div id="navProfilePhoto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden">
-              <span id="navAvatarInitial">RP</span>
+              <span id="navAvatarInitial">F</span>
             </div>
             <div class="hidden text-left lg:block">
               <div class="flex items-center gap-1">
-                <p class="font-heading text-sm font-semibold text-forest-700 truncate max-w-[120px]" id="userName">Rajesh Patil</p>
+                <p class="font-heading text-sm font-semibold text-forest-700 truncate max-w-[120px]" id="userName">Farmer</p>
                 <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-forest-400"></i>
               </div>
-              <p class="text-xs text-forest-400" id="userLocation">Farmer · Shirur</p>
+              <p class="text-xs text-forest-400" id="userLocation">Farmer</p>
             </div>
           </button>
           
           <div id="topProfileMenuPanel" class="hidden absolute right-0 top-full mt-2 w-64 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in" role="menu">
-            <div class="flex items-center gap-3 rounded-xl bg-offwhite-200 px-3 py-3">
+            <div class="flex items-center gap-3 rounded-xl bg-offwhite-200 p-3">
               <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50" id="userMenuPhoto">
-                RP
+                F
               </div>
               <div class="min-w-0">
-                <p class="font-heading text-sm font-semibold text-forest-700 truncate" id="userMenuName">Rajesh Patil</p>
-                <p class="text-xs text-forest-400 truncate" id="userMenuPhone">+91 98XXX 45678</p>
+                <p class="font-heading text-sm font-semibold text-forest-700 truncate" id="userMenuName">Farmer</p>
+                <p class="text-xs text-forest-400 truncate" id="userMenuPhone">Verified Account</p>
               </div>
             </div>
             <div class="mt-2 space-y-1">
@@ -225,7 +241,7 @@
               </a>
               <a href="my-fields.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
                 <i data-lucide="map" class="w-4 h-4 text-forest-400"></i>
-                <span>Field Settings</span>
+                <span>My Fields</span>
               </a>
               <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
                 <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
@@ -252,7 +268,7 @@
             Dashboard
           </h1>
           <p id="dashboardSubtitle" class="mt-0.5 text-sm text-forest-400">
-            Crop health overview for <span id="dashSubtitleCrop">Soybean</span> · Updated 1 hour ago
+            Real-time crop health telemetry & field advisory overview
           </p>
         </div>
 
@@ -273,64 +289,66 @@
         </div>
       </div>
 
-      <!-- Weather Card (Exact Bolt WeatherCard.tsx Layout & Landscape Scene) -->
+      <!-- Weather Card (Fixed Mint Background & Crisp Layout, Bulletproof Rendering) -->
       <div id="weatherSection" class="animate-slide-up mb-4">
-        <section id="weatherCardBg" class="relative isolate overflow-hidden rounded-[20px] sm:rounded-[25px] border border-[#8bcfd0] bg-gradient-to-br from-[#e7f7f5] via-[#effaf4] to-[#dff1e5] shadow-[0_10px_30px_rgba(38,113,111,0.12)]">
-          <!-- Ambient SVG Landscape Scene matching WeatherCard.tsx -->
+        <section id="weatherCardBg" class="relative isolate overflow-hidden rounded-[20px] sm:rounded-[25px]">
+          <!-- Ambient SVG Landscape Scene with solid mint base rect -->
           <svg class="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 900 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
             <defs>
               <linearGradient id="weather-hill-far" x1="0" x2="1" y1="0" y2="1">
-                <stop offset="0" stopColor="#b4dfc2" />
-                <stop offset="1" stopColor="#5db18a" />
+                <stop offset="0" stop-color="#b4dfc2" />
+                <stop offset="1" stop-color="#5db18a" />
               </linearGradient>
               <linearGradient id="weather-hill-near" x1="0" x2="1" y1="0" y2="1">
-                <stop offset="0" stopColor="#75c69a" />
-                <stop offset="1" stopColor="#08745f" />
+                <stop offset="0" stop-color="#75c69a" />
+                <stop offset="1" stop-color="#08745f" />
               </linearGradient>
               <linearGradient id="weather-sky-glow" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0" stopColor="#d8f3f2" stopOpacity=".42" />
-                <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+                <stop offset="0" stop-color="#d8f3f2" stop-opacity=".7" />
+                <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
               </linearGradient>
             </defs>
+            <!-- Solid mint base to prevent transparent/dark leaks -->
+            <rect width="900" height="160" fill="#e7f7f5" />
             <rect width="900" height="160" fill="url(#weather-sky-glow)" />
             <circle cx="790" cy="34" r="22" fill="#fbcf67" opacity=".42" />
-            <circle cx="790" cy="34" r="16" fill="#ffd978" opacity=".8" />
-            <g fill="#fff" opacity=".72">
+            <circle cx="790" cy="34" r="16" fill="#ffd978" opacity=".85" />
+            <g fill="#ffffff" opacity=".75">
               <ellipse cx="700" cy="42" rx="25" ry="12" />
               <ellipse cx="720" cy="36" rx="20" ry="14" />
               <ellipse cx="745" cy="43" rx="26" ry="11" />
             </g>
-            <g fill="#fff" opacity=".8">
+            <g fill="#ffffff" opacity=".85">
               <ellipse cx="820" cy="20" rx="22" ry="10" />
               <ellipse cx="840" cy="15" rx="16" ry="12" />
               <ellipse cx="860" cy="21" rx="21" ry="9" />
             </g>
-            <path d="M495 150 Q600 92 697 106 Q761 116 828 71 Q864 48 900 57 V160 H495Z" fill="url(#weather-hill-far)" opacity=".72" />
+            <path d="M495 150 Q600 92 697 106 Q761 116 828 71 Q864 48 900 57 V160 H495Z" fill="url(#weather-hill-far)" opacity=".75" />
             <path d="M575 160 Q677 92 757 98 Q831 102 900 57 V160 H575Z" fill="url(#weather-hill-near)" opacity=".9" />
-            <path d="M650 160 Q740 97 806 89 Q850 82 900 65" fill="none" stroke="#3c9d78" strokeWidth="11" opacity=".7" />
-            <path d="M710 160 Q785 105 847 91 Q874 84 900 79" fill="none" stroke="#16856d" strokeWidth="13" opacity=".72" />
-            <path d="M776 160 Q824 115 875 93 Q890 87 900 85" fill="none" stroke="#075c51" strokeWidth="12" opacity=".68" />
+            <path d="M650 160 Q740 97 806 89 Q850 82 900 65" fill="none" stroke="#3c9d78" stroke-width="11" opacity=".7" />
+            <path d="M710 160 Q785 105 847 91 Q874 84 900 79" fill="none" stroke="#16856d" stroke-width="13" opacity=".72" />
+            <path d="M776 160 Q824 115 875 93 Q890 87 900 85" fill="none" stroke="#075c51" stroke-width="12" opacity=".68" />
             <path d="M850 160 Q871 123 893 108 Q899 104 900 104 V160Z" fill="#084e46" opacity=".75" />
           </svg>
 
           <!-- Weather Content Overlay -->
           <div class="relative flex items-center gap-3 px-4 py-3.5 sm:gap-0 sm:px-5 sm:py-4 lg:px-6">
             <!-- Left: Icon + Temperature + Growth Condition + Location -->
-            <div class="flex items-center gap-3 sm:w-[36%] sm:min-w-[330px] sm:gap-5 lg:w-[34%]">
-              <div class="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[14px] bg-white/75 text-[#f7ad26] shadow-[0_5px_15px_rgba(67,128,119,0.08)] backdrop-blur-sm sm:h-[72px] sm:w-[72px] sm:rounded-[18px]">
+            <div class="flex items-center gap-3 sm:w-[38%] sm:min-w-[310px] sm:gap-5 lg:w-[35%]">
+              <div class="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[14px] bg-white/80 text-[#f7ad26] shadow-[0_5px_15px_rgba(67,128,119,0.08)] backdrop-blur-sm sm:h-[72px] sm:w-[72px] sm:rounded-[18px]">
                 <i data-lucide="cloud-sun" class="w-8 h-8 sm:w-11 sm:h-11 text-[#f7ad26]"></i>
               </div>
               <div class="min-w-0">
                 <div class="flex items-baseline gap-0.5 sm:gap-1">
-                  <span id="tempValue" class="font-heading text-3xl font-bold leading-none tracking-tight text-[#062f2d] sm:text-5xl sm:text-[50px]">
-                    28
+                  <span id="tempValue" class="font-heading text-3xl font-bold leading-none tracking-tight sm:text-5xl sm:text-[50px]" style="color: #062f2d !important;">
+                    --
                   </span>
-                  <span class="font-heading text-lg font-semibold text-[#0d3e3b] sm:text-2xl">°C</span>
+                  <span class="font-heading text-lg font-semibold sm:text-2xl" style="color: #0d3e3b !important;">°C</span>
                 </div>
-                <p id="weatherConditionText" class="mt-0.5 truncate font-heading text-sm font-medium leading-tight text-[#073b38] sm:mt-1 sm:text-lg">Partly Cloudy</p>
-                <p class="mt-1 flex items-center gap-1 text-xs font-medium text-[#376b6d] sm:mt-2 sm:text-sm">
+                <p id="weatherConditionText" class="mt-0.5 truncate font-heading text-sm font-medium leading-tight sm:mt-1 sm:text-lg" style="color: #073b38 !important;">Live Forecast</p>
+                <p class="mt-1 flex items-center gap-1 text-xs font-medium sm:mt-2 sm:text-sm" style="color: #376b6d !important;">
                   <i data-lucide="map-pin" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#376b6d]"></i>
-                  <span id="weatherLocationText" class="truncate">Shirur, Pune</span>
+                  <span id="weatherLocationText" class="truncate">Detecting Location...</span>
                 </p>
               </div>
             </div>
@@ -340,28 +358,28 @@
               <!-- Wind -->
               <div class="flex min-w-0 flex-1 flex-col items-center justify-center border-r border-[#a6c9c3] px-1.5 text-center sm:px-5">
                 <i data-lucide="wind" class="w-4 h-4 sm:w-6 sm:h-6 text-[#0b4c47]"></i>
-                <span class="mt-1 text-[10px] font-medium text-[#39706b] sm:mt-2 sm:text-sm" data-i18n="dash_wind">Wind</span>
-                <span id="windValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold text-[#082f2c] sm:mt-1 sm:text-lg">12 km/h</span>
-                <span id="windDirValue" class="mt-0.5 text-[9px] font-medium text-[#39706b] sm:text-xs">WSW</span>
+                <span class="mt-1 text-[10px] font-medium sm:mt-2 sm:text-sm" style="color: #39706b !important;" data-i18n="dash_wind">Wind</span>
+                <span id="windValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold sm:mt-1 sm:text-lg" style="color: #082f2c !important;">-- km/h</span>
+                <span id="windDirValue" class="mt-0.5 text-[9px] font-medium sm:text-xs" style="color: #39706b !important;">WSW</span>
               </div>
               <!-- Humidity -->
               <div class="flex min-w-0 flex-1 flex-col items-center justify-center border-r border-[#a6c9c3] px-1.5 text-center sm:px-5">
                 <i data-lucide="droplets" class="w-4 h-4 sm:w-6 sm:h-6 text-[#0b4c47]"></i>
-                <span class="mt-1 text-[10px] font-medium text-[#39706b] sm:mt-2 sm:text-sm" data-i18n="dash_humidity">Humidity</span>
-                <span id="humidityValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold text-[#082f2c] sm:mt-1 sm:text-lg">42%</span>
+                <span class="mt-1 text-[10px] font-medium sm:mt-2 sm:text-sm" style="color: #39706b !important;" data-i18n="dash_humidity">Humidity</span>
+                <span id="humidityValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold sm:mt-1 sm:text-lg" style="color: #082f2c !important;">--%</span>
               </div>
               <!-- Rain -->
               <div class="flex min-w-0 flex-1 flex-col items-center justify-center px-1.5 text-center sm:px-5">
                 <i data-lucide="cloud-rain" class="w-4 h-4 sm:w-6 sm:h-6 text-[#0b4c47]"></i>
-                <span class="mt-1 text-[10px] font-medium text-[#39706b] sm:mt-2 sm:text-sm" data-i18n="dash_precipitation">Rain</span>
-                <span id="precipValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold text-[#082f2c] sm:mt-1 sm:text-lg">0 mm</span>
+                <span class="mt-1 text-[10px] font-medium sm:mt-2 sm:text-sm" style="color: #39706b !important;" data-i18n="dash_precipitation">Rain</span>
+                <span id="precipValue" class="mt-0.5 whitespace-nowrap font-heading text-xs font-bold sm:mt-1 sm:text-lg" style="color: #082f2c !important;">-- mm</span>
               </div>
             </div>
           </div>
         </section>
       </div>
 
-      <!-- HealthScoreCard (The Big Green Card with Animated Circular Meter & Field Carousel) -->
+      <!-- HealthScoreCard (The Big Green Card with Animated Circular Meter & Real Field Data) -->
       <div class="animate-slide-up mb-6">
         <section
           id="healthScoreCard"
@@ -379,13 +397,14 @@
             </svg>
           </div>
 
-          <!-- Swipeable Main Area -->
+          <!-- Main Field Card Content -->
           <div
             id="healthSwipeArea"
             class="relative select-none"
             style="touch-action: pan-y;"
           >
-            <div class="relative flex flex-col items-center gap-4 px-4 py-5 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-7 lg:gap-10 lg:px-10 lg:py-8">
+            <!-- Real Fields Active View -->
+            <div id="fieldActiveContainer" class="relative flex flex-col items-center gap-4 px-4 py-5 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-7 lg:gap-10 lg:px-10 lg:py-8">
               
               <!-- Circular Gauge (Fixed container, internal SVG meter smoothly animates) -->
               <div class="flex flex-shrink-0 items-center justify-center rounded-full bg-white/[0.08] p-2.5 sm:p-3 shadow-inner">
@@ -407,11 +426,11 @@
                       cy="70"
                       r="58"
                       fill="none"
-                      stroke="#D96A3E"
+                      stroke="#4CAF6E"
                       stroke-width="12"
                       stroke-linecap="round"
                       stroke-dasharray="364.42"
-                      stroke-dashoffset="189.5"
+                      stroke-dashoffset="364.42"
                       class="gauge-circle"
                     />
                   </svg>
@@ -421,7 +440,7 @@
                       class="font-serif text-4xl sm:text-5xl font-bold leading-none text-white"
                       style="text-shadow: 0 2px 8px rgba(0,0,0,0.35);"
                     >
-                      48
+                      --
                     </span>
                   </div>
                 </div>
@@ -431,9 +450,9 @@
               <div id="fieldInfoBlock" class="flex min-w-0 flex-1 flex-col items-center text-center sm:items-start sm:text-left animate-morph-in">
                 <!-- Title Row: Crop Emoji + Field Name -->
                 <div class="flex items-center gap-2">
-                  <span id="fieldEmoji" class="text-xl sm:text-2xl leading-none">🫘</span>
+                  <span id="fieldEmoji" class="text-xl sm:text-2xl leading-none">🌾</span>
                   <h2 id="fieldName" class="truncate font-heading text-lg font-bold text-offwhite-50 sm:text-xl lg:text-2xl">
-                    Plot B — Riverside
+                    Loading Field...
                   </h2>
                 </div>
 
@@ -441,39 +460,54 @@
                 <div class="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-offwhite-100 sm:mt-3 sm:justify-start sm:text-sm sm:gap-x-5">
                   <span class="flex items-center gap-1.5">
                     <i data-lucide="sprout" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-offwhite-100"></i>
-                    <span id="fieldCropType">Soybean</span>
+                    <span id="fieldCropType">--</span>
                   </span>
                   <span class="flex items-center gap-1.5">
                     <i data-lucide="map-pin" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-offwhite-100"></i>
-                    <span id="fieldVillage">Shirur</span>
+                    <span id="fieldVillage">--</span>
                   </span>
                   <span class="flex items-center gap-1.5">
                     <i data-lucide="calendar" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-offwhite-100"></i>
-                    <span id="fieldAcres">3 acres</span>
+                    <span id="fieldAcres">--</span>
                   </span>
                 </div>
 
                 <!-- Trend Badge -->
                 <div class="mt-3 flex items-center gap-2.5 sm:mt-4">
-                  <div id="fieldTrendBadge" class="flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 backdrop-blur-sm text-[#ff9e9e]">
-                    <i data-lucide="trending-down" id="fieldTrendIcon" class="w-3.5 h-3.5"></i>
+                  <div id="fieldTrendBadge" class="flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 backdrop-blur-sm text-[#b8ebc6]">
+                    <i data-lucide="trending-up" id="fieldTrendIcon" class="w-3.5 h-3.5"></i>
                     <span id="fieldTrendPts" class="font-heading text-xs font-semibold sm:text-sm">
-                      -7 pts
+                      +0 pts
                     </span>
                   </div>
-                  <span class="text-xs text-offwhite-200 sm:text-sm">vs last scan</span>
+                  <span class="text-xs text-offwhite-200 sm:text-sm">vs last telemetry</span>
                 </div>
               </div>
+            </div>
+
+            <!-- Empty State if User Has 0 Registered Fields -->
+            <div id="fieldEmptyContainer" class="hidden flex flex-col items-center text-center px-6 py-10 sm:py-12">
+              <div class="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-offwhite-50 mb-3 backdrop-blur-sm">
+                <i data-lucide="sprout" class="w-7 h-7 text-offwhite-50"></i>
+              </div>
+              <h3 class="font-heading text-lg font-bold text-offwhite-50">No Fields Registered Yet</h3>
+              <p class="text-xs sm:text-sm text-offwhite-100 mt-1 max-w-md">
+                Register your farm boundary to start receiving Sentinel-2 NDVI satellite monitoring, health scores, and precision advisories.
+              </p>
+              <a href="add-field.html" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-offwhite-50 px-5 py-2.5 font-heading text-sm font-semibold text-forest-700 hover:bg-offwhite-100 transition-colors shadow-card">
+                <i data-lucide="plus" class="w-4 h-4 text-forest-600"></i>
+                <span>Add Your Field</span>
+              </a>
             </div>
           </div>
 
           <!-- Footer Controls: Swipe Hint + Chevrons + Pagination Dots -->
-          <div class="relative flex items-center justify-between border-t border-white/10 px-4 py-2.5 sm:px-8 sm:py-3">
+          <div id="fieldFooterControls" class="relative flex items-center justify-between border-t border-white/10 px-4 py-2.5 sm:px-8 sm:py-3">
             <span class="hidden text-xs font-medium text-offwhite-200 sm:block">
               Swipe left or right to change field
             </span>
             <span class="text-[10px] font-medium text-offwhite-200 sm:hidden">
-              Swipe left or right to change field
+              Swipe to switch fields
             </span>
 
             <div class="flex items-center gap-2">
@@ -490,7 +524,7 @@
 
               <!-- Pagination Dots -->
               <div id="fieldPaginationDots" class="flex items-center gap-1.5 px-1">
-                <!-- Dynamically populated dots -->
+                <!-- Dynamically populated from real DB fields -->
               </div>
 
               <!-- Next Field Button -->
@@ -508,7 +542,7 @@
         </section>
       </div>
 
-      <!-- 3 Metric Cards Row (NDVI, NDRE, CWSI) matching screenshot 2 -->
+      <!-- 3 Metric Cards Row (NDVI, NDRE, CWSI) matching bolt aesthetic -->
       <div class="grid grid-cols-1 gap-4 animate-slide-up sm:grid-cols-2 lg:grid-cols-3 mb-6">
         
         <!-- NDVI Metric Card -->
@@ -518,25 +552,25 @@
               <p class="font-heading text-sm font-semibold text-forest-700">NDVI</p>
               <p class="mt-0.5 text-xs text-forest-400">Vegetation density and plant health</p>
             </div>
-            <span class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-yellow bg-yellow-50">
+            <span id="ndviRangeBadge" class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-yellow bg-yellow-50">
               0.6 – 0.8
             </span>
           </div>
           <div class="mt-4 flex items-end justify-between">
             <div class="flex items-baseline gap-2">
-              <span id="ndviValue" class="font-serif text-4xl font-semibold text-forest-700">0.65</span>
+              <span id="ndviValue" class="font-serif text-4xl font-semibold text-forest-700">--</span>
               <span class="text-sm text-forest-400">index</span>
             </div>
             <div id="ndviSparkline" class="w-[110px] h-[36px]">
-              <!-- SVG Sparkline -->
+              <!-- SVG Sparkline populated from real timeseries -->
             </div>
           </div>
           <div class="mt-3 flex items-center gap-2 border-t border-offwhite-200 pt-3">
-            <div class="flex items-center gap-0.5 text-xs font-semibold text-risk-orange">
-              <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-risk-orange"></i>
-              <span>12.5%</span>
+            <div id="ndviTrendWrapper" class="flex items-center gap-0.5 text-xs font-semibold text-risk-green">
+              <i data-lucide="arrow-up-right" id="ndviTrendIcon" class="w-3.5 h-3.5 text-risk-green"></i>
+              <span id="ndviTrendPct">--%</span>
             </div>
-            <span class="text-xs text-forest-400">vs last 7 days</span>
+            <span class="text-xs text-forest-400">satellite telemetry</span>
           </div>
         </div>
 
@@ -547,25 +581,25 @@
               <p class="font-heading text-sm font-semibold text-forest-700">NDRE</p>
               <p class="mt-0.5 text-xs text-forest-400">Chlorophyll content and nitrogen stress</p>
             </div>
-            <span class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-green bg-forest-50">
+            <span id="ndreRangeBadge" class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-green bg-forest-50">
               0.3 – 0.5
             </span>
           </div>
           <div class="mt-4 flex items-end justify-between">
             <div class="flex items-baseline gap-2">
-              <span id="ndreValue" class="font-serif text-4xl font-semibold text-forest-700">0.38</span>
+              <span id="ndreValue" class="font-serif text-4xl font-semibold text-forest-700">--</span>
               <span class="text-sm text-forest-400">index</span>
             </div>
             <div id="ndreSparkline" class="w-[110px] h-[36px]">
-              <!-- SVG Sparkline -->
+              <!-- SVG Sparkline populated from real timeseries -->
             </div>
           </div>
           <div class="mt-3 flex items-center gap-2 border-t border-offwhite-200 pt-3">
-            <div class="flex items-center gap-0.5 text-xs font-semibold text-risk-green">
-              <i data-lucide="arrow-down-right" class="w-3.5 h-3.5 text-risk-green"></i>
-              <span>9.5%</span>
+            <div id="ndreTrendWrapper" class="flex items-center gap-0.5 text-xs font-semibold text-risk-green">
+              <i data-lucide="arrow-up-right" id="ndreTrendIcon" class="w-3.5 h-3.5 text-risk-green"></i>
+              <span id="ndreTrendPct">--%</span>
             </div>
-            <span class="text-xs text-forest-400">vs last 7 days</span>
+            <span class="text-xs text-forest-400">canopy red-edge</span>
           </div>
         </div>
 
@@ -576,25 +610,25 @@
               <p class="font-heading text-sm font-semibold text-forest-700">CWSI</p>
               <p class="mt-0.5 text-xs text-forest-400">Water stress from thermal imagery</p>
             </div>
-            <span class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-orange bg-terracotta-50">
+            <span id="cwsiRangeBadge" class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-orange bg-terracotta-50">
               0.0 – 0.3
             </span>
           </div>
           <div class="mt-4 flex items-end justify-between">
             <div class="flex items-baseline gap-2">
-              <span id="cwsiValue" class="font-serif text-4xl font-semibold text-forest-700">0.42</span>
+              <span id="cwsiValue" class="font-serif text-4xl font-semibold text-forest-700">--</span>
               <span class="text-sm text-forest-400">index</span>
             </div>
             <div id="cwsiSparkline" class="w-[110px] h-[36px]">
-              <!-- SVG Sparkline -->
+              <!-- SVG Sparkline populated from real timeseries -->
             </div>
           </div>
           <div class="mt-3 flex items-center gap-2 border-t border-offwhite-200 pt-3">
-            <div class="flex items-center gap-0.5 text-xs font-semibold text-risk-orange">
-              <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-risk-orange"></i>
-              <span>68%</span>
+            <div id="cwsiTrendWrapper" class="flex items-center gap-0.5 text-xs font-semibold text-risk-orange">
+              <i data-lucide="arrow-up-right" id="cwsiTrendIcon" class="w-3.5 h-3.5 text-risk-orange"></i>
+              <span id="cwsiTrendPct">--%</span>
             </div>
-            <span class="text-xs text-forest-400">vs last 7 days</span>
+            <span class="text-xs text-forest-400">thermal canopy</span>
           </div>
         </div>
 
@@ -606,7 +640,7 @@
         <!-- Left Column (Alerts & Field Map) -->
         <div class="space-y-6 lg:col-span-2">
           
-          <!-- Active Alerts & Advisory Card (matching screenshot 2 exactly) -->
+          <!-- Active Alerts & Advisory Card (Populated with Real Alerts from API) -->
           <div class="rounded-2xl border border-offwhite-300 bg-offwhite-50 p-5 shadow-card">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2.5">
@@ -615,7 +649,7 @@
                 </div>
                 <div>
                   <h3 class="font-heading text-base font-semibold text-forest-700">Active Alerts & Advisory</h3>
-                  <p class="text-xs text-forest-400">3 active issues need attention</p>
+                  <p id="alertsCountSub" class="text-xs text-forest-400">Checking active issues...</p>
                 </div>
               </div>
               <a href="advisory.html" class="hidden font-heading text-xs font-semibold text-forest-500 hover:text-forest-600 sm:block">
@@ -623,115 +657,9 @@
               </a>
             </div>
 
-            <div class="mt-4 space-y-3">
-              <!-- Alert Item 1: Elevated Water Stress -->
-              <div class="group flex gap-4 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-4 shadow-card transition-all hover:shadow-card-hover hover:border-offwhite-400">
-                <div class="w-1 flex-shrink-0 rounded-full bg-risk-orange"></div>
-                <div class="flex flex-1 flex-col gap-3">
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="flex-1">
-                      <div class="flex items-center gap-2">
-                        <h4 class="font-heading text-sm font-semibold text-forest-700">Elevated water stress detected</h4>
-                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-orange bg-terracotta-50">
-                          Elevated
-                        </span>
-                      </div>
-                      <p class="mt-1 text-sm text-forest-400">
-                        Thermal CWSI has risen above the optimal threshold in the northern quadrant. Upload a photo to confirm irrigation need.
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3 text-xs text-forest-400">
-                      <span class="flex items-center gap-1">
-                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-                        Plot A — North Field
-                      </span>
-                      <span class="flex items-center gap-1">
-                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                        2 hours ago
-                      </span>
-                    </div>
-                    <a href="diagnose.html" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-heading text-xs font-semibold bg-terracotta-400 text-offwhite-50 hover:bg-terracotta-500 transition-colors">
-                      <i data-lucide="camera" class="w-3.5 h-3.5"></i>
-                      <span>Upload Photo</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Alert Item 2: NDVI Declining -->
-              <div class="group flex gap-4 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-4 shadow-card transition-all hover:shadow-card-hover hover:border-offwhite-400">
-                <div class="w-1 flex-shrink-0 rounded-full bg-risk-yellow"></div>
-                <div class="flex flex-1 flex-col gap-3">
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="flex-1">
-                      <div class="flex items-center gap-2">
-                        <h4 class="font-heading text-sm font-semibold text-forest-700">NDVI declining in riverside plot</h4>
-                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-yellow bg-yellow-50">
-                          Watch
-                        </span>
-                      </div>
-                      <p class="mt-1 text-sm text-forest-400">
-                        Vegetation index dropped 9.5% over the last 7 days. Possible nutrient deficiency or early pest activity.
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3 text-xs text-forest-400">
-                      <span class="flex items-center gap-1">
-                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-                        Plot B — Riverside
-                      </span>
-                      <span class="flex items-center gap-1">
-                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                        5 hours ago
-                      </span>
-                    </div>
-                    <a href="advisory.html" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-heading text-xs font-semibold bg-forest-500 text-offwhite-50 hover:bg-forest-600 transition-colors">
-                      <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                      <span>View Advisory</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Alert Item 3: Suspected Pest Infestation -->
-              <div class="group flex gap-4 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-4 shadow-card transition-all hover:shadow-card-hover hover:border-offwhite-400">
-                <div class="w-1 flex-shrink-0 rounded-full bg-risk-red"></div>
-                <div class="flex flex-1 flex-col gap-3">
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="flex-1">
-                      <div class="flex items-center gap-2">
-                        <h4 class="font-heading text-sm font-semibold text-forest-700">High risk — suspected pest infestation</h4>
-                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold text-risk-red bg-red-50">
-                          High Risk
-                        </span>
-                      </div>
-                      <p class="mt-1 text-sm text-forest-400">
-                        Drone scan detected irregular patterns consistent with fall armyworm. Immediate field inspection recommended.
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3 text-xs text-forest-400">
-                      <span class="flex items-center gap-1">
-                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-                        Plot B — Riverside
-                      </span>
-                      <span class="flex items-center gap-1">
-                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                        1 day ago
-                      </span>
-                    </div>
-                    <a href="advisory.html" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-heading text-xs font-semibold bg-forest-500 text-offwhite-50 hover:bg-forest-600 transition-colors">
-                      <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                      <span>View Advisory</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-
+            <div id="alertsContainer" class="mt-4 space-y-3">
+              <!-- Dynamically populated from real DB notifications & advisories -->
+              <div class="p-6 text-center text-xs text-forest-400">Loading alerts...</div>
             </div>
           </div>
 
@@ -744,7 +672,7 @@
                 </div>
                 <div>
                   <h3 class="font-heading text-base font-semibold text-forest-700">Field Map</h3>
-                  <p class="text-xs text-forest-400">Health overlay · <span id="mapFieldName">Plot B — Riverside</span></p>
+                  <p class="text-xs text-forest-400">Satellite Health Overlay · <span id="mapFieldName">Current Field</span></p>
                 </div>
               </div>
               <a href="my-fields.html" class="flex items-center gap-1 font-heading text-xs font-semibold text-forest-500 hover:text-forest-600">
@@ -769,10 +697,10 @@
               <svg class="absolute inset-0 h-full w-full" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
                 <defs>
                   <linearGradient id="mapHealthGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#3F8259" stopOpacity="0.7" />
-                    <stop offset="40%" stopColor="#3F8259" stopOpacity="0.5" />
-                    <stop offset="60%" stopColor="#D96A3E" stopOpacity="0.6" />
-                    <stop offset="100%" stopColor="#D96A3E" stopOpacity="0.8" />
+                    <stop offset="0%" stop-color="#3F8259" stop-opacity="0.7" />
+                    <stop offset="40%" stop-color="#3F8259" stop-opacity="0.5" />
+                    <stop offset="60%" id="mapGradMid" stop-color="#D96A3E" stop-opacity="0.6" />
+                    <stop offset="100%" id="mapGradEnd" stop-color="#D96A3E" stop-opacity="0.8" />
                   </linearGradient>
                 </defs>
 
@@ -810,7 +738,7 @@
 
               <!-- Score Badge -->
               <div class="absolute right-3 top-3 rounded-lg bg-offwhite-50/90 px-3 py-1.5 backdrop-blur-sm shadow-card">
-                <p id="mapScoreBadge" class="font-serif text-lg font-bold leading-none text-[#D96A3E]">48</p>
+                <p id="mapScoreBadge" class="font-serif text-lg font-bold leading-none text-forest-700">--</p>
                 <p class="text-[10px] text-forest-400">Health</p>
               </div>
             </div>
@@ -838,10 +766,10 @@
 
         </div>
 
-        <!-- Right Column: Recent Activity Feed + Weekly Summary -->
+        <!-- Right Column: Real Recent Activity Feed + Weekly Summary -->
         <div class="space-y-6 lg:col-span-1">
           
-          <!-- Recent Activity Feed (matching screenshot 2 exactly) -->
+          <!-- Recent Activity Feed (Populated with Real DB activities) -->
           <div class="rounded-2xl border border-offwhite-300 bg-offwhite-50 p-5 shadow-card">
             <div class="flex items-center justify-between">
               <h3 class="font-heading text-base font-semibold text-forest-700">Recent Activity</h3>
@@ -850,70 +778,9 @@
               </a>
             </div>
 
-            <div class="mt-4 space-y-0">
-              <!-- Item 1: Drone scan completed -->
-              <div class="relative flex gap-4 pb-5">
-                <div class="absolute left-[15px] top-9 bottom-0 w-px bg-offwhite-300"></div>
-                <div class="relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-forest-50 text-forest-500">
-                  <i data-lucide="camera" class="w-4 h-4 text-forest-500"></i>
-                </div>
-                <div class="flex flex-1 flex-col gap-0.5">
-                  <div class="flex items-start justify-between gap-2">
-                    <p class="font-heading text-sm font-semibold text-forest-700">Drone scan completed</p>
-                    <span class="flex-shrink-0 text-xs text-forest-300">1 hour ago</span>
-                  </div>
-                  <p class="text-sm text-forest-400">Multispectral imagery captured for 4.2 acres of wheat field</p>
-                  <span class="mt-0.5 text-xs font-medium text-forest-300">Plot A — North Field</span>
-                </div>
-              </div>
-
-              <!-- Item 2: Advisory issued -->
-              <div class="relative flex gap-4 pb-5">
-                <div class="absolute left-[15px] top-9 bottom-0 w-px bg-offwhite-300"></div>
-                <div class="relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-terracotta-50 text-terracotta-400">
-                  <i data-lucide="zap" class="w-4 h-4 text-terracotta-400"></i>
-                </div>
-                <div class="flex flex-1 flex-col gap-0.5">
-                  <div class="flex items-start justify-between gap-2">
-                    <p class="font-heading text-sm font-semibold text-forest-700">Advisory issued — Irrigation recommended</p>
-                    <span class="flex-shrink-0 text-xs text-forest-300">3 hours ago</span>
-                  </div>
-                  <p class="text-sm text-forest-400">Apply 15mm irrigation within 48 hours based on CWSI elevation</p>
-                  <span class="mt-0.5 text-xs font-medium text-forest-300">Plot A — North Field</span>
-                </div>
-              </div>
-
-              <!-- Item 3: Photo scan uploaded -->
-              <div class="relative flex gap-4 pb-5">
-                <div class="absolute left-[15px] top-9 bottom-0 w-px bg-offwhite-300"></div>
-                <div class="relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-forest-50 text-risk-green">
-                  <i data-lucide="camera" class="w-4 h-4 text-risk-green"></i>
-                </div>
-                <div class="flex flex-1 flex-col gap-0.5">
-                  <div class="flex items-start justify-between gap-2">
-                    <p class="font-heading text-sm font-semibold text-forest-700">Photo scan uploaded</p>
-                    <span class="flex-shrink-0 text-xs text-forest-300">Yesterday</span>
-                  </div>
-                  <p class="text-sm text-forest-400">Leaf-level scan processed — no pathogen detected</p>
-                  <span class="mt-0.5 text-xs font-medium text-forest-300">Plot C — East Field</span>
-                </div>
-              </div>
-
-              <!-- Item 4: Task completed -->
-              <div class="relative flex gap-4 pb-0">
-                <div class="relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-forest-50 text-risk-green">
-                  <i data-lucide="check-circle-2" class="w-4 h-4 text-risk-green"></i>
-                </div>
-                <div class="flex flex-1 flex-col gap-0.5">
-                  <div class="flex items-start justify-between gap-2">
-                    <p class="font-heading text-sm font-semibold text-forest-700">Task completed — Fertilizer applied</p>
-                    <span class="flex-shrink-0 text-xs text-forest-300">2 days ago</span>
-                  </div>
-                  <p class="text-sm text-forest-400">NPK 15-15-15 applied to soybean field, 25kg/acre</p>
-                  <span class="mt-0.5 text-xs font-medium text-forest-300">Plot B — Riverside</span>
-                </div>
-              </div>
-
+            <div id="recentActivityList" class="mt-4 space-y-0">
+              <!-- Dynamically populated from real DB notifications -->
+              <div class="p-4 text-center text-xs text-forest-400">Loading activities...</div>
             </div>
           </div>
 
@@ -927,20 +794,20 @@
             </div>
             <div class="mt-4 grid grid-cols-2 gap-3">
               <div class="rounded-xl bg-offwhite-50 p-3 shadow-sm border border-offwhite-300/50">
-                <p class="font-serif text-2xl font-bold text-forest-700">5</p>
-                <p class="text-xs text-forest-400 mt-0.5">Scans this week</p>
+                <p id="statScansCount" class="font-serif text-2xl font-bold text-forest-700">0</p>
+                <p class="text-xs text-forest-400 mt-0.5">Scans completed</p>
               </div>
               <div class="rounded-xl bg-offwhite-50 p-3 shadow-sm border border-offwhite-300/50">
-                <p class="font-serif text-2xl font-bold text-forest-700">3</p>
+                <p id="statAdvisoriesCount" class="font-serif text-2xl font-bold text-forest-700">0</p>
                 <p class="text-xs text-forest-400 mt-0.5">Advisories issued</p>
               </div>
               <div class="rounded-xl bg-offwhite-50 p-3 shadow-sm border border-offwhite-300/50">
-                <p class="font-serif text-2xl font-bold text-terracotta-400">2</p>
+                <p id="statAlertsCount" class="font-serif text-2xl font-bold text-terracotta-400">0</p>
                 <p class="text-xs text-forest-400 mt-0.5">Alerts active</p>
               </div>
               <div class="rounded-xl bg-offwhite-50 p-3 shadow-sm border border-offwhite-300/50">
-                <p class="font-serif text-2xl font-bold text-forest-500">1</p>
-                <p class="text-xs text-forest-400 mt-0.5">Tasks completed</p>
+                <p id="statFieldsCount" class="font-serif text-2xl font-bold text-forest-500">0</p>
+                <p class="text-xs text-forest-400 mt-0.5">Fields monitored</p>
               </div>
             </div>
             <a href="analytics.html" class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-forest-500 py-2.5 font-heading text-sm font-semibold text-offwhite-50 transition-colors hover:bg-forest-600 shadow-card">
@@ -1015,101 +882,16 @@
   <script>
     if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
 
-    // Mock Data matching Bolt mockData.ts exactly
-    const boltFields = [
-      {
-        id: 'field-1',
-        name: 'Plot A — North Field',
-        cropType: 'Wheat',
-        cropEmoji: '🌾',
-        areaAcres: 4.2,
-        village: 'Shirur',
-        district: 'Pune',
-        sownDate: '15 Nov 2025',
-        healthScore: 72,
-        prevScore: 68,
-        riskLevel: 'yellow',
-        metrics: {
-          ndvi: { value: 0.72, trend: [0.58, 0.61, 0.64, 0.68, 0.69, 0.71, 0.72], change: 8.2, dir: 'up', risk: 'yellow' },
-          ndre: { value: 0.44, trend: [0.46, 0.45, 0.44, 0.45, 0.44, 0.44, 0.44], change: -2.1, dir: 'down', risk: 'green' },
-          cwsi: { value: 0.35, trend: [0.22, 0.25, 0.28, 0.30, 0.32, 0.34, 0.35], change: 42.0, dir: 'up', risk: 'yellow' }
-        }
-      },
-      {
-        id: 'field-2',
-        name: 'Plot B — Riverside',
-        cropType: 'Soybean',
-        cropEmoji: '🫘',
-        areaAcres: 3.0,
-        village: 'Shirur',
-        district: 'Pune',
-        sownDate: '20 Jun 2025',
-        healthScore: 48,
-        prevScore: 55,
-        riskLevel: 'orange',
-        metrics: {
-          ndvi: { value: 0.65, trend: [0.52, 0.55, 0.58, 0.61, 0.60, 0.63, 0.65], change: 12.5, dir: 'up', risk: 'yellow' },
-          ndre: { value: 0.38, trend: [0.42, 0.41, 0.40, 0.39, 0.40, 0.38, 0.38], change: -9.5, dir: 'down', risk: 'green' },
-          cwsi: { value: 0.42, trend: [0.25, 0.28, 0.32, 0.35, 0.38, 0.40, 0.42], change: 68.0, dir: 'up', risk: 'orange' }
-        }
-      },
-      {
-        id: 'field-3',
-        name: 'Plot C — East Field',
-        cropType: 'Cotton',
-        cropEmoji: '🌱',
-        areaAcres: 5.5,
-        village: 'Shirur',
-        district: 'Pune',
-        sownDate: '10 May 2025',
-        healthScore: 86,
-        prevScore: 82,
-        riskLevel: 'green',
-        metrics: {
-          ndvi: { value: 0.81, trend: [0.72, 0.74, 0.76, 0.78, 0.79, 0.80, 0.81], change: 14.1, dir: 'up', risk: 'green' },
-          ndre: { value: 0.49, trend: [0.44, 0.45, 0.47, 0.48, 0.48, 0.49, 0.49], change: 7.2, dir: 'up', risk: 'green' },
-          cwsi: { value: 0.18, trend: [0.26, 0.24, 0.22, 0.21, 0.20, 0.19, 0.18], change: -30.0, dir: 'down', risk: 'green' }
-        }
-      },
-      {
-        id: 'field-4',
-        name: 'Plot D — West Field',
-        cropType: 'Sugarcane',
-        cropEmoji: '🎋',
-        areaAcres: 6.8,
-        village: 'Shirur',
-        district: 'Pune',
-        sownDate: '05 Feb 2026',
-        healthScore: 64,
-        prevScore: 67,
-        riskLevel: 'yellow',
-        metrics: {
-          ndvi: { value: 0.68, trend: [0.65, 0.66, 0.66, 0.67, 0.67, 0.68, 0.68], change: 3.5, dir: 'up', risk: 'yellow' },
-          ndre: { value: 0.41, trend: [0.43, 0.43, 0.42, 0.42, 0.41, 0.41, 0.41], change: -4.0, dir: 'down', risk: 'green' },
-          cwsi: { value: 0.32, trend: [0.28, 0.29, 0.30, 0.31, 0.31, 0.32, 0.32], change: 12.0, dir: 'up', risk: 'yellow' }
-        }
-      },
-      {
-        id: 'field-5',
-        name: 'Plot E — South Field',
-        cropType: 'Maize',
-        cropEmoji: '🌽',
-        areaAcres: 2.5,
-        village: 'Shirur',
-        district: 'Pune',
-        sownDate: '10 Jul 2026',
-        healthScore: 91,
-        prevScore: 88,
-        riskLevel: 'green',
-        metrics: {
-          ndvi: { value: 0.85, trend: [0.77, 0.79, 0.81, 0.82, 0.83, 0.84, 0.85], change: 10.4, dir: 'up', risk: 'green' },
-          ndre: { value: 0.52, trend: [0.47, 0.48, 0.49, 0.50, 0.51, 0.51, 0.52], change: 8.0, dir: 'up', risk: 'green' },
-          cwsi: { value: 0.12, trend: [0.20, 0.18, 0.16, 0.15, 0.14, 0.13, 0.12], change: -40.0, dir: 'down', risk: 'green' }
-        }
-      }
-    ];
+    // REAL Fields Array — populated entirely from database via /api/dashboard/health
+    let realFields = [];
+    let activeFieldIndex = 0;
+    let currentScore = 0;
+    let currentColor = '#4CAF6E';
+    const GAUGE_RADIUS = 58;
+    const GAUGE_CIRCUMFERENCE = 2 * Math.PI * GAUGE_RADIUS; // ~364.42
+    let animationFrameId = null;
 
-    // Colors matching Bolt
+    // Risk Colors
     const colorMap = {
       green: { stroke: '#4CAF6E', track: 'rgba(255,255,255,0.12)', label: 'Healthy' },
       yellow: { stroke: '#E8B84A', track: 'rgba(255,255,255,0.12)', label: 'Watch' },
@@ -1117,7 +899,21 @@
       red: { stroke: '#D14545', track: 'rgba(255,255,255,0.12)', label: 'High Risk' }
     };
 
-    // Color Interpolator
+    const cropEmojis = {
+      'Wheat': '🌾', 'Rice': '🌾', 'Maize': '🌽', 'Corn': '🌽',
+      'Cotton': '🌱', 'Sugarcane': '🎋', 'Soybean': '🫘', 'Groundnut': '🥜',
+      'Potato': '🥔', 'Tomato': '🍅', 'Grapes': '🍇', 'Tur': '🌿',
+      'Other': '🌾'
+    };
+
+    function getCropEmoji(type) {
+      if (!type) return '🌾';
+      for (const [key, emoji] of Object.entries(cropEmojis)) {
+        if (type.toLowerCase().includes(key.toLowerCase())) return emoji;
+      }
+      return '🌾';
+    }
+
     function lerpColor(a, b, t) {
       const pa = [parseInt(a.slice(1, 3), 16), parseInt(a.slice(3, 5), 16), parseInt(a.slice(5, 7), 16)];
       const pb = [parseInt(b.slice(1, 3), 16), parseInt(b.slice(3, 5), 16), parseInt(b.slice(5, 7), 16)];
@@ -1129,24 +925,19 @@
 
     const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
-    // Initial State: Start at Plot B — Riverside (index 1) to match the screenshot!
-    let activeFieldIndex = 1;
-    let currentScore = boltFields[1].healthScore;
-    let currentColor = colorMap[boltFields[1].riskLevel].stroke;
-    const GAUGE_RADIUS = 58;
-    const GAUGE_CIRCUMFERENCE = 2 * Math.PI * GAUGE_RADIUS; // ~364.42
-    let animationFrameId = null;
-
-    // Render Sparkline SVG matching Bolt Sparkline.tsx
+    // Create SVG Sparkline from real numbers
     function createSparklineSvg(data, stroke, fill = 'rgba(27,67,50,0.08)', width = 110, height = 36) {
-      if (!data || data.length === 0) return '';
+      if (!data || data.length === 0) {
+        return `<svg width="${width}" height="${height}" class="overflow-visible"><path d="M 0 18 L ${width} 18" stroke="#D5D0C3" stroke-width="1.5" stroke-dasharray="3 3"/></svg>`;
+      }
+      if (data.length === 1) data = [data[0], data[0]];
       const min = Math.min(...data);
       const max = Math.max(...data);
-      const range = max - min || 1;
+      const range = (max - min) || 1;
       const stepX = width / (data.length - 1);
       const points = data.map((val, i) => {
         const x = i * stepX;
-        const y = height - ((val - min) / range) * (height - 6) - 3;
+        const y = height - ((val - min) / range) * (height - 8) - 4;
         return { x, y };
       });
       const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
@@ -1162,7 +953,7 @@
       `;
     }
 
-    // Smooth Circular Meter Animation Function matching Bolt CircularGauge.tsx
+    // Smooth Circular Meter Animation matching Bolt CircularGauge.tsx
     function animateGauge(targetScore, targetRisk) {
       const circleEl = document.getElementById('gaugeProgressCircle');
       const scoreEl = document.getElementById('gaugeScoreValue');
@@ -1171,7 +962,7 @@
       const fromScore = currentScore;
       const toScore = targetScore;
       const fromColor = currentColor;
-      const toColor = colorMap[targetRisk].stroke;
+      const toColor = colorMap[targetRisk]?.stroke || '#4CAF6E';
 
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
 
@@ -1202,20 +993,35 @@
       animationFrameId = requestAnimationFrame(tick);
     }
 
-    // Update entire dashboard when navigating between fields
-    function selectFieldByIndex(index, triggerAnimation = true) {
-      if (index < 0 || index >= boltFields.length) return;
-      activeFieldIndex = index;
-      const field = boltFields[index];
+    // Update entire dashboard view for the active real field
+    function selectRealField(index, triggerAnimation = true) {
+      if (realFields.length === 0) {
+        document.getElementById('fieldActiveContainer').classList.add('hidden');
+        document.getElementById('fieldEmptyContainer').classList.remove('hidden');
+        document.getElementById('fieldFooterControls').classList.add('hidden');
+        document.getElementById('topFieldName').textContent = 'No registered fields';
+        document.getElementById('topFieldMeta').textContent = 'Click to add a field';
+        document.getElementById('mapFieldName').textContent = 'No field active';
+        document.getElementById('statFieldsCount').textContent = '0';
+        return;
+      }
 
-      // Animate circular meter
+      document.getElementById('fieldActiveContainer').classList.remove('hidden');
+      document.getElementById('fieldEmptyContainer').classList.add('hidden');
+      document.getElementById('fieldFooterControls').classList.remove('hidden');
+
+      activeFieldIndex = Math.max(0, Math.min(realFields.length - 1, index));
+      const field = realFields[activeFieldIndex];
+      if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm(field.id);
+
+      // Meter Animation
       if (triggerAnimation) {
         animateGauge(field.healthScore, field.riskLevel);
       } else {
         const circleEl = document.getElementById('gaugeProgressCircle');
         const scoreEl = document.getElementById('gaugeScoreValue');
         currentScore = field.healthScore;
-        currentColor = colorMap[field.riskLevel].stroke;
+        currentColor = colorMap[field.riskLevel]?.stroke || '#4CAF6E';
         const offset = GAUGE_CIRCUMFERENCE - (field.healthScore / 100) * GAUGE_CIRCUMFERENCE;
         if (scoreEl) scoreEl.textContent = field.healthScore;
         if (circleEl) {
@@ -1224,22 +1030,22 @@
         }
       }
 
-      // Update Field Info inside Green Card
+      // Morph field info in place
       const infoBlock = document.getElementById('fieldInfoBlock');
       if (infoBlock) {
         infoBlock.classList.remove('animate-morph-in');
-        void infoBlock.offsetWidth; // trigger reflow
+        void infoBlock.offsetWidth;
         infoBlock.classList.add('animate-morph-in');
       }
 
       document.getElementById('fieldEmoji').textContent = field.cropEmoji;
       document.getElementById('fieldName').textContent = field.name;
       document.getElementById('fieldCropType').textContent = field.cropType;
-      document.getElementById('fieldVillage').textContent = field.village;
+      document.getElementById('fieldVillage').textContent = field.village || 'Farm Field';
       document.getElementById('fieldAcres').textContent = `${field.areaAcres} acres`;
 
-      // Subtitle crop
-      document.getElementById('dashSubtitleCrop').textContent = field.cropType;
+      // Subtitle
+      document.getElementById('dashboardSubtitle').textContent = `Crop health overview for ${field.cropType} · Real-time satellite telemetry`;
 
       // Trend pts
       const scoreDiff = field.healthScore - field.prevScore;
@@ -1257,18 +1063,21 @@
         trendIcon.setAttribute('data-lucide', 'trending-down');
       }
 
-      // Update TopBar dropdown button
+      // TopBar sync
       document.getElementById('topFieldEmoji').textContent = field.cropEmoji;
       document.getElementById('topFieldName').textContent = field.name;
       document.getElementById('topFieldMeta').textContent = `${field.cropType} · ${field.areaAcres} acres`;
-      document.getElementById('topFieldCropMobile').textContent = field.cropType;
+      document.getElementById('topFieldCropMobile').textContent = field.name;
 
-      // Update Map Preview
+      // Map Sync
       const mapName = document.getElementById('mapFieldName');
       const mapBadge = document.getElementById('mapScoreBadge');
       const mapDot = document.getElementById('mapLegendStressDot');
       const mapZone = document.getElementById('mapStressedZone');
-      const strokeColor = colorMap[field.riskLevel].stroke;
+      const gradMid = document.getElementById('mapGradMid');
+      const gradEnd = document.getElementById('mapGradEnd');
+      const strokeColor = colorMap[field.riskLevel]?.stroke || '#4CAF6E';
+
       if (mapName) mapName.textContent = field.name;
       if (mapBadge) {
         mapBadge.textContent = field.healthScore;
@@ -1276,51 +1085,33 @@
       }
       if (mapDot) mapDot.style.backgroundColor = strokeColor;
       if (mapZone) mapZone.setAttribute('fill', strokeColor);
+      if (gradMid) gradMid.setAttribute('stop-color', strokeColor);
+      if (gradEnd) gradEnd.setAttribute('stop-color', strokeColor);
 
-      // Update Metric Cards
-      if (field.metrics) {
-        document.getElementById('ndviValue').textContent = field.metrics.ndvi.value.toFixed(2);
-        document.getElementById('ndreValue').textContent = field.metrics.ndre.value.toFixed(2);
-        document.getElementById('cwsiValue').textContent = field.metrics.cwsi.value.toFixed(2);
-
-        document.getElementById('ndviSparkline').innerHTML = createSparklineSvg(
-          field.metrics.ndvi.trend,
-          field.metrics.ndvi.risk === 'yellow' ? '#D4A93A' : '#3F8259',
-          'rgba(212,169,58,0.08)'
-        );
-        document.getElementById('ndreSparkline').innerHTML = createSparklineSvg(
-          field.metrics.ndre.trend,
-          '#3F8259',
-          'rgba(63,130,89,0.08)'
-        );
-        document.getElementById('cwsiSparkline').innerHTML = createSparklineSvg(
-          field.metrics.cwsi.trend,
-          '#C1502E',
-          'rgba(193,80,46,0.08)'
-        );
-      }
-
-      // Update Navigation Buttons & Dots
-      document.getElementById('prevFieldBtn').disabled = (index === 0);
-      document.getElementById('nextFieldBtn').disabled = (index === boltFields.length - 1);
+      // Pagination Controls
+      document.getElementById('prevFieldBtn').disabled = (activeFieldIndex === 0);
+      document.getElementById('nextFieldBtn').disabled = (activeFieldIndex === realFields.length - 1);
 
       renderPaginationDots();
       renderFieldDropdownItems();
+
+      // Fetch Real Timeseries for this field
+      fetchFieldTimeseries(field.id, field);
 
       if (window.lucide) lucide.createIcons();
     }
 
     function navigateField(delta) {
-      selectFieldByIndex(activeFieldIndex + delta, true);
+      selectRealField(activeFieldIndex + delta, true);
     }
 
     function renderPaginationDots() {
       const container = document.getElementById('fieldPaginationDots');
       if (!container) return;
-      container.innerHTML = boltFields.map((f, i) => `
+      container.innerHTML = realFields.map((f, i) => `
         <button
           type="button"
-          onclick="selectFieldByIndex(${i}, true)"
+          onclick="selectRealField(${i}, true)"
           aria-label="Show ${f.name}"
           class="h-1.5 rounded-full transition-all duration-300 ${
             i === activeFieldIndex ? 'w-5 bg-offwhite-50' : 'w-1.5 bg-offwhite-50/40 hover:bg-offwhite-50/60'
@@ -1332,10 +1123,19 @@
     function renderFieldDropdownItems() {
       const container = document.getElementById('topFieldListItems');
       if (!container) return;
-      container.innerHTML = boltFields.map((f, i) => `
+      if (realFields.length === 0) {
+        container.innerHTML = `
+          <div class="px-3 py-3 text-xs text-forest-400 text-center">
+            No fields registered.<br>
+            <a href="add-field.html" class="text-forest-600 font-semibold underline mt-1 inline-block">Add your first field</a>
+          </div>
+        `;
+        return;
+      }
+      container.innerHTML = realFields.map((f, i) => `
         <button
           type="button"
-          onclick="selectFieldByIndex(${i}, true); toggleFieldDropdown(false);"
+          onclick="selectRealField(${i}, true); toggleFieldDropdown(false);"
           class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-offwhite-200 ${
             i === activeFieldIndex ? 'bg-offwhite-200 font-semibold' : ''
           }"
@@ -1345,7 +1145,7 @@
           </div>
           <div class="flex-1 min-w-0">
             <p class="font-heading text-sm font-semibold text-forest-700 truncate">${f.name}</p>
-            <p class="text-xs text-forest-400 truncate">${f.cropType} · ${f.areaAcres} acres · ${f.village}</p>
+            <p class="text-xs text-forest-400 truncate">${f.cropType} · ${f.areaAcres} acres</p>
           </div>
           ${i === activeFieldIndex ? '<i data-lucide="check" class="w-4 h-4 text-forest-500 shrink-0"></i>' : ''}
         </button>
@@ -1377,16 +1177,11 @@
       if (window.lucide) lucide.createIcons();
     }
 
-    // Close dropdowns on outside click
     document.addEventListener('click', (e) => {
       const fieldWrapper = document.getElementById('topFieldSelectorWrapper');
-      if (fieldWrapper && !fieldWrapper.contains(e.target)) {
-        toggleFieldDropdown(false);
-      }
+      if (fieldWrapper && !fieldWrapper.contains(e.target)) toggleFieldDropdown(false);
       const profileWrapper = document.getElementById('topProfileWrapper');
-      if (profileWrapper && !profileWrapper.contains(e.target)) {
-        toggleProfileDropdown(false);
-      }
+      if (profileWrapper && !profileWrapper.contains(e.target)) toggleProfileDropdown(false);
     });
 
     // Touch / Swipe Navigation for Health Score Card
@@ -1406,25 +1201,20 @@
         if (!touchStartX) return;
         const dx = e.clientX - touchStartX;
         const dy = e.clientY - touchStartY;
-        if (!touchMoved) {
-          if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
-            touchMoved = true;
-          }
+        if (!touchMoved && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
+          touchMoved = true;
         }
       });
 
       swipeArea.addEventListener('pointerup', (e) => {
         if (touchStartX && touchMoved) {
           const dist = e.clientX - touchStartX;
-          if (Math.abs(dist) > 35) {
-            navigateField(dist < 0 ? 1 : -1);
-          }
+          if (Math.abs(dist) > 35) navigateField(dist < 0 ? 1 : -1);
         }
         touchStartX = 0;
         touchMoved = false;
       });
 
-      // Mouse Wheel Support
       swipeArea.addEventListener('wheel', (e) => {
         if (Math.abs(e.deltaX) < 10 && Math.abs(e.deltaY) < 10) return;
         e.preventDefault();
@@ -1433,9 +1223,310 @@
       }, { passive: false });
     }
 
-    // Sync live user profile and weather if available from API
+    // ─── Real Timeseries Metric Fetching ──────────────────────────────────────
+    async function fetchFieldTimeseries(farmId, field) {
+      const token = CropSathiSession.getToken();
+      if (!token || !farmId) return;
+
+      try {
+        const res = await fetch(`${CropSathiPrefs.api}/api/analytics/farms/${farmId}/timeseries`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          const ndviList = (json.data.ndvi || []).map(r => r.ndvi).filter(v => v != null).reverse();
+          const ndreList = (json.data.ndvi || []).map(r => r.ndre).filter(v => v != null).reverse();
+          const thermalList = (json.data.thermal || []).map(r => r.lst || r.anomaly || 0).filter(v => v != null).reverse();
+
+          // Latest values
+          const latestNdvi = ndviList.length ? ndviList[ndviList.length - 1] : ((field.components?.ndvi || 65) / 100);
+          const latestNdre = ndreList.length ? ndreList[ndreList.length - 1] : ((field.components?.ndre || 38) / 100);
+          const latestThermal = thermalList.length ? thermalList[thermalList.length - 1] : ((field.components?.thermal || 25) / 100);
+
+          document.getElementById('ndviValue').textContent = latestNdvi.toFixed(2);
+          document.getElementById('ndreValue').textContent = latestNdre.toFixed(2);
+          document.getElementById('cwsiValue').textContent = latestThermal > 1 ? (latestThermal / 40).toFixed(2) : latestThermal.toFixed(2);
+
+          // Sparklines
+          document.getElementById('ndviSparkline').innerHTML = createSparklineSvg(ndviList.slice(-10), '#D4A93A', 'rgba(212,169,58,0.08)');
+          document.getElementById('ndreSparkline').innerHTML = createSparklineSvg(ndreList.slice(-10), '#3F8259', 'rgba(63,130,89,0.08)');
+          document.getElementById('cwsiSparkline').innerHTML = createSparklineSvg(thermalList.slice(-10), '#C1502E', 'rgba(193,80,46,0.08)');
+
+          // Trend Deltas
+          if (ndviList.length > 1) {
+            const delta = ((ndviList[ndviList.length - 1] - ndviList[0]) / (ndviList[0] || 1) * 100);
+            document.getElementById('ndviTrendPct').textContent = `${Math.abs(delta).toFixed(1)}%`;
+            document.getElementById('ndviTrendIcon').setAttribute('data-lucide', delta >= 0 ? 'arrow-up-right' : 'arrow-down-right');
+          }
+          if (ndreList.length > 1) {
+            const delta = ((ndreList[ndreList.length - 1] - ndreList[0]) / (ndreList[0] || 1) * 100);
+            document.getElementById('ndreTrendPct').textContent = `${Math.abs(delta).toFixed(1)}%`;
+            document.getElementById('ndreTrendIcon').setAttribute('data-lucide', delta >= 0 ? 'arrow-up-right' : 'arrow-down-right');
+          }
+          if (thermalList.length > 1) {
+            const delta = ((thermalList[thermalList.length - 1] - thermalList[0]) / (thermalList[0] || 1) * 100);
+            document.getElementById('cwsiTrendPct').textContent = `${Math.abs(delta).toFixed(1)}%`;
+            document.getElementById('cwsiTrendIcon').setAttribute('data-lucide', delta >= 0 ? 'arrow-up-right' : 'arrow-down-right');
+          }
+
+          if (window.lucide) lucide.createIcons();
+          return;
+        }
+      } catch (err) {
+        console.warn('Timeseries fetch fallback to components');
+      }
+
+      // Fallback: use field components if available
+      const ndviComp = (field.components?.ndvi != null) ? (field.components.ndvi / 100) : 0.65;
+      const ndreComp = (field.components?.ndre != null) ? (field.components.ndre / 100) : 0.38;
+      const thermalComp = (field.components?.thermal != null) ? (field.components.thermal / 100) : 0.42;
+
+      document.getElementById('ndviValue').textContent = ndviComp.toFixed(2);
+      document.getElementById('ndreValue').textContent = ndreComp.toFixed(2);
+      document.getElementById('cwsiValue').textContent = thermalComp.toFixed(2);
+
+      document.getElementById('ndviSparkline').innerHTML = createSparklineSvg([ndviComp * 0.9, ndviComp * 0.95, ndviComp], '#D4A93A', 'rgba(212,169,58,0.08)');
+      document.getElementById('ndreSparkline').innerHTML = createSparklineSvg([ndreComp * 0.95, ndreComp], '#3F8259', 'rgba(63,130,89,0.08)');
+      document.getElementById('cwsiSparkline').innerHTML = createSparklineSvg([thermalComp * 0.8, thermalComp], '#C1502E', 'rgba(193,80,46,0.08)');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // ─── Real Field Data Loader from /api/dashboard/health ─────────────────────
+    async function loadRealDashboardData() {
+      const token = CropSathiSession.getToken();
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (data.success && data.data?.fields) {
+          const apiFields = data.data.fields;
+
+          realFields = apiFields.map(f => {
+            const score = (f.compositeScore != null) ? Math.round(f.compositeScore) : 0;
+            const prev = (f.previousScore != null) ? Math.round(f.previousScore) : score;
+            let risk = 'green';
+            if (score < 40) risk = 'red';
+            else if (score < 60) risk = 'orange';
+            else if (score < 75) risk = 'yellow';
+
+            return {
+              id: f.farmId || f._id,
+              name: f.farmName || 'Farm Field',
+              cropType: f.cropType || 'Wheat',
+              cropEmoji: getCropEmoji(f.cropType),
+              areaAcres: f.areaHectares ? parseFloat((f.areaHectares * 2.471).toFixed(1)) : 1.5,
+              village: document.getElementById('userLocation')?.textContent?.replace('Farmer · ', '') || 'Field Location',
+              healthScore: score,
+              prevScore: prev,
+              riskLevel: risk,
+              components: f.components || {},
+              triggeredAlert: f.triggeredAlert || false,
+              diseaseHypothesis: f.diseaseHypothesis || null,
+            };
+          });
+
+          // Update Monitored Fields Stat
+          document.getElementById('statFieldsCount').textContent = realFields.length;
+
+          // Render active field
+          selectRealField(0, false);
+        } else {
+          selectRealField(0, false);
+        }
+      } catch (err) {
+        console.error('Failed to load real dashboard health:', err);
+        selectRealField(0, false);
+      }
+    }
+
+    // ─── Real Alerts & Notifications Loader ──────────────────────────────────
+    async function loadRealAlertsAndActivity() {
+      const token = CropSathiSession.getToken();
+      if (!token) return;
+
+      try {
+        const [notifRes, advRes, casesRes] = await Promise.allSettled([
+          fetch(`${CropSathiPrefs.api}/api/notifications?limit=10`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${CropSathiPrefs.api}/api/advisory/latest`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${CropSathiPrefs.api}/api/diagnosis/cases`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+
+        let notifs = [];
+        let advisories = [];
+        let cases = [];
+
+        if (notifRes.status === 'fulfilled') {
+          const nData = await notifRes.value.json();
+          notifs = Array.isArray(nData) ? nData : (nData.notifications || nData.data || []);
+        }
+        if (advRes.status === 'fulfilled') {
+          const aData = await advRes.value.json();
+          advisories = aData.advisories || aData.data || [];
+        }
+        if (casesRes.status === 'fulfilled') {
+          const cData = await casesRes.value.json();
+          cases = cData.cases || cData.data || [];
+        }
+
+        // 1. Stats Counter
+        const activeAlertCount = notifs.filter(n => !n.read).length || notifs.length;
+        document.getElementById('statAlertsCount').textContent = activeAlertCount;
+        document.getElementById('statAdvisoriesCount').textContent = advisories.length;
+        document.getElementById('statScansCount').textContent = cases.length;
+
+        const notifBadge = document.getElementById('topNotifBadge');
+        if (activeAlertCount > 0) {
+          notifBadge.textContent = activeAlertCount;
+          notifBadge.classList.remove('hidden');
+          const advBadge = document.getElementById('sidebarAdvisoryBadge');
+          if (advBadge) {
+            advBadge.textContent = activeAlertCount;
+            advBadge.classList.remove('hidden');
+          }
+        }
+
+        document.getElementById('alertsCountSub').textContent = `${activeAlertCount} active notification${activeAlertCount === 1 ? '' : 's'}`;
+
+        // 2. Render Active Alerts Card
+        const alertsContainer = document.getElementById('alertsContainer');
+        if (notifs.length > 0) {
+          alertsContainer.innerHTML = notifs.slice(0, 3).map(n => {
+            const isHigh = n.priority === 'high' || n.priority === 'critical';
+            const isMed = n.priority === 'medium';
+            const barClass = isHigh ? 'bg-risk-red' : (isMed ? 'bg-risk-orange' : 'bg-risk-yellow');
+            const badgeClass = isHigh ? 'text-risk-red bg-red-50' : (isMed ? 'text-risk-orange bg-terracotta-50' : 'text-risk-yellow bg-yellow-50');
+            const relTime = formatRelativeTime(n.createdAt);
+
+            return `
+              <div class="group flex gap-4 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-4 shadow-card transition-all hover:shadow-card-hover hover:border-offwhite-400">
+                <div class="w-1 flex-shrink-0 rounded-full ${barClass}"></div>
+                <div class="flex flex-1 flex-col gap-3">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <h4 class="font-heading text-sm font-semibold text-forest-700">${n.title || 'Telemetry Notice'}</h4>
+                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold ${badgeClass}">
+                          ${n.priority || 'Notice'}
+                        </span>
+                      </div>
+                      <p class="mt-1 text-sm text-forest-400">
+                        ${n.body || n.message || 'System notification regarding crop telemetry.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 text-xs text-forest-400">
+                      <span class="flex items-center gap-1">
+                        <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+                        Priority Alert
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                        ${relTime}
+                      </span>
+                    </div>
+                    <a href="notifications.html" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-heading text-xs font-semibold bg-forest-500 text-offwhite-50 hover:bg-forest-600 transition-colors">
+                      <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                      <span>View</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          alertsContainer.innerHTML = `
+            <div class="rounded-xl border border-dashed border-offwhite-300 bg-offwhite-100 p-6 text-center">
+              <i data-lucide="check-circle" class="w-8 h-8 text-forest-500 mx-auto mb-2"></i>
+              <h4 class="font-heading text-sm font-semibold text-forest-700">All Fields Healthy</h4>
+              <p class="text-xs text-forest-400 mt-0.5">No critical disease or moisture stress alerts active at this moment.</p>
+              <a href="diagnose.html" class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-forest-500 px-3.5 py-1.5 font-heading text-xs font-semibold text-offwhite-50 hover:bg-forest-600">
+                <i data-lucide="camera" class="w-3.5 h-3.5"></i> Scan Crop
+              </a>
+            </div>
+          `;
+        }
+
+        // 3. Render Recent Activity Feed
+        const activityList = document.getElementById('recentActivityList');
+        const allEvents = [
+          ...notifs.map(n => ({
+            title: n.title,
+            desc: n.body || n.message,
+            time: n.createdAt,
+            icon: 'bell',
+            color: 'text-terracotta-400',
+            bg: 'bg-terracotta-50'
+          })),
+          ...advisories.map(a => ({
+            title: `Advisory: ${a.primaryDiagnosis || 'Treatment plan'}`,
+            desc: a.summary || 'Custom precision advisory generated.',
+            time: a.createdAt,
+            icon: 'zap',
+            color: 'text-forest-500',
+            bg: 'bg-forest-50'
+          })),
+          ...cases.map(c => ({
+            title: `Crop Photo Scan (${c.cropType || 'Crop'})`,
+            desc: c.outcome === 'confirmed' ? `Confirmed diagnosis: ${c.confirmedDisease || 'Analyzed'}` : 'Image upload processed',
+            time: c.createdAt,
+            icon: 'camera',
+            color: 'text-risk-green',
+            bg: 'bg-forest-50'
+          }))
+        ].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+
+        if (allEvents.length > 0) {
+          activityList.innerHTML = allEvents.slice(0, 4).map((evt, idx) => {
+            const isLast = idx === Math.min(allEvents.length - 1, 3);
+            return `
+              <div class="relative flex gap-4 ${isLast ? 'pb-0' : 'pb-5'}">
+                ${!isLast ? '<div class="absolute left-[15px] top-9 bottom-0 w-px bg-offwhite-300"></div>' : ''}
+                <div class="relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${evt.bg} ${evt.color}">
+                  <i data-lucide="${evt.icon}" class="w-4 h-4"></i>
+                </div>
+                <div class="flex flex-1 flex-col gap-0.5 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="font-heading text-sm font-semibold text-forest-700 truncate">${evt.title}</p>
+                    <span class="flex-shrink-0 text-xs text-forest-300">${formatRelativeTime(evt.time)}</span>
+                  </div>
+                  <p class="text-sm text-forest-400 truncate">${evt.desc}</p>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          activityList.innerHTML = `
+            <div class="p-6 text-center text-xs text-forest-400">
+              No recent activity yet. Upload a crop photo or register a field to begin.
+            </div>
+          `;
+        }
+
+        if (window.lucide) lucide.createIcons();
+      } catch (err) {
+        console.warn('Alerts and activity load error:', err);
+      }
+    }
+
+    function formatRelativeTime(dateString) {
+      if (!dateString) return 'Just now';
+      const diff = Math.floor((new Date() - new Date(dateString)) / 1000);
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)} hour${Math.floor(diff / 3600) === 1 ? '' : 's'} ago`;
+      if (diff < 172800) return 'Yesterday';
+      return `${Math.floor(diff / 86400)} days ago`;
+    }
+
+    // ─── Real User Profile & Open-Meteo Weather Loader ─────────────────────────
     async function syncUserProfile() {
-      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
+      const token = CropSathiSession.getToken();
       if (!token) return;
       try {
         const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
@@ -1455,35 +1546,44 @@
           if (user.name) {
             if (nameElem) nameElem.textContent = user.name;
             if (menuNameElem) menuNameElem.textContent = user.name;
-            const initial = user.name.trim().charAt(0).toUpperCase();
-            if (avatarInitial) avatarInitial.textContent = initial;
-            if (menuPhoto) menuPhoto.textContent = initial;
+            const initials = user.name.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+            if (avatarInitial) avatarInitial.textContent = initials;
+            if (menuPhoto) menuPhoto.textContent = initials;
           }
 
           if (user.phoneNumber && phoneElem) {
             phoneElem.textContent = user.phoneNumber;
           }
 
+          let village = '';
+          let district = '';
+
           if (user.farmDetails) {
-            const village = user.farmDetails.village || '';
-            const district = user.farmDetails.district || '';
-            const locText = village ? `Farmer · ${village}` : (district ? `Farmer · ${district}` : 'Farmer');
+            village = user.farmDetails.village || '';
+            district = user.farmDetails.district || '';
+            const locText = village ? `${village}${district ? ', ' + district : ''}` : (district || 'Panvel');
             if (locationElem) locationElem.textContent = locText;
 
-            // Fetch real Open-Meteo weather if GPS coordinates exist
+            // Fetch live Open-Meteo weather
             if (user.farmDetails.latitude && user.farmDetails.longitude) {
-              fetchLiveWeather(user.farmDetails.latitude, user.farmDetails.longitude, village, district);
+              fetchLiveWeather(user.farmDetails.latitude, user.farmDetails.longitude, locText);
+            } else {
+              // Default to user district or Panvel coordinates
+              fetchLiveWeather(18.9894, 73.1175, locText);
             }
+          } else {
+            fetchLiveWeather(18.9894, 73.1175, 'Panvel');
           }
         }
       } catch (error) {
-        console.warn('User profile sync skipped, using defaults');
+        console.warn('Profile sync fallback');
+        fetchLiveWeather(18.9894, 73.1175, 'Panvel');
       }
     }
 
-    async function fetchLiveWeather(lat, lng, village, district) {
+    async function fetchLiveWeather(lat, lng, placeName) {
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,rain,wind_speed_10m,wind_direction_10m&timezone=auto`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,rain,wind_speed_10m,wind_direction_10m,weather_code&timezone=auto`;
         const res = await fetch(url);
         const data = await res.json();
         if (data && data.current) {
@@ -1493,47 +1593,36 @@
           document.getElementById('humidityValue').textContent = `${Math.round(cur.relative_humidity_2m)}%`;
           document.getElementById('windValue').textContent = `${Math.round(cur.wind_speed_10m)} km/h`;
           document.getElementById('precipValue').textContent = `${(cur.rain || 0).toFixed(0)} mm`;
-          if (village || district) {
-            document.getElementById('weatherLocationText').textContent = village ? `${village}, ${district}` : district;
+          
+          if (placeName) {
+            document.getElementById('weatherLocationText').textContent = placeName;
           }
+
+          // Wind direction text
+          const deg = cur.wind_direction_10m || 0;
+          const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+          const dirStr = dirs[Math.round(deg / 45) % 8];
+          document.getElementById('windDirValue').textContent = dirStr;
+
+          // Condition label
+          const code = cur.weather_code || 0;
+          let cond = 'Clear Sky';
+          if (code >= 1 && code <= 3) cond = 'Partly Cloudy';
+          else if (code >= 45 && code <= 48) cond = 'Foggy';
+          else if (code >= 51 && code <= 67) cond = 'Light Rain';
+          else if (code >= 80 && code <= 99) cond = 'Rain Shower';
+          document.getElementById('weatherConditionText').textContent = cond;
         }
       } catch (e) {
-        console.warn('Weather fetch fallback');
+        console.warn('Weather API fallback');
       }
     }
 
-    // Merge backend fields if registered by farmer
-    async function syncBackendHealthScores() {
-      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
-      if (!token) return;
-      try {
-        const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data && data.success && data.data?.fields?.length) {
-          const apiFields = data.data.fields;
-          apiFields.forEach((af, idx) => {
-            if (boltFields[idx]) {
-              boltFields[idx].name = af.farmName || boltFields[idx].name;
-              boltFields[idx].cropType = af.cropType || boltFields[idx].cropType;
-              if (af.compositeScore != null) boltFields[idx].healthScore = af.compositeScore;
-              if (af.areaHectares) boltFields[idx].areaAcres = parseFloat((af.areaHectares * 2.471).toFixed(1));
-              boltFields[idx].riskLevel = af.compositeScore >= 70 ? 'green' : (af.compositeScore >= 45 ? 'yellow' : (af.compositeScore >= 35 ? 'orange' : 'red'));
-            }
-          });
-          selectFieldByIndex(activeFieldIndex, false);
-        }
-      } catch (err) {
-        console.warn('Health scores API sync skipped');
-      }
-    }
-
-    // Initialize Dashboard matching Plot B — Riverside
+    // Initialize all real data on DOM Ready
     document.addEventListener('DOMContentLoaded', () => {
-      selectFieldByIndex(1, false);
       syncUserProfile();
-      syncBackendHealthScores();
+      loadRealDashboardData();
+      loadRealAlertsAndActivity();
       if (window.lucide) lucide.createIcons();
     });
   </script>
