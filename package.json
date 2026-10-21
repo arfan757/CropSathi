@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "node -e \"console.log('Frontend assets ready for Vercel deployment')\"",
+    "build": "node scripts/prepare-build.js",
     "build:css": "npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o frontend/app.css --minify"
   },
   "devDependencies": {
