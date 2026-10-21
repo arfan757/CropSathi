@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropSathi - Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Google Fonts: Be Vietnam Pro & Noto Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="ui.css">
+  <script src="session.js"></script>
+  <script>CropSathiSession.requireAuth();</script>
+
+  <script>
+    async function syncUserProfile() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          const user = result.user;
+          const nameElem = document.getElementById('userName');
+          const locationElem = document.getElementById('userLocation');
+
+          if (nameElem) nameElem.textContent = user.name || 'Farmer';
+
+          // Update profile photo and avatar initial
+          const navAvatar = document.getElementById('navAvatarInitial');
+          if (navAvatar && user.name) {
+            navAvatar.textContent = user.name.trim().charAt(0).toUpperCase();
+          }
+          if (typeof applyProfilePhoto === 'function') {
+            applyProfilePhoto(user.profilePhoto);
+          }
+
+          if (locationElem && user.farmDetails) {
+            const village = user.farmDetails.village || '';
+            const district = user.farmDetails.district || '';
+            locationElem.textContent = village || district || 'Location not set';
+          }
+
+          // Fetch real weather data if GPS coordinates exist
+          if (user.farmDetails && user.farmDetails.latitude && user.farmDetails.longitude) {
+            fetchWeatherData(user.farmDetails.latitude, user.farmDetails.longitude);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync user data:', error);
+      }
+    }
+
+    async function fetchWeatherData(lat, lng) {
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,rain,soil_temperature_6cm,wind_speed_10m&timezone=auto`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data && data.current) {
+          const current = data.current;
+
+          // Update temperature card
+          const temp = Math.round(current.temperature_2m);
+          updateWeatherVisual(temp);
+
+          // Update metric cards
+          const soilTemp = document.getElementById('soilTempValue');
+          const humidity = document.getElementById('humidityValue');
+          const wind = document.getElementById('windValue');
+          const precip = document.getElementById('precipValue');
+
+          if (soilTemp) soilTemp.textContent = (current.soil_temperature_6cm != null ? Math.round(current.soil_temperature_6cm) : 23) + '°C';
+          if (humidity) humidity.textContent = (current.relative_humidity_2m != null ? Math.round(current.relative_humidity_2m) : 78) + '%';
+          if (wind) wind.textContent = (current.wind_speed_10m != null ? Math.round(current.wind_speed_10m) : 7) + ' m/s';
+          if (precip) precip.textContent = (current.rain != null ? current.rain.toFixed(1) : 0) + ' mm';
+        }
+      } catch (error) {
+        console.error('Weather fetch failed, using defaults:', error);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', syncUserProfile);
+  </script>
+  <style>
+    body {
+      font-family: 'Noto Sans', sans-serif;
+      background-color: #fbf9f8;
+      color: #1b1c1c;
+    }
+    h1, h2, h3, h4, .font-headline {
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .tactile-card {
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+<body class="bg-[#fbf9f8] text-[#1b1c1c] min-h-screen flex has-tabbar">
+
+  <!-- Sidebar Navigation -->
+  <aside class="w-64 bg-[#f6f3f2] border-r border-[#e4e2e1] flex flex-col justify-between p-6 hidden md:flex fixed left-0 top-0 bottom-0 overflow-y-auto z-30">
+    <div>
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 rounded-full bg-[#006038] flex items-center justify-center text-[#ffffff] font-bold shadow-md">
+          <i data-lucide="sprout" class="w-6 h-6"></i>
+        </div>
+        <span class="font-headline font-bold text-xl tracking-tight text-[#006038]">CropSathi</span>
+      </div>
+
+      <nav class="space-y-2">
+        <a href="#" class="flex items-center gap-3 px-4 py-3 bg-[#006038] text-[#ffffff] rounded-xl font-semibold transition shadow-sm">
+          <i data-lucide="layout-grid" class="w-5 h-5"></i>
+          <span data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <a href="my-fields.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="map-pin" class="w-5 h-5"></i>
+          <span data-i18n="nav_my_fields">My Fields</span>
+        </a>
+        <a href="diagnose.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="camera" class="w-5 h-5"></i>
+          <span data-i18n="nav_diagnose">Diagnose</span>
+        </a>
+        <a href="advisory.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+          <i data-lucide="lightbulb" class="w-5 h-5"></i>
+          <span data-i18n="nav_advisory">Advisory</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="pt-6 border-t border-[#e4e2e1]">
+      <a href="settings.html" class="flex items-center gap-3 px-4 py-3 text-[#3f4941] hover:bg-[#eae8e7] rounded-xl font-medium transition">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span data-i18n="nav_settings">Settings</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 w-full overflow-x-hidden p-4 pb-24 md:p-10 md:pb-10 max-w-7xl mx-auto overflow-y-auto md:ml-64">
+    
+    <!-- Top Header -->
+    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 mb-6 md:mb-8">
+
+      <!-- Brand lockup — mobile top app bar -->
+      <a href="dashboard.html" class="cs-brand md:hidden order-1 flex items-center gap-2.5" aria-label="CropSathi — Dashboard">
+        <span class="cs-brand-mark w-10 h-10"><i data-lucide="sprout" class="w-5 h-5"></i></span>
+        <span class="font-headline font-bold text-lg tracking-tight text-[#006038]">CropSathi</span>
+      </a>
+
+      <!-- Title -->
+      <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 min-w-0">
+        <h1 class="text-2xl md:text-3xl font-bold text-[#1b1c1c]"><span id="dashHelloText" data-i18n="dash_hello">Hello</span>, <span id="userName">Farmer</span></h1>
+        <p class="text-[#3f4941] text-sm flex items-center gap-1 mt-1">
+          <i data-lucide="map-pin" class="w-4 h-4 text-[#933302]"></i> <span id="userLocation">Location not set</span>
+        </p>
+      </div>
+
+      <!-- Actions -->
+      <div class="order-2 md:order-3 flex items-center gap-2.5 md:gap-4 ml-auto md:ml-0 flex-shrink-0">
+        <button type="button" class="cs-app-action cs-search-trigger md:hidden w-11 h-11" aria-label="Search" aria-expanded="false">
+          <i data-lucide="search"></i>
+        </button>
+        <div class="relative hidden md:block">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a71]"></i>
+          <input type="text" placeholder="Search crops, tasks..." class="bg-[#f0eded] text-sm pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-[#006038] outline-none w-60 text-[#1b1c1c]">
+        </div>
+        <a href="notifications.html" class="cs-app-action w-11 h-11" aria-label="Notifications">
+          <i data-lucide="bell"></i>
+          <span class="cs-dot"></span>
+        </a>
+        <div class="user-menu">
+          <button type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+            <span id="navProfilePhoto" class="w-11 h-11 rounded-full bg-[#eae8e7] flex items-center justify-center overflow-hidden border-2 border-[#ffffff] shadow-sm flex-shrink-0">
+              <span id="navAvatarInitial" class="font-headline text-lg font-bold text-[#006038]"></span>
+            </span>
+            <i data-lucide="chevron-down" class="user-menu-caret" aria-hidden="true"></i>
+          </button>
+          <div class="user-menu-panel" role="menu" aria-label="Account menu" aria-hidden="true">
+            <div class="user-menu-head">
+              <span class="user-menu-head-photo" id="userMenuPhoto" aria-hidden="true">F</span>
+              <span class="user-menu-head-meta">
+                <span class="user-menu-head-name" id="userMenuName">Farmer</span>
+                <span class="user-menu-head-sub" id="userMenuSub">Signed in</span>
+              </span>
+            </div>
+            <a class="user-menu-item" role="menuitem" href="settings.html"><i data-lucide="settings" aria-hidden="true"></i><span class="um-item-label">Settings</span></a>
+            <button type="button" class="user-menu-item" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon aria-hidden="true"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
+            <span class="user-menu-sep" role="separator"></span>
+            <button type="button" class="user-menu-item is-danger" role="menuitem" data-menu-logout><i data-lucide="log-out" aria-hidden="true"></i><span class="um-item-label">Sign out</span></button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Mobile search row -->
+    <div class="cs-searchrow md:hidden">
+      <i data-lucide="search" aria-hidden="true"></i>
+      <input type="search" placeholder="Search crops, tasks..." aria-label="Search">
+      <button type="button" class="cs-searchrow-close" data-search-close aria-label="Close search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Weather & Field Health Section -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-stretch">
+      
+      <!-- LEFT COLUMN: Weather Card & Metrics -->
+      <div class="lg:col-span-5 flex flex-col justify-between h-full gap-3 font-sans">
+        <!-- Main Weather Card -->
+        <div id="weatherCardBg" class="bg-[#f7f5f4] border border-[#e4e2e1] p-6 rounded-2xl relative overflow-hidden tactile-card flex justify-between min-h-[170px] flex-1">
+          <div class="relative z-10 flex flex-col justify-between items-start">
+            <div>
+              <span class="text-[#3f4941] font-medium text-sm tracking-wide" data-i18n="dash_current_temp">Current Temperature</span>
+              <div class="flex items-baseline gap-1 mt-1">
+                <span id="tempValue" class="text-5xl font-extrabold text-[#1b1c1c] font-headline tracking-tight">32°</span>
+                <span class="text-xl font-semibold text-[#3f4941]">C</span>
+              </div>
+            </div>
+            <div id="weatherBadge" class="inline-flex items-center gap-2 bg-[#e8efe5] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm">
+              <i data-lucide="cloud-sun" class="w-4 h-4" aria-hidden="true"></i>
+              <span id="weatherBadgeText">Warm / Growth Active</span>
+            </div>
+          </div>
+
+          <div id="weatherVectorContainer" class="absolute bottom-0 right-0 w-48 h-full pointer-events-none flex items-end justify-end"></div>
+        </div>
+
+        <!-- 2x2 Secondary Metrics Grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
+            <div>
+              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_soil_temp">Soil temp</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="soilTempValue">+23°C</p>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#933302] border border-[#e4e2e1] shadow-sm">
+              <i data-lucide="thermometer" class="w-4 h-4"></i>
+            </div>
+          </div>
+
+          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
+            <div>
+              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_humidity">Humidity</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="humidityValue">78%</p>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#006038] border border-[#e4e2e1] shadow-sm">
+              <i data-lucide="droplets" class="w-4 h-4"></i>
+            </div>
+          </div>
+
+          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
+            <div>
+              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_wind">Wind</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="windValue">7 m/s</p>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#006038] border border-[#e4e2e1] shadow-sm">
+              <i data-lucide="wind" class="w-4 h-4"></i>
+            </div>
+          </div>
+
+          <div class="bg-[#f6f3f2] p-4 rounded-xl border border-[#e4e2e1] flex items-center justify-between shadow-sm transition-all hover:bg-[#f0eded]">
+            <div>
+              <p class="text-xs font-semibold text-[#3f4941]" data-i18n="dash_precipitation">Precipitation</p>
+              <p class="text-lg font-bold text-[#1b1c1c] mt-0.5" id="precipValue">0 mm</p>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#933302] border border-[#e4e2e1] shadow-sm">
+              <i data-lucide="cloud-rain" class="w-4 h-4"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Dial Gauge Cards -->
+      <div class="lg:col-span-7 bg-[#f6f3f2] border border-[#e4e2e1] p-6 rounded-xl flex flex-col justify-between tactile-card h-full">
+        <div class="flex items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-[#1b1c1c] font-headline" data-i18n="dash_field_health">Field Health Score</h2>
+            <p class="text-xs text-[#3f4941]" data-i18n="dash_field_health_sub">Real-time composite telemetry gauge score</p>
+            <p id="lastSyncLabel" class="text-[10px] text-[#6f7a71] mt-0.5 hidden"></p>
+          </div>
+          <button type="button" id="sentinelSyncBtn" class="text-xs font-bold px-3.5 py-2 sm:py-1.5 bg-[#006038] hover:bg-[#004d2b] active:scale-95 text-[#ffffff] rounded-full flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer select-none touch-manipulation transition-all shadow-sm" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;" title="Sync satellite data and recalculate health scores">
+            <span id="sentinelSyncDot" class="w-2 h-2 rounded-full bg-[#abffc9]"></span>
+            <span data-i18n="dash_sentinel_sync">Sentinel Sync</span>
+          </button>
+        </div>
+
+        <!-- Scrollable Cards Container -->
+        <div id="cropScrollContainer" class="flex overflow-x-auto gap-3 md:gap-4 no-scrollbar cursor-grab active:cursor-grabbing select-none py-1">
+          <!-- Loading skeleton -->
+          <div class="health-skeleton bg-white p-5 rounded-xl border border-[#e4e2e1] flex flex-col items-center shrink-0 animate-pulse" style="min-width:220px;">
+            <div class="flex items-center gap-2.5 w-full">
+              <div class="w-8 h-8 rounded-lg bg-[#f0eded]"></div>
+              <div class="flex-1 space-y-2 py-1">
+                <div class="h-3 bg-[#f0eded] rounded w-3/4"></div>
+                <div class="h-2.5 bg-[#f0eded] rounded w-1/2"></div>
+              </div>
+            </div>
+            <div class="bg-[#f0eded]/60 rounded-full my-2" style="width:144px;height:144px;"></div>
+            <div class="flex items-center justify-between w-full pt-3 border-t border-[#e4e2e1]">
+              <div class="h-3 w-12 bg-[#f0eded] rounded"></div>
+              <div class="h-3 w-20 bg-[#f0eded] rounded"></div>
+            </div>
+          </div>
+          <!-- Empty state -->
+          <div id="healthEmpty" class="hidden text-center py-8 w-full">
+            <i data-lucide="sprout" class="w-10 h-10 text-[#6f7a71] mx-auto mb-2"></i>
+            <p class="text-sm text-[#6f7a71]">Add fields to see health scores</p>
+            <a href="add-field.html" class="text-xs text-[#006038] font-semibold hover:underline mt-1 inline-block">Add Field</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="config.js"></script>
+  <script src="preferences.js"></script>
+  <script src="nav-profile.js"></script>
+  <script>
+    if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
+    lucide.createIcons();
+
+    const scrollContainer = document.getElementById('cropScrollContainer');
+    scrollContainer.addEventListener('wheel', (evt) => {
+      evt.preventDefault();
+      scrollContainer.scrollLeft += evt.deltaY;
+    });
+
+    updateWeatherVisual(32);
+
+    function updateWeatherVisual(temp) {
+      const container = document.getElementById('weatherVectorContainer');
+      const cardBg = document.getElementById('weatherCardBg');
+      const badge = document.getElementById('weatherBadge');
+      const badgeText = document.getElementById('weatherBadgeText');
+      const tempValElem = document.getElementById('tempValue');
+
+      if (tempValElem) tempValElem.textContent = temp + '°';
+
+      let svgHTML = '';
+
+      if (temp < 18) {
+        if (cardBg) cardBg.style.backgroundColor = '#f5f7f9';
+        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e8f0f7] px-3.5 py-1.5 rounded-full border border-[#2b6cb0]/10 text-xs font-semibold text-[#2b6cb0] mt-4 shadow-sm';
+        if (badgeText) badgeText.textContent = 'Cool / Frost Risk Weather';
+
+        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<circle cx="150" cy="35" r="14" fill="#A0AEC0" fill-opacity="0.5"/>'
+          + '<path d="M40 120C90 85 150 90 200 120H40Z" fill="#CBD5E0" fill-opacity="0.6"/>'
+          + '<path d="M0 120C60 75 130 80 200 120H0Z" fill="#BEE3F8" fill-opacity="0.5"/>'
+          + '<ellipse cx="140" cy="30" rx="20" ry="10" fill="#EDF2F7"/>'
+          + '<ellipse cx="125" cy="35" rx="14" ry="7" fill="#EDF2F7"/>'
+          + '</svg>';
+
+      } else if (temp <= 28) {
+        if (cardBg) cardBg.style.backgroundColor = '#f7f5f4';
+        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e2efe7] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm';
+        if (badgeText) badgeText.textContent = 'Optimal Growth Weather';
+
+        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<circle cx="150" cy="35" r="16" fill="#F6AD55"/>'
+          + '<path d="M50 120C90 85 140 90 200 120H50Z" fill="#C5E3D2" fill-opacity="0.7"/>'
+          + '<path d="M0 120C60 75 120 80 200 120H0Z" fill="#A4D4B8" fill-opacity="0.6"/>'
+          + '<path d="M150 120C150 98 142 80 132 68C144 74 156 86 158 120" fill="#006038"/>'
+          + '<path d="M150 120C150 102 160 88 173 82C165 92 158 106 150 120" fill="#208353"/>'
+          + '</svg>';
+
+      } else if (temp <= 35) {
+        if (cardBg) cardBg.style.backgroundColor = '#f7f6f4';
+        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#e8efe5] px-3.5 py-1.5 rounded-full border border-[#006038]/10 text-xs font-semibold text-[#006038] mt-4 shadow-sm';
+        if (badgeText) badgeText.textContent = 'Warm / Growth Active';
+
+        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<circle cx="150" cy="30" r="18" fill="#F8C055"/>'
+          + '<path d="M40 120C80 80 130 85 200 120H40Z" fill="#C5E3D2" fill-opacity="0.7"/>'
+          + '<path d="M0 120C50 70 110 75 200 120H0Z" fill="#A4D4B8" fill-opacity="0.6"/>'
+          + '<path d="M145 120C145 98 137 80 127 68C139 74 151 86 153 120" fill="#006038"/>'
+          + '<path d="M145 120C145 102 155 88 168 82C160 92 153 106 145 120" fill="#208353"/>'
+          + '</svg>';
+
+      } else {
+        if (cardBg) cardBg.style.backgroundColor = '#f9f5f2';
+        if (badge) badge.className = 'inline-flex items-center gap-2 bg-[#fae8d5] px-3.5 py-1.5 rounded-full border border-[#c05621]/10 text-xs font-semibold text-[#c05621] mt-4 shadow-sm';
+        if (badgeText) badgeText.textContent = 'High Heat / Irrigation Advised';
+
+        svgHTML = '<svg class="w-full h-full" viewBox="0 0 200 120" preserveAspectRatio="xMaxYMax meet" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<circle cx="150" cy="30" r="22" fill="#DD6B20" fill-opacity="0.2"/>'
+          + '<circle cx="150" cy="30" r="15" fill="#ED8936"/>'
+          + '<path d="M40 120C85 85 135 90 200 120H40Z" fill="#FBD38D" fill-opacity="0.5"/>'
+          + '<path d="M0 120C50 75 115 80 200 120H0Z" fill="#FEEBC8" fill-opacity="0.7"/>'
+          + '<path d="M145 120C145 106 132 93 120 86C132 88 142 97 145 120" fill="#C05621"/>'
+          + '</svg>';
+      }
+
+      if (container) container.innerHTML = svgHTML;
+    }
+
+    const cropEmojis = {
+      'Rice': 'wheat', 'Wheat': 'wheat', 'Maize': 'wheat', 'Cotton': 'cloud',
+      'Sugarcane': 'sprout', 'Potato': 'apple', 'Grapes': 'grape', 'Soybean': 'sprout',
+      'Tur': 'sprout', 'Other': 'sprout',
+    };
+
+    function getScoreColor(score) {
+      if (score >= 70) return '#006038';
+      if (score >= 40) return '#1a7a4c';
+      return '#933302';
+    }
+
+    function getScoreLabel(severity, triggeredAlert, noVegetationDetected) {
+      if (noVegetationDetected) return { text: 'No Vegetation', bg: 'bg-[#933302]/10', color: 'text-[#933302]' };
+      if (triggeredAlert) return { text: 'Alert', bg: 'bg-[#933302]/10', color: 'text-[#933302]' };
+      if (severity === 'low') return { text: 'Optimal', bg: 'bg-[#006038]/10', color: 'text-[#006038]' };
+      if (severity === 'medium') return { text: 'Watch', bg: 'bg-[#1a7a4c]/10', color: 'text-[#1a7a4c]' };
+      return { text: 'New', bg: 'bg-[#f0eded]', color: 'text-[#6f7a71]' };
+    }
+
+    function getActionText(field) {
+      if (field.noVegetationDetected) return 'Check boundary';
+      if (field.triggeredAlert) return field.diseaseHypothesis?.replace(/_/g, ' ') || 'Risk detected';
+      if (field.severity === 'medium') return 'Monitor closely';
+      if (field.severity === 'low') return 'No action needed';
+      return 'Awaiting data';
+    }
+
+    function getTrendArrow(trend) {
+      if (trend === 'up') return '<i data-lucide="arrow-up" class="w-3 h-3 text-[#006038] inline-block align-middle"></i>';
+      if (trend === 'down') return '<i data-lucide="arrow-down" class="w-3 h-3 text-[#933302] inline-block align-middle"></i>';
+      return '<i data-lucide="minus" class="w-3 h-3 text-[#6f7a71] inline-block align-middle"></i>';
+    }
+
+    function renderHealthCard(field) {
+      const hasData = field.compositeScore != null;
+      const score = hasData ? field.compositeScore : 0;
+      const color = getScoreColor(score);
+      const label = getScoreLabel(field.severity, field.triggeredAlert, field.noVegetationDetected);
+      const iconName = cropEmojis[field.cropType] || 'sprout';
+      const actionText = getActionText(field);
+      const trend = getTrendArrow(field.trend);
+      const borderColor = (field.triggeredAlert || field.noVegetationDetected) ? 'border-[#ffb599]' : 'border-[#e4e2e1]';
+
+      // 240-degree arc, r = 80, centered at (100,100) on a square 200x200 viewBox
+      // so the arc's true center matches the box center the score text is
+      // absolutely-positioned against (total arc length = r * 240deg-in-rad ≈ 335.10)
+      const arcLength = 335.10;
+      const dashOffset = arcLength - (arcLength * (hasData ? score : 0)) / 100;
+
+      return `
+        <div onclick="if(typeof CropSathiSession!=='undefined') CropSathiSession.setActiveFarm('${field.farmId}'); window.location.href='analytics.html?fieldId=${field.farmId}';" class="bg-white p-5 rounded-xl border ${borderColor} flex flex-col items-center tactile-card shrink-0 cursor-pointer transition hover:border-[#006038] hover:shadow-md" style="min-width:220px;" title="Click to view satellite analytics">
+          <div class="flex items-start justify-between w-full gap-2 mb-1">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background-color: ${color}15;">
+                <i data-lucide="${iconName}" class="w-4 h-4 text-[#006038]"></i>
+              </div>
+              <div class="min-w-0">
+                <h3 class="font-bold text-[13px] text-[#1b1c1c] font-headline leading-tight truncate">${field.farmName}</h3>
+                <p class="text-[11px] text-[#3f4941] truncate">${field.areaHectares?.toFixed(1) || '?'} Ha · ${field.cropType}</p>
+              </div>
+            </div>
+            <span class="text-[9.5px] font-bold ${label.color} ${label.bg} px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">${label.text}</span>
+          </div>
+
+          <!-- Gauge SVG -->
+          <div class="relative my-1 flex items-center justify-center" style="width:144px;height:144px;">
+            <svg viewBox="0 0 200 200" class="w-full h-full" aria-hidden="true">
+              <!-- Background Arc: 240 degrees, gap centered at the bottom, arc centered at (100,100) -->
+              <path d="M 30.72 140 A 80 80 0 1 1 169.28 140" fill="none" stroke="#e4e2e1" stroke-width="14" stroke-linecap="round"/>
+              <!-- Active Score Arc -->
+              <path d="M 30.72 140 A 80 80 0 1 1 169.28 140" fill="none" stroke="${color}" stroke-width="14" stroke-linecap="round"
+                stroke-dasharray="${arcLength}" stroke-dashoffset="${dashOffset}"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span class="font-headline text-3xl font-extrabold ${hasData ? 'text-[#1b1c1c]' : 'text-[#6f7a71]'} leading-none">${hasData ? score : '--'}</span>
+              <div class="flex items-center gap-1 mt-1">
+                <span class="text-[9px] font-bold text-[#3f4941] uppercase tracking-wider">SCORE</span>
+                ${trend}
+              </div>
+            </div>
+          </div>
+
+          <div class="w-full pt-3 border-t border-[#e4e2e1] flex items-center justify-between gap-1 text-[11px]">
+            <span class="text-[#3f4941]">Action:</span>
+            <span class="font-semibold ${(field.triggeredAlert || field.noVegetationDetected) ? 'text-[#933302]' : 'text-[#006038]'} capitalize truncate">${actionText}</span>
+          </div>
+        </div>`;
+    }
+
+    async function loadHealthScores() {
+      const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
+      if (!token) return;
+
+      const skeletonEls = document.querySelectorAll('.health-skeleton');
+      const emptyEl = document.getElementById('healthEmpty');
+      const container = document.getElementById('cropScrollContainer');
+
+      function renderHealth(data) {
+        if (!data || !data.success || !data.data?.fields?.length) {
+          skeletonEls.forEach(el => el.classList.add('hidden'));
+          emptyEl?.classList.remove('hidden');
+          return;
+        }
+        skeletonEls.forEach(el => el.classList.add('hidden'));
+        emptyEl?.classList.add('hidden');
+        const fields = data.data.fields;
+        const html = fields.map(renderHealthCard).join('');
+        container.innerHTML = html;
+        if (window.lucide) lucide.createIcons();
+      }
+
+      try {
+        if (typeof CropSathiCache !== 'undefined') {
+          await CropSathiCache.fetchSWR(
+            `${CropSathiPrefs.api}/api/dashboard/health`,
+            { headers: { Authorization: `Bearer ${token}` } },
+            {
+              ttl: 60000,
+              onCached: renderHealth,
+              onFresh: renderHealth
+            }
+          );
+        } else {
+          const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          renderHealth(data);
+        }
+      } catch (err) {
+        console.error('Failed to load health scores:', err);
+        skeletonEls.forEach(el => el.classList.add('hidden'));
+      }
+    }
+
+    loadHealthScores();
+
+    // Show "last synced" label if we have a stored timestamp
+    function updateLastSyncLabel() {
+      const label = document.getElementById('lastSyncLabel');
+      const ts = localStorage.getItem('lastSentinelSync');
+      if (!label) return;
+      if (ts) {
+        const diff = Date.now() - new Date(ts).getTime();
+        let text;
+        if (diff < 60_000) text = 'Synced just now';
+        else if (diff < 3_600_000) text = `Synced ${Math.floor(diff / 60_000)}m ago`;
+        else if (diff < 86_400_000) text = `Synced ${Math.floor(diff / 3_600_000)}h ago`;
+        else text = `Synced ${new Date(ts).toLocaleDateString()}`;
+        label.textContent = text;
+        label.classList.remove('hidden');
+      }
+    }
+    updateLastSyncLabel();
+    setInterval(updateLastSyncLabel, 60_000);
+
+    // Keep the health cards fresh: re-fetch the latest computed scores
+    // every 5 minutes.
+    setInterval(loadHealthScores, 5 * 60 * 1000);
+
+    // Sentinel Sync button: force-refresh satellite data (NDVI + thermal)
+    // and recompute risk scores for ALL fields in one server call.
+    const sentinelSyncBtn = document.getElementById('sentinelSyncBtn');
+    if (sentinelSyncBtn) {
+      let toastTimer = null;
+      let isSyncing = false;
+
+      function showSyncToast(message, isError) {
+        const toastEl = document.getElementById('syncToast');
+        if (!toastEl) return;
+        toastEl.textContent = message;
+        toastEl.classList.toggle('err', !!isError);
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
+      }
+
+      function setSyncUI(active, label) {
+        const dot = document.getElementById('sentinelSyncDot');
+        const labelEl = sentinelSyncBtn.querySelector('[data-i18n]');
+        if (active) {
+          isSyncing = true;
+          sentinelSyncBtn.disabled = true;
+          sentinelSyncBtn.classList.add('opacity-75');
+          dot?.classList.add('animate-pulse');
+          if (labelEl && label) labelEl.textContent = label;
+        } else {
+          isSyncing = false;
+          sentinelSyncBtn.disabled = false;
+          sentinelSyncBtn.classList.remove('opacity-75');
+          dot?.classList.remove('animate-pulse');
+          if (labelEl) labelEl.textContent = 'Sentinel Sync';
+        }
+      }
+
+      async function triggerSentinelSync(e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (isSyncing || sentinelSyncBtn.disabled) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+          showSyncToast('Please sign in to sync fields', true);
+          return;
+        }
+
+        setSyncUI(true, 'Syncing…');
+        showSyncToast('Syncing satellite data for all fields…', false);
+
+        try {
+          const res = await fetch(`${CropSathiPrefs.api}/api/monitoring/sync-satellite`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.message || `Server error ${res.status}`);
+          }
+
+          const body = await res.json();
+          const { synced, failed, results } = body.data || {};
+
+          // Refresh the cards so the freshly computed scores render now.
+          await loadHealthScores();
+          updateLastSyncLabel();
+
+          if (failed === 0) {
+            showSyncToast(
+              `Synced ${synced} field${synced === 1 ? '' : 's'} — health scores updated`,
+              false
+            );
+          } else {
+            const failedNames = results
+              ?.filter(r => !r.success)
+              .map(r => r.farmName)
+              .join(', ') || '';
+            showSyncToast(
+              `Synced ${synced}/${synced + failed} fields` +
+              (failedNames ? ` — failed: ${failedNames}` : ''),
+              true
+            );
+          }
+
+          // Store last sync timestamp so cards can show it
+          localStorage.setItem('lastSentinelSync', new Date().toISOString());
+        } catch (err) {
+          console.error('Sentinel sync failed:', err);
+          showSyncToast('Sync failed — check connection and try again', true);
+        } finally {
+          setSyncUI(false);
+        }
+      }
+
+      // Prevent double-fire on mobile: touchend fires before click on
+      // touch devices, so we gate with a short cooldown.
+      let lastTapTime = 0;
+      function handleInteraction(e) {
+        const now = Date.now();
+        if (now - lastTapTime < 300) return; // 300ms debounce
+        lastTapTime = now;
+        triggerSentinelSync(e);
+      }
+
+      sentinelSyncBtn.addEventListener('click', handleInteraction);
+      sentinelSyncBtn.addEventListener('touchend', handleInteraction);
+    }
+
+    if (localStorage.getItem('newFieldCreated')) {
+      localStorage.removeItem('newFieldCreated');
+      let attempts = 0;
+      const poller = setInterval(() => {
+        loadHealthScores();
+        attempts++;
+        if (attempts >= 5) clearInterval(poller);
+      }, 3000);
+    }
+  </script>
+
+  <!-- Sync result toast (shown briefly by the Sentinel Sync button) -->
+  <div id="syncToast" class="sync-toast" role="status" aria-live="polite"></div>
+
+  <script src="ui.js"></script>
+
+  <!-- Bottom navigation (mobile only) -->
+  <nav class="cs-tabbar md:hidden" aria-label="Primary">
+    <a class="cs-tab is-active" href="dashboard.html" aria-current="page">
+      <span class="cs-tab-icon"><i data-lucide="layout-grid" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_dashboard">Dashboard</span>
+    </a>
+    <a class="cs-tab" href="my-fields.html">
+      <span class="cs-tab-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_my_fields">My Fields</span>
+    </a>
+    <a class="cs-tab" href="diagnose.html">
+      <span class="cs-tab-icon"><i data-lucide="camera" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_diagnose">Diagnose</span>
+    </a>
+    <a class="cs-tab" href="advisory.html">
+      <span class="cs-tab-icon"><i data-lucide="lightbulb" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_advisory">Advisory</span>
+    </a>
+    <a class="cs-tab" href="settings.html">
+      <span class="cs-tab-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
+      <span class="cs-tab-label" data-i18n="nav_settings">Settings</span>
+    </a>
+  </nav>
+</body>
+</html>
