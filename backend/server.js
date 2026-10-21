@@ -4,7 +4,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './src/config/db.js';
-import authRoutes from './src/routes/authroutes.js';
+import authRoutes from './src/routes/authRoutes.js';
 import fieldRoutes from './src/routes/fieldRoutes.js';
 import monitoringRoutes from './src/routes/monitoringRoutes.js';
 import analyticsRoutes from './src/routes/analyticsRoutes.js';
