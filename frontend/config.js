@@ -8,4 +8,4 @@ const isLocal = window.location.hostname === 'localhost' || window.location.host
 // 4. Production backend URL
 window.CROPSATHI_API_URL = window.CROPSATHI_API_URL ||
   (typeof localStorage !== 'undefined' ? localStorage.getItem('cropsathi_api_url') : null) ||
-  (isLocal ? 'http://localhost:5000' : 'https://cropsathi-x5fe.onrender.com');
+  (isLocal ? 'http://localhost:5000' : 'https://cropsathi-x8se.onrender.com');

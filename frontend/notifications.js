@@ -5,7 +5,7 @@
 
 class NotificationPanel {
   constructor() {
-    this.api = window.CROPSATHI_API_URL || 'https://cropsathi-x5fe.onrender.com';
+    this.api = window.CROPSATHI_API_URL || 'https://cropsathi-x8se.onrender.com';
     this.pollingInterval = 30000; // 30 seconds
     this.isOpen = false;
     this.notifications = [];

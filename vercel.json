@@ -27,7 +27,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://cropsathi-x5fe.onrender.com/api/:path*"
+      "destination": "https://cropsathi-x8se.onrender.com/api/:path*"
     }
   ]
 }
