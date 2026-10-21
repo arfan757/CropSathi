@@ -67,6 +67,19 @@
         }
         if (user) {
           localStorage.setItem('user', JSON.stringify(user));
+          localStorage.setItem('cropsathi_profile_meta', JSON.stringify({
+            name: user.name || '',
+            phone: user.phoneNumber || user.phone || ''
+          }));
+          if (user.profilePhoto) {
+            localStorage.setItem('cropsathi_profile_photo', user.profilePhoto);
+          }
+          if (user.farmDetails) {
+            const v = user.farmDetails.village;
+            const d = user.farmDetails.district;
+            const loc = v ? `${v}${d ? ', ' + d : ''}` : (d || '');
+            if (loc) localStorage.setItem('cropsathi_location', loc);
+          }
         }
       } catch (e) {
         console.warn('CropSathiSession.setSession failed:', e);
@@ -79,6 +92,7 @@
         localStorage.removeItem('user');
         localStorage.removeItem('cropsathi_profile_meta');
         localStorage.removeItem('cropsathi_profile_photo');
+        localStorage.removeItem('cropsathi_location');
         sessionStorage.clear();
         deleteCookie(this.COOKIE_KEY);
       } catch (e) {

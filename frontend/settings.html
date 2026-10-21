@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -81,31 +81,56 @@
           <i data-lucide="bell" class="w-4 h-4"></i>
           <span class="cs-dot absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-terracotta-400"></span>
         </a>
-        <div class="user-menu relative">
-          <button type="button" class="user-menu-trigger flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 p-1.5 pr-2 transition-colors hover:border-forest-200 lg:pr-3 shadow-card" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+        <!-- User Profile Dropdown Menu matching Bolt TopBar -->
+        <div class="user-menu relative" id="topProfileWrapper">
+          <button
+            type="button"
+            class="user-menu-trigger flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 p-1.5 pr-2 transition-colors hover:border-forest-200 lg:pr-3 shadow-card"
+            onclick="toggleProfileDropdown(event)"
+            aria-haspopup="menu"
+            aria-expanded="false"
+          >
             <div id="navProfilePhoto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden">
               <span id="navAvatarInitial">F</span>
             </div>
             <div class="hidden text-left lg:block">
-              <p class="font-heading text-xs font-semibold text-forest-700 truncate max-w-[100px]" id="userMenuNameTop">Farmer</p>
-              <p class="text-[10px] text-forest-400">Grower</p>
+              <div class="flex items-center gap-1">
+                <p class="font-heading text-sm font-semibold text-forest-700 truncate max-w-[120px]" id="userName">Farmer</p>
+                <i data-lucide="chevron-down" id="topProfileChevron" class="w-3.5 h-3.5 text-forest-400 transition-transform duration-200"></i>
+              </div>
+              <p class="text-xs text-forest-400" id="userLocation">Farmer</p>
             </div>
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-forest-400 hidden lg:block user-menu-caret"></i>
           </button>
-          <div class="user-menu-panel cs-dropdown-panel" role="menu" aria-label="Account menu" aria-hidden="true">
-            <div class="user-menu-head flex items-center gap-3 rounded-xl bg-offwhite-200 p-3 mb-2">
-              <span class="user-menu-head-photo flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50 overflow-hidden" id="userMenuPhoto" aria-hidden="true">F</span>
-              <span class="user-menu-head-meta min-w-0">
-                <span class="user-menu-head-name font-heading text-sm font-semibold text-forest-700 block truncate" id="userMenuName">Farmer</span>
-                <span class="user-menu-head-sub text-xs text-forest-400 block truncate" id="userMenuSub">Signed in</span>
-              </span>
+          
+          <div id="topProfileMenuPanel" onclick="event.stopPropagation()" class="hidden absolute right-0 top-full mt-2 w-64 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in" role="menu">
+            <div class="flex items-center gap-3 rounded-xl bg-offwhite-200 p-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50" id="userMenuPhoto">
+                F
+              </div>
+              <div class="min-w-0">
+                <p class="font-heading text-sm font-semibold text-forest-700 truncate" id="userMenuName">Farmer</p>
+                <p class="text-xs text-forest-400 truncate" id="userMenuPhone">Verified Account</p>
+              </div>
             </div>
-            <a class="user-menu-item flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-medium text-forest-600 hover:bg-offwhite-200 transition-colors" role="menuitem" href="settings.html"><i data-lucide="settings" class="w-4 h-4 text-forest-400"></i><span class="um-item-label" data-i18n="nav_settings">Settings</span></a>
-            <button type="button" class="user-menu-item flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-medium text-forest-600 hover:bg-offwhite-200 transition-colors" role="menuitem" data-menu-theme><i data-lucide="moon" data-theme-icon class="w-4 h-4 text-forest-400"></i><span class="um-item-label" data-theme-label>Dark mode</span></button>
-            <div class="my-1 border-t border-offwhite-200"></div>
-            <button type="button" class="user-menu-item is-danger flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-left font-heading text-xs font-semibold text-terracotta-500 hover:bg-terracotta-50 transition-colors" role="menuitem" data-menu-logout>
-              <i data-lucide="log-out" class="w-4 h-4 text-terracotta-500"></i><span class="um-item-label">Sign out</span>
-            </button>
+            <div class="mt-2 space-y-1">
+              <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="user" class="w-4 h-4 text-forest-400"></i>
+                <span>My Profile</span>
+              </a>
+              <a href="my-fields.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="map" class="w-4 h-4 text-forest-400"></i>
+                <span>My Fields</span>
+              </a>
+              <a href="settings.html" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-forest-500 hover:bg-offwhite-200 transition-colors">
+                <i data-lucide="help-circle" class="w-4 h-4 text-forest-400"></i>
+                <span>Help & Support</span>
+              </a>
+              <div class="my-1 border-t border-offwhite-200"></div>
+              <button type="button" onclick="handleLogout()" class="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left font-heading text-sm font-medium text-terracotta-500 hover:bg-terracotta-50 transition-colors">
+                <i data-lucide="log-out" class="w-4 h-4 text-terracotta-500"></i>
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -519,6 +544,7 @@
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="config.js"></script>
   <script src="preferences.js"></script>
+  <script src="nav-profile.js"></script>
   <script>
     if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
     lucide.createIcons();

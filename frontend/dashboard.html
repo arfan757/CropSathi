@@ -153,7 +153,7 @@
         <button
           type="button"
           id="topFieldSelectorBtn"
-          onclick="toggleFieldDropdown()"
+          onclick="toggleFieldDropdown(event)"
           class="flex items-center gap-3 rounded-xl border border-offwhite-300 bg-offwhite-50 px-3 py-2 transition-colors hover:border-forest-200 lg:px-4 shadow-card text-left"
           aria-haspopup="listbox"
           aria-expanded="false"
@@ -176,6 +176,7 @@
         <!-- Dropdown Menu -->
         <div
           id="topFieldDropdownMenu"
+          onclick="event.stopPropagation()"
           class="hidden absolute left-0 top-full mt-2 w-72 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in"
           role="listbox"
         >
@@ -208,7 +209,7 @@
           <button
             type="button"
             class="user-menu-trigger flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 p-1.5 pr-2 transition-colors hover:border-forest-200 lg:pr-3 shadow-card"
-            onclick="toggleProfileDropdown()"
+            onclick="toggleProfileDropdown(event)"
             aria-haspopup="menu"
             aria-expanded="false"
           >
@@ -218,13 +219,13 @@
             <div class="hidden text-left lg:block">
               <div class="flex items-center gap-1">
                 <p class="font-heading text-sm font-semibold text-forest-700 truncate max-w-[120px]" id="userName">Farmer</p>
-                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-forest-400"></i>
+                <i data-lucide="chevron-down" id="topProfileChevron" class="w-3.5 h-3.5 text-forest-400 transition-transform duration-200"></i>
               </div>
               <p class="text-xs text-forest-400" id="userLocation">Farmer</p>
             </div>
           </button>
           
-          <div id="topProfileMenuPanel" class="hidden absolute right-0 top-full mt-2 w-64 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in" role="menu">
+          <div id="topProfileMenuPanel" onclick="event.stopPropagation()" class="hidden absolute right-0 top-full mt-2 w-64 rounded-2xl border border-offwhite-300 bg-offwhite-50 p-2 shadow-elevated z-50 animate-fade-in" role="menu">
             <div class="flex items-center gap-3 rounded-xl bg-offwhite-200 p-3">
               <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-500 font-heading text-sm font-bold text-offwhite-50" id="userMenuPhoto">
                 F
@@ -1152,10 +1153,20 @@
       `).join('');
     }
 
-    function toggleFieldDropdown(force) {
+    function toggleFieldDropdown(e) {
+      if (e) {
+        e.stopPropagation();
+      }
       const menu = document.getElementById('topFieldDropdownMenu');
       const chevron = document.getElementById('topFieldChevron');
-      const isHidden = (force !== undefined) ? !force : menu.classList.contains('hidden');
+      if (!menu) return;
+
+      // Close profile dropdown if open
+      if (typeof window.closeProfileDropdown === 'function') {
+        window.closeProfileDropdown();
+      }
+
+      const isHidden = menu.classList.contains('hidden');
       if (isHidden) {
         menu.classList.remove('hidden');
         if (chevron) chevron.classList.add('rotate-180');
@@ -1163,25 +1174,39 @@
         menu.classList.add('hidden');
         if (chevron) chevron.classList.remove('rotate-180');
       }
-      if (window.lucide) lucide.createIcons();
     }
 
-    function toggleProfileDropdown(force) {
-      const panel = document.getElementById('topProfileMenuPanel');
-      const isHidden = (force !== undefined) ? !force : panel.classList.contains('hidden');
-      if (isHidden) {
-        panel.classList.remove('hidden');
-      } else {
-        panel.classList.add('hidden');
+    function closeFieldDropdown() {
+      const menu = document.getElementById('topFieldDropdownMenu');
+      const chevron = document.getElementById('topFieldChevron');
+      if (menu && !menu.classList.contains('hidden')) {
+        menu.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
       }
-      if (window.lucide) lucide.createIcons();
     }
+    window.toggleFieldDropdown = toggleFieldDropdown;
+    window.closeFieldDropdown = closeFieldDropdown;
 
     document.addEventListener('click', (e) => {
       const fieldWrapper = document.getElementById('topFieldSelectorWrapper');
-      if (fieldWrapper && !fieldWrapper.contains(e.target)) toggleFieldDropdown(false);
+      if (fieldWrapper && !fieldWrapper.contains(e.target)) {
+        closeFieldDropdown();
+      }
       const profileWrapper = document.getElementById('topProfileWrapper');
-      if (profileWrapper && !profileWrapper.contains(e.target)) toggleProfileDropdown(false);
+      if (profileWrapper && !profileWrapper.contains(e.target)) {
+        if (typeof window.closeProfileDropdown === 'function') {
+          window.closeProfileDropdown();
+        }
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeFieldDropdown();
+        if (typeof window.closeProfileDropdown === 'function') {
+          window.closeProfileDropdown();
+        }
+      }
     });
 
     // Touch / Swipe Navigation for Health Score Card
@@ -1297,46 +1322,65 @@
       const token = CropSathiSession.getToken();
       if (!token) return;
 
-      try {
-        const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
-          headers: { Authorization: `Bearer ${token}` }
+      function applyFieldsData(data) {
+        if (!data || !data.success || !data.data?.fields) {
+          selectRealField(0, false);
+          return;
+        }
+
+        const apiFields = data.data.fields;
+        realFields = apiFields.map(f => {
+          const score = (f.compositeScore != null) ? Math.round(f.compositeScore) : 0;
+          const prev = (f.previousScore != null) ? Math.round(f.previousScore) : score;
+          let risk = 'green';
+          if (score < 40) risk = 'red';
+          else if (score < 60) risk = 'orange';
+          else if (score < 75) risk = 'yellow';
+
+          return {
+            id: f.farmId || f._id,
+            name: f.farmName || 'Farm Field',
+            cropType: f.cropType || 'Wheat',
+            cropEmoji: getCropEmoji(f.cropType),
+            areaAcres: f.areaHectares ? parseFloat((f.areaHectares * 2.471).toFixed(1)) : 1.5,
+            village: document.getElementById('userLocation')?.textContent?.replace('Farmer · ', '') || 'Field Location',
+            healthScore: score,
+            prevScore: prev,
+            riskLevel: risk,
+            components: f.components || {},
+            triggeredAlert: f.triggeredAlert || false,
+            diseaseHypothesis: f.diseaseHypothesis || null,
+          };
         });
-        const data = await res.json();
 
-        if (data.success && data.data?.fields) {
-          const apiFields = data.data.fields;
+        // Update Monitored Fields Stat
+        document.getElementById('statFieldsCount').textContent = realFields.length;
 
-          realFields = apiFields.map(f => {
-            const score = (f.compositeScore != null) ? Math.round(f.compositeScore) : 0;
-            const prev = (f.previousScore != null) ? Math.round(f.previousScore) : score;
-            let risk = 'green';
-            if (score < 40) risk = 'red';
-            else if (score < 60) risk = 'orange';
-            else if (score < 75) risk = 'yellow';
+        // Restore active field from session if available
+        const activeFarmId = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getActiveFarm() : null;
+        let targetIdx = 0;
+        if (activeFarmId) {
+          const found = realFields.findIndex(f => f.id === activeFarmId);
+          if (found !== -1) targetIdx = found;
+        }
+        selectRealField(targetIdx, false);
+      }
 
-            return {
-              id: f.farmId || f._id,
-              name: f.farmName || 'Farm Field',
-              cropType: f.cropType || 'Wheat',
-              cropEmoji: getCropEmoji(f.cropType),
-              areaAcres: f.areaHectares ? parseFloat((f.areaHectares * 2.471).toFixed(1)) : 1.5,
-              village: document.getElementById('userLocation')?.textContent?.replace('Farmer · ', '') || 'Field Location',
-              healthScore: score,
-              prevScore: prev,
-              riskLevel: risk,
-              components: f.components || {},
-              triggeredAlert: f.triggeredAlert || false,
-              diseaseHypothesis: f.diseaseHypothesis || null,
-            };
+      try {
+        if (typeof CropSathiCache !== 'undefined') {
+          await CropSathiCache.fetchSWR(`${CropSathiPrefs.api}/api/dashboard/health`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }, {
+            ttl: 60000,
+            onCached: applyFieldsData,
+            onFresh: applyFieldsData
           });
-
-          // Update Monitored Fields Stat
-          document.getElementById('statFieldsCount').textContent = realFields.length;
-
-          // Render active field
-          selectRealField(0, false);
         } else {
-          selectRealField(0, false);
+          const res = await fetch(`${CropSathiPrefs.api}/api/dashboard/health`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
+          applyFieldsData(data);
         }
       } catch (err) {
         console.error('Failed to load real dashboard health:', err);
