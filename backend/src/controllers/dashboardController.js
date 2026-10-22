@@ -21,8 +21,8 @@ export async function getDashboardHealth(req, res) {
   try {
     const userId = req.user._id;
 
-    // Get all active farms for this user
-    const farms = await Field.find({ userId, status: 'active' }).lean();
+    // Get all active, non-deleted farms for this user
+    const farms = await Field.find({ userId, status: 'active', deletedAt: null }).lean();
 
     if (farms.length === 0) {
       return res.json({

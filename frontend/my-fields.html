@@ -719,7 +719,13 @@
         const data = await response.json();
 
         if (data.success) {
-          if (typeof CropSathiCache !== 'undefined') CropSathiCache.invalidate(fieldsUrl);
+          if (typeof CropSathiCache !== 'undefined') {
+            CropSathiCache.invalidate(fieldsUrl);
+            CropSathiCache.invalidate(`${CropSathiPrefs.api}/api/dashboard/health`);
+          }
+          if (typeof CropSathiSession !== 'undefined' && CropSathiSession.getActiveFarm() === fieldId) {
+            CropSathiSession.setActiveFarm(null);
+          }
           allFields = allFields.filter(f => f._id !== fieldId);
           renderCurrentFields();
         } else {

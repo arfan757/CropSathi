@@ -358,7 +358,7 @@ export async function computeRiskScore(farmId) {
  * Used by cron jobs — processes farms oldest-first, bounded batch.
  */
 export async function computeRiskScoresForAllActiveFarms(batchSize = 50) {
-  const farms = await Field.find({ status: 'active' })
+  const farms = await Field.find({ status: 'active', deletedAt: null })
     .sort({ lastRiskScoreAt: 1 })
     .limit(batchSize)
     .lean();
