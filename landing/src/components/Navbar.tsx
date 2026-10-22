@@ -55,7 +55,17 @@ export default function Navbar() {
             </a>
           ))}
           <a
-            href="#cta"
+            href="/login.html"
+            className={`text-sm font-semibold transition-colors ${
+              scrolled
+                ? 'text-[#3f4941] hover:text-[#006038]'
+                : 'text-white/85 hover:text-white'
+            }`}
+          >
+            Log In
+          </a>
+          <a
+            href="/login.html#register"
             className={`rounded-full px-6 py-2.5 text-sm font-bold transition-all ${
               scrolled
                 ? 'btn-3d text-white'
@@ -91,7 +101,14 @@ export default function Navbar() {
               </a>
             ))}
             <a
-              href="#cta"
+              href="/login.html"
+              onClick={() => setMobileOpen(false)}
+              className="text-sm font-semibold text-[#3f4941] transition-colors hover:text-[#006038]"
+            >
+              Log In
+            </a>
+            <a
+              href="/login.html#register"
               onClick={() => setMobileOpen(false)}
               className="btn-3d rounded-full px-6 py-3 text-center text-sm font-bold text-white"
             >

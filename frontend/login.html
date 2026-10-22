@@ -236,6 +236,10 @@
       document.getElementById('loginCard').classList.remove('hidden');
     }
 
+    if (window.location.hash === '#register') {
+      showRegister();
+    }
+
     // --- Render cold-start warm-up ---
     // Ping the health endpoint silently on page load so Render's free-tier
     // server wakes up before the user hits Sign In (~30-60s cold start).

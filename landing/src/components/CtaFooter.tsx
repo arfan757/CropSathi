@@ -4,7 +4,7 @@ const footerLinks = [
   {
     title: 'Platform',
     links: [
-      { label: 'Dashboard', href: '#' },
+      { label: 'Dashboard', href: '/dashboard.html' },
       { label: 'Field Mapping', href: '#' },
       { label: 'Disease Diagnosis', href: '#' },
       { label: 'Advisory Feed', href: '#' },
@@ -55,7 +55,7 @@ export default function CtaFooter() {
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <a
-                href="#"
+                href="/login.html#register"
                 className="btn-3d group inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-bold text-white"
               >
                 Get Started

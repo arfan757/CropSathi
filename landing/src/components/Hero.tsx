@@ -51,7 +51,7 @@ export default function Hero() {
           {/* CTAs */}
           <div className="reveal mt-8 flex flex-col gap-4 sm:flex-row">
             <a
-              href="#cta"
+              href="/login.html#register"
               className="btn-3d-white group inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-bold"
             >
               Get Started
