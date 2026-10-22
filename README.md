@@ -83,7 +83,7 @@ CropSathi/
 │   ├── PHASES.md             # Project roadmap & milestones
 │   └── PRD.md                # Product Requirements Document (SIH26131)
 ├── frontend/                 # Client application (HTML5, Vanilla JS, Tailwind CSS)
-│   ├── index.html            # Entry point (redirects to login)
+│   ├── index.html            # Generated landing page (git-ignored, served at /)
 │   ├── login.html            # Farmer authentication & registration
 │   ├── dashboard.html        # Main farm status hub, weather & urgent alerts
 │   ├── add-field.html        # Interactive boundary drawing & crop stage registration
@@ -96,20 +96,22 @@ CropSathi/
 │   ├── settings.html         # User profile, GPS coords & language preferences
 │   ├── config.js             # Dynamic API endpoint configuration
 │   ├── preferences.js        # Multilingual translation dictionaries & dark mode
+│   ├── session.js            # JWT session persistence & SWR cache
+│   ├── auth-guard.js         # Client-side redirect for logged-out visitors
 │   ├── nav-profile.js        # Global header synchronization
 │   ├── ui.js                 # Shared UI helpers (toast alerts, modals, session check)
 │   ├── tokens.css            # CSS custom properties & design tokens
 │   ├── app.css               # Compiled production Tailwind stylesheet
 │   ├── ui.css                # Custom animations & component styles
-│   └── landing/              # Generated landing build (git-ignored, served at /landing/)
+│   └── landing-assets/       # Generated landing assets (git-ignored)
 ├── landing/                  # Marketing landing page source (Vite + React + TypeScript)
 │   ├── src/                  # React components, hooks & styles
 │   ├── index.html            # Landing entry point
 │   ├── package.json          # Landing dependencies & scripts
-│   └── vite.config.ts        # Vite configuration (base: /landing/)
+│   └── vite.config.ts        # Vite configuration (base: /, assets: landing-assets/)
 ├── scripts/
 │   ├── prepare-build.js      # Injects the production API URL into frontend/config.js
-│   └── build-landing.js      # Builds the landing page into frontend/landing/
+│   └── build-landing.js      # Builds the landing page into the frontend root
 ├── backend/                  # REST API & background processing service
 │   ├── server.js             # Express application entry point
 │   ├── package.json          # Node dependencies & automation scripts
@@ -223,19 +225,19 @@ uvicorn app:app --host 127.0.0.1 --port 10000
 ### Step 4: Frontend Setup
 The frontend is built with static web standards and connects automatically:
 - When running locally, [frontend/config.js](file:///c:/Users/arfan/Documents/Crop%20sathi/CropSathi/frontend/config.js) detects `localhost` and routes API calls to `http://localhost:5000`.
-- Simply open [frontend/index.html](file:///c:/Users/arfan/Documents/Crop%20sathi/CropSathi/frontend/index.html) directly in your web browser, or serve it using VS Code Live Server:
+- Build the landing page into the frontend root and serve it over HTTP (do not open it via `file://`):
 ```bash
 # Optional: re-compile Tailwind CSS if you make markup changes
 npm install
 npm run build:css
 
-# Build the landing page into frontend/landing/ (installs landing deps automatically)
+# Build the landing page into frontend/ (installs landing deps automatically)
 npm run build:landing
 
 # Serve frontend with any local HTTP server:
 npx serve frontend -p 3000
-# App:     http://localhost:3000
-# Landing: http://localhost:3000/landing/
+# Landing: http://localhost:3000/
+# App:     http://localhost:3000/dashboard.html
 ```
 
 ---
@@ -246,9 +248,11 @@ The landing page is part of this repository under `landing/` and is deployed fro
 
 - Vercel runs `npm run build` from the repository root.
 - `scripts/prepare-build.js` generates `frontend/config.js`.
-- `scripts/build-landing.js` installs the landing dependencies, builds the Vite project, and copies `landing/dist/*` into `frontend/landing/`.
-- The generated `frontend/landing/` directory is **not committed**; it exists only in the Vercel build output and in local builds.
-- The app is served at `/`, and the landing page is served at `/landing/` from the same domain.
+- `scripts/build-landing.js` installs the landing dependencies, builds the Vite project, and writes the generated `index.html` and `landing-assets/` into `frontend/`.
+- The generated `frontend/index.html` and `frontend/landing-assets/` are **not committed**; they exist only in the Vercel build output and in local builds.
+- The landing page is served at `/`. The app pages remain at `/dashboard.html`, `/login.html`, and the other existing page URLs.
+- Protected pages load `frontend/auth-guard.js`, which redirects visitors without a locally valid JWT to `/`. The landing page sends locally valid sessions to `/dashboard.html`, and logout returns to `/`.
+- This client-side guard controls navigation only; all data APIs remain protected by backend JWT authentication.
 
 Recommended Vercel settings:
 
@@ -260,7 +264,7 @@ Recommended Vercel settings:
 | Output Directory | `frontend` |
 | Node.js Version | `22.x` (Vite 7 requires Node `20.19+` or `22.12+`) |
 
-No additional Vercel project or environment variable is required. The existing `/api/:path*` rewrite continues to proxy API requests to the Render backend and does not affect `/landing/*`.
+No additional Vercel project or environment variable is required. The existing `/api/:path*` rewrite continues to proxy API requests to the Render backend and does not affect the landing page or app pages.
 
 ---
 
