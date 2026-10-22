@@ -153,8 +153,9 @@ async function diagnoseWithCnn(caseId, dc, farm) {
     const filePath = pathMod.join(process.cwd(), 'uploads', photo.storageKey);
     try {
       const bytes = await fsPromises.readFile(filePath);
+      // Resize with max dimension 512 to preserve detail for ONNX 288x288 / 128x128
       imageB64 = await sharp(bytes)
-        .resize({ width: 128, height: 128, fit: 'inside' })
+        .resize({ width: 512, height: 512, fit: 'inside' })
         .jpeg({ quality: 90 })
         .toBuffer()
         .then((b) => b.toString('base64'));
@@ -169,7 +170,10 @@ async function diagnoseWithCnn(caseId, dc, farm) {
   try {
     const resp = await axios.post(
       `${ML_SERVICE_URL}/predict`,
-      { image_b64: imageB64 },
+      {
+        image_b64: imageB64,
+        crop_type: farm?.cropType || '',
+      },
       { timeout: 90000 }
     );
     prediction = resp.data;
@@ -178,6 +182,13 @@ async function diagnoseWithCnn(caseId, dc, farm) {
     return false;
   }
   if (!prediction || !prediction.class_name) return false;
+
+  // If the ML service indicates the prediction is below confidence threshold,
+  // trigger fallback to Gemini vision
+  if (prediction.fallback_recommended) {
+    console.log(`ML service confidence (${prediction.confidence}) below threshold for ${farm?.cropType} — falling back to Gemini vision`);
+    return false;
+  }
 
   // Use local buildCnnResult (no external call needed)
   const result = buildCnnResult(prediction, farm);

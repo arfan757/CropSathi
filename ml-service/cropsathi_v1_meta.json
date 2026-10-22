@@ -1,0 +1,46 @@
+{
+  "model": "tf_efficientnetv2_s.in21k_ft_in1k",
+  "classes": [
+    "cotton__alternaria_leaf_spot",
+    "cotton__bacterial_blight",
+    "cotton__fusarium_wilt",
+    "cotton__healthy",
+    "cotton__leaf_curl_virus",
+    "cotton__leafhopper_damage",
+    "rice__bacterial_leaf_blight",
+    "rice__bacterial_leaf_streak",
+    "rice__bacterial_panicle_blight",
+    "rice__blast",
+    "rice__brown_spot",
+    "rice__dead_heart",
+    "rice__downy_mildew",
+    "rice__healthy",
+    "rice__hispa",
+    "rice__test_images",
+    "rice__tungro",
+    "tomato__bacterial_spot",
+    "tomato__early_blight",
+    "tomato__healthy",
+    "tomato__late_blight",
+    "tomato__leaf_mold",
+    "tomato__mosaic_virus",
+    "tomato__septoria_leaf_spot",
+    "tomato__spider_mites",
+    "tomato__target_spot",
+    "tomato__yellow_leaf_curl_virus"
+  ],
+  "img_size": 288,
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "temperature": 0.6948961615562439,
+  "confidence_threshold": 0.9,
+  "version": "v1-tierA"
+}

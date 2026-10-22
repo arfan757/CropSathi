@@ -1,104 +1,228 @@
-"""CropSathi ML service — plant disease detection CNN.
+"""CropSathi ML Service — Dual-model Pure ONNX Plant Disease Detection.
 
-Serves `trained_plant_disease_model.keras` from
-goutam-dev/crop-disease-detection (38 PlantVillage classes, 128x128 RGB input).
+Models loaded:
+1. cropsathi_v1.onnx (Tier A): EfficientNetV2-S for Cotton, Rice, and Tomato (288x288, 27 classes, temperature-calibrated).
+2. plantvillage_38.onnx: 14 PlantVillage crops (Apple, Maize, Potato, Grape, etc., 128x128, 38 classes).
 
-Preprocessing mirrors the upstream repo's `main.py` exactly so predictions
-match what the model was validated with:
-    load_img(target_size=(128,128)) -> img_to_array -> expand_dims -> predict
-(i.e. float32 pixel values in 0..255, no extra normalization).
-
-The Node backend calls this over HTTP; it is a separate Render service.
+Pure ONNX Runtime execution: lightweight, fast cold starts, zero TensorFlow dependencies.
 """
 
 import base64
 import io
+import json
 import os
 from contextlib import asynccontextmanager
+from typing import List, Optional
 
 import numpy as np
-import tensorflow as tf
+import onnxruntime as ort
 from fastapi import FastAPI, HTTPException
 from PIL import Image
 from pydantic import BaseModel
 
-MODEL_PATH = os.environ.get("MODEL_PATH", "trained_plant_disease_model.keras")
+# Configuration paths
+TIER_A_MODEL_PATH = os.environ.get("TIER_A_MODEL_PATH", "cropsathi_v1.onnx")
+TIER_A_META_PATH = os.environ.get("TIER_A_META_PATH", "cropsathi_v1_meta.json")
 
-# Class order matches the model's output layer (from the upstream main.py).
-CLASS_NAMES = [
-    "Apple___Apple_scab", "Apple___Black_rot", "Apple___Cedar_apple_rust", "Apple___healthy",
-    "Blueberry___healthy", "Cherry_(including_sour)___Powdery_mildew",
-    "Cherry_(including_sour)___healthy", "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
-    "Corn_(maize)___Common_rust_", "Corn_(maize)___Northern_Leaf_Blight", "Corn_(maize)___healthy",
-    "Grape___Black_rot", "Grape___Esca_(Black_Measles)", "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)",
-    "Grape___healthy", "Orange___Haunglongbing_(Citrus_greening)", "Peach___Bacterial_spot",
-    "Peach___healthy", "Pepper,_bell___Bacterial_spot", "Pepper,_bell___healthy",
-    "Potato___Early_blight", "Potato___Late_blight", "Potato___healthy",
-    "Raspberry___healthy", "Soybean___healthy", "Squash___Powdery_mildew",
-    "Strawberry___Leaf_scorch", "Strawberry___healthy", "Tomato___Bacterial_spot",
-    "Tomato___Early_blight", "Tomato___Late_blight", "Tomato___Leaf_Mold",
-    "Tomato___Septoria_leaf_spot", "Tomato___Spider_mites Two-spotted_spider_mite",
-    "Tomato___Target_Spot", "Tomato___Tomato_Yellow_Leaf_Curl_Virus", "Tomato___Tomato_mosaic_virus",
-    "Tomato___healthy",
-]
+PLANTVILLAGE_MODEL_PATH = os.environ.get("PLANTVILLAGE_MODEL_PATH", "plantvillage_38.onnx")
+PLANTVILLAGE_META_PATH = os.environ.get("PLANTVILLAGE_META_PATH", "plantvillage_38_meta.json")
 
-_model = None
+# Crop categories for model routing
+TIER_A_CROPS = {"cotton", "rice", "tomato", "paddy", "dhan", "kapas"}
+PLANTVILLAGE_CROPS = {
+    "maize", "corn", "corn (maize)", "potato", "grapes", "grape", "apple",
+    "blueberry", "cherry", "orange", "peach", "pepper", "bell pepper",
+    "raspberry", "soybean", "squash", "strawberry"
+}
+
+_sessions = {}
+_meta = {}
+
+
+def load_model_and_meta(name: str, model_path: str, meta_path: str):
+    if os.path.exists(model_path) and os.path.exists(meta_path):
+        session = ort.InferenceSession(model_path)
+        with open(meta_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        _sessions[name] = session
+        _meta[name] = metadata
+        print(f"[ml-service] Loaded {name} from {model_path} ({len(metadata.get('classes', []))} classes)", flush=True)
+    else:
+        print(f"[ml-service] Warning: Missing files for {name} ({model_path}, {meta_path})", flush=True)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    global _model
-    _model = tf.keras.models.load_model(MODEL_PATH)
-    print(f"[ml-service] model loaded: {MODEL_PATH}", flush=True)
+    load_model_and_meta("tier_a", TIER_A_MODEL_PATH, TIER_A_META_PATH)
+    load_model_and_meta("plantvillage", PLANTVILLAGE_MODEL_PATH, PLANTVILLAGE_META_PATH)
     yield
-    _model = None
+    _sessions.clear()
+    _meta.clear()
 
 
-app = FastAPI(title="CropSathi ML Service", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="CropSathi Pure-ONNX ML Service",
+    version="2.0.0",
+    description="Dual-model ONNX microservice for crop disease classification with automatic Gemini fallback gating.",
+    lifespan=lifespan
+)
 
 
 class PredictRequest(BaseModel):
     image_b64: str
+    crop_type: Optional[str] = ""
+
+
+class TopKItem(BaseModel):
+    class_name: str
+    confidence: float
 
 
 class PredictResponse(BaseModel):
     class_name: str
     confidence: float
-    top_k: list
+    top_k: List[TopKItem]
+    model_version: str
+    fallback_recommended: bool
+    confidence_threshold: float
+
+
+def run_tier_a_inference(img: Image.Image) -> PredictResponse:
+    sess = _sessions["tier_a"]
+    meta = _meta["tier_a"]
+
+    img_size = meta.get("img_size", 288)
+    resized = img.resize((img_size, img_size))
+    arr = np.asarray(resized, dtype=np.float32) / 255.0
+
+    mean = np.array(meta.get("mean", [0.485, 0.456, 0.406]), dtype=np.float32)
+    std = np.array(meta.get("std", [0.229, 0.224, 0.225]), dtype=np.float32)
+    arr = (arr - mean) / std
+    # NCHW layout for EfficientNet
+    arr = np.transpose(arr, (2, 0, 1))
+    arr = np.expand_dims(arr, axis=0)
+
+    input_name = sess.get_inputs()[0].name
+    logits = sess.run(None, {input_name: arr})[0][0]
+
+    # Temperature scaling
+    temp = float(meta.get("temperature", 1.0))
+    scaled = logits / temp
+    exp_logits = np.exp(scaled - np.max(scaled))
+    probs = exp_logits / np.sum(exp_logits)
+
+    order = np.argsort(probs)[::-1]
+    classes = meta["classes"]
+    top_class = classes[order[0]]
+    top_conf = round(float(probs[order[0]]), 4)
+    threshold = float(meta.get("confidence_threshold", 0.90))
+
+    top_k = [
+        TopKItem(class_name=classes[i], confidence=round(float(probs[i]), 4))
+        for i in order[:5]
+    ]
+
+    return PredictResponse(
+        class_name=top_class,
+        confidence=top_conf,
+        top_k=top_k,
+        model_version=f"cropsathi-v1-tierA ({meta.get('model', 'efficientnetv2')})",
+        fallback_recommended=top_conf < threshold,
+        confidence_threshold=threshold,
+    )
+
+
+def run_plantvillage_inference(img: Image.Image) -> PredictResponse:
+    sess = _sessions["plantvillage"]
+    meta = _meta["plantvillage"]
+
+    img_size = meta.get("img_size", 128)
+    resized = img.resize((img_size, img_size))
+    # Float32 in 0..255, NHWC layout
+    arr = np.asarray(resized, dtype=np.float32)
+    arr = np.expand_dims(arr, axis=0)
+
+    input_name = sess.get_inputs()[0].name
+    preds = sess.run(None, {input_name: arr})[0][0]
+
+    # Softmax probabilities if not already normalized
+    if np.abs(np.sum(preds) - 1.0) > 0.05:
+        exp_preds = np.exp(preds - np.max(preds))
+        probs = exp_preds / np.sum(exp_preds)
+    else:
+        probs = preds
+
+    order = np.argsort(probs)[::-1]
+    classes = meta["classes"]
+    top_class = classes[order[0]]
+    top_conf = round(float(probs[order[0]]), 4)
+    threshold = float(meta.get("confidence_threshold", 0.85))
+
+    top_k = [
+        TopKItem(class_name=classes[i], confidence=round(float(probs[i]), 4))
+        for i in order[:5]
+    ]
+
+    return PredictResponse(
+        class_name=top_class,
+        confidence=top_conf,
+        top_k=top_k,
+        model_version="plantvillage-38-onnx",
+        fallback_recommended=top_conf < threshold,
+        confidence_threshold=threshold,
+    )
 
 
 @app.get("/health")
 def health():
     return {
         "status": "ok",
-        "classes": len(CLASS_NAMES),
-        "model_loaded": _model is not None,
+        "models": {
+            name: {
+                "loaded": name in _sessions,
+                "classes": len(_meta[name].get("classes", [])) if name in _meta else 0,
+                "version": _meta[name].get("version", "unknown") if name in _meta else "unknown",
+            }
+            for name in ["tier_a", "plantvillage"]
+        },
+        "supported_crops": list(TIER_A_CROPS | PLANTVILLAGE_CROPS),
     }
 
 
-@app.post("/predict")
+@app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    if _model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
-    try:
-        image = (
-            Image.open(io.BytesIO(base64.b64decode(req.image_b64)))
-            .convert("RGB")
-            .resize((128, 128))
-        )
-    except Exception as exc:  # noqa: BLE001 - surface any decode/resize failure
-        raise HTTPException(status_code=400, detail=f"Invalid image payload: {exc}") from exc
+    if not _sessions:
+        raise HTTPException(status_code=503, detail="No ML models loaded")
 
-    arr = np.asarray(image, dtype=np.float32)  # 0..255 floats, same as img_to_array
-    arr = np.expand_dims(arr, axis=0)
-    preds = _model.predict(arr, verbose=0)[0]
-    order = np.argsort(preds)[::-1][:5]
-    top_k = [
-        {"class_name": CLASS_NAMES[i], "confidence": round(float(preds[i]), 4)}
-        for i in order
-    ]
-    return PredictResponse(
-        class_name=CLASS_NAMES[order[0]],
-        confidence=round(float(preds[order[0]]), 4),
-        top_k=top_k,
-    )
+    try:
+        raw_bytes = base64.b64decode(req.image_b64)
+        image = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 image: {exc}") from exc
+
+    norm_crop = (req.crop_type or "").strip().lower()
+
+    # Route based on crop type
+    has_tier_a = "tier_a" in _sessions
+    has_pv = "plantvillage" in _sessions
+
+    if norm_crop in TIER_A_CROPS and has_tier_a:
+        return run_tier_a_inference(image)
+
+    if norm_crop in PLANTVILLAGE_CROPS and has_pv:
+        return run_plantvillage_inference(image)
+
+    # If crop_type not provided or unmapped, run Tier A first if available, else PlantVillage
+    if has_tier_a:
+        tier_a_res = run_tier_a_inference(image)
+        if not tier_a_res.fallback_recommended or not has_pv:
+            return tier_a_res
+
+        # If Tier A was low confidence and PlantVillage is available, evaluate PlantVillage
+        pv_res = run_plantvillage_inference(image)
+        return pv_res if pv_res.confidence > tier_a_res.confidence else tier_a_res
+
+    if has_pv:
+        return run_plantvillage_inference(image)
+
+    raise HTTPException(status_code=503, detail="No suitable model available for inference")

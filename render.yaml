@@ -39,18 +39,15 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
 
-  # Plant disease detection CNN (TensorFlow/Keras, 38 PlantVillage classes).
-  # The 94 MB model is downloaded at build time from the pinned upstream
-  # commit; the Node backend calls it via ML_SERVICE_URL.
+  # Dual-model plant disease detection (Pure ONNX Runtime).
+  # 1. cropsathi_v1.onnx: Cotton, Rice, Tomato (27 classes, 288x288, temperature-calibrated)
+  # 2. plantvillage_38.onnx: 14 crops (38 classes, 128x128)
   - type: web
     name: cropsathi-ml
     runtime: python@3.11
     region: oregon
     rootDir: ml-service
-    buildCommand: >
-      pip install -r requirements.txt &&
-      curl -L -o trained_plant_disease_model.keras
-      https://raw.githubusercontent.com/goutam-dev/crop-disease-detection/7e405a6ea149009b63e2421533ff3ee9d0a6e9bf/trained_plant_disease_model.keras
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     autoDeploy: true

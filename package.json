@@ -9,7 +9,9 @@
     "build": "node scripts/prepare-build.js && node scripts/build-landing.js",
     "build:css": "npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o frontend/app.css --minify",
     "build:landing": "node scripts/build-landing.js",
-    "dev:landing": "npm --prefix landing run dev"
+    "dev:landing": "npm --prefix landing run dev",
+    "ml:start": "powershell -Command \"cd ml-service; .\\.venv\\Scripts\\uvicorn.exe app:app --host 127.0.0.1 --port 10000 --reload\"",
+    "ml:test": "powershell -Command \"cd ml-service; .\\.venv\\Scripts\\python.exe verify_service.py\""
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17"
