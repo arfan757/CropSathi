@@ -34,8 +34,9 @@
       background-color: #163A2B !important;
     }
   </style>
+  <script src="config.js"></script>
   <script src="session.js"></script>
-  <script>CropSathiSession.requireAuth();</script>
+  <script src="auth-guard.js"></script>
 </head>
 <body class="bg-offwhite-100 font-body text-forest-700 min-h-screen flex flex-col has-tabbar">
 
@@ -270,7 +271,6 @@
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/dist/leaflet.geometryutil.min.js"></script>
-  <script src="config.js"></script>
   <script src="preferences.js"></script>
   <script src="nav-profile.js"></script>
   
@@ -362,7 +362,7 @@
 
     async function loadUserLocation() {
       const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
-      if (!token) { window.location.href = 'login.html'; return; }
+      if (!token) { window.location.replace(window.LANDING_PAGE_URL || '/'); return; }
       try {
         const response = await fetch(`${CropSathiPrefs.api}/api/user/profile`, {
           headers: { 'Authorization': 'Bearer ' + token }
@@ -545,7 +545,7 @@
     async function saveField() {
       if (isSaving) return;
       const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
-      if (!token) { window.location.href = 'login.html'; return; }
+      if (!token) { window.location.replace(window.LANDING_PAGE_URL || '/'); return; }
       const name = document.getElementById('fieldName').value.trim();
       const cropType = document.getElementById('cropType').value;
       const sowingDate = document.getElementById('sowingDate').value;

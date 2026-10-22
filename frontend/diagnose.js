@@ -1,5 +1,5 @@
 // diagnose.js - AI-Powered Diagnosis Page
-if (!localStorage.token) location.href = "login.html";
+if (!localStorage.token) location.replace(window.LANDING_PAGE_URL || '/');
 lucide.createIcons();
 var API = CropSathiPrefs.api;
 var farms = [], uploadedFiles = [], uploadedPreviews = [];

@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Data fetch ──────────────────────────────────────────────────────────────
 async function loadAdvisory(caseId) {
   const token = localStorage.getItem('token');
-  if (!token) { window.location.href = 'login.html'; return; }
+  if (!token) { window.location.replace(window.LANDING_PAGE_URL || '/'); return; }
 
   try {
     const res = await fetch(`${API}/api/advisory/case/${caseId}/detail?lang=${currentLang}`, {

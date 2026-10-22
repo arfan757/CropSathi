@@ -34,8 +34,9 @@
       background-color: #163A2B !important;
     }
   </style>
+  <script src="config.js"></script>
   <script src="session.js"></script>
-  <script>CropSathiSession.requireAuth();</script>
+  <script src="auth-guard.js"></script>
 </head>
 <body class="bg-offwhite-100 font-body text-forest-700 min-h-screen flex has-tabbar">
 
@@ -400,13 +401,12 @@
   <!-- Leaflet & Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script src="config.js"></script>
   <script src="preferences.js"></script>
   <script src="nav-profile.js"></script>
   
   <script>
     const token = (typeof CropSathiSession !== 'undefined') ? CropSathiSession.getToken() : localStorage.getItem('token');
-    if (!token) { window.location.href = 'login.html'; }
+    if (!token) { window.location.replace(window.LANDING_PAGE_URL || '/'); }
 
     const fieldsUrl = `${CropSathiPrefs.api}/api/fields`;
     let allFields = [];

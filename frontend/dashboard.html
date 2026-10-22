@@ -16,8 +16,9 @@
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="ui.css">
   
+  <script src="config.js"></script>
   <script src="session.js"></script>
-  <script>CropSathiSession.requireAuth();</script>
+  <script src="auth-guard.js"></script>
 
   <style>
     @keyframes morphIn {
@@ -876,12 +877,11 @@
 
   <!-- Scripts -->
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script src="config.js"></script>
   <script src="preferences.js"></script>
   <script src="nav-profile.js"></script>
   
   <script>
-    if (!localStorage.getItem('token')) { window.location.href = 'login.html'; }
+    if (!localStorage.getItem('token')) { window.location.replace(window.LANDING_PAGE_URL || '/'); }
 
     // REAL Fields Array — populated entirely from database via /api/dashboard/health
     let realFields = [];

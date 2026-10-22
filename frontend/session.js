@@ -244,7 +244,11 @@
         if (!res.ok) {
           if (res.status === 401) {
             CropSathiSession.clearSession();
-            CropSathiSession.requireAuth();
+            if (window.CropSathiAuthGuard && typeof window.CropSathiAuthGuard.redirectToLanding === 'function') {
+              window.CropSathiAuthGuard.redirectToLanding();
+            } else {
+              window.location.replace(window.LANDING_PAGE_URL || '/');
+            }
           }
           if (cached) return cached.data; // graceful fallback to cached data if network error
           throw new Error(`HTTP error ${res.status}`);
