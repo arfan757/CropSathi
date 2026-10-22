@@ -100,7 +100,16 @@ CropSathi/
 │   ├── ui.js                 # Shared UI helpers (toast alerts, modals, session check)
 │   ├── tokens.css            # CSS custom properties & design tokens
 │   ├── app.css               # Compiled production Tailwind stylesheet
-│   └── ui.css                # Custom animations & component styles
+│   ├── ui.css                # Custom animations & component styles
+│   └── landing/              # Generated landing build (git-ignored, served at /landing/)
+├── landing/                  # Marketing landing page source (Vite + React + TypeScript)
+│   ├── src/                  # React components, hooks & styles
+│   ├── index.html            # Landing entry point
+│   ├── package.json          # Landing dependencies & scripts
+│   └── vite.config.ts        # Vite configuration (base: /landing/)
+├── scripts/
+│   ├── prepare-build.js      # Injects the production API URL into frontend/config.js
+│   └── build-landing.js      # Builds the landing page into frontend/landing/
 ├── backend/                  # REST API & background processing service
 │   ├── server.js             # Express application entry point
 │   ├── package.json          # Node dependencies & automation scripts
@@ -220,10 +229,38 @@ The frontend is built with static web standards and connects automatically:
 npm install
 npm run build:css
 
+# Build the landing page into frontend/landing/ (installs landing deps automatically)
+npm run build:landing
+
 # Serve frontend with any local HTTP server:
 npx serve frontend -p 3000
-# Open http://localhost:3000 in your browser
+# App:     http://localhost:3000
+# Landing: http://localhost:3000/landing/
 ```
+
+---
+
+## Deployment
+
+The landing page is part of this repository under `landing/` and is deployed from the **same Vercel project** as the app.
+
+- Vercel runs `npm run build` from the repository root.
+- `scripts/prepare-build.js` generates `frontend/config.js`.
+- `scripts/build-landing.js` installs the landing dependencies, builds the Vite project, and copies `landing/dist/*` into `frontend/landing/`.
+- The generated `frontend/landing/` directory is **not committed**; it exists only in the Vercel build output and in local builds.
+- The app is served at `/`, and the landing page is served at `/landing/` from the same domain.
+
+Recommended Vercel settings:
+
+| Setting | Value |
+| :--- | :--- |
+| Root Directory | repository root |
+| Install Command | `npm install` (default) |
+| Build Command | `npm run build` |
+| Output Directory | `frontend` |
+| Node.js Version | `22.x` (Vite 7 requires Node `20.19+` or `22.12+`) |
+
+No additional Vercel project or environment variable is required. The existing `/api/:path*` rewrite continues to proxy API requests to the Render backend and does not affect `/landing/*`.
 
 ---
 
