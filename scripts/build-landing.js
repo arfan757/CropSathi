@@ -7,12 +7,18 @@ const landingDir = path.join(rootDir, 'landing');
 const distDir = path.join(landingDir, 'dist');
 const outputDir = path.join(rootDir, 'frontend', 'landing');
 
-function run(command, args, cwd) {
-  console.log(`[Landing Build] Running: ${command} ${args.join(' ')}`);
-  const result = spawnSync(command, args, {
+function runNpm(args, cwd) {
+  console.log(`[Landing Build] Running: npm ${args.join(' ')}`);
+
+  const npmCli = process.env.npm_execpath;
+  const useNpmCli = npmCli && fs.existsSync(npmCli);
+  const command = useNpmCli ? process.execPath : (process.platform === 'win32' ? 'npm.cmd' : 'npm');
+  const commandArgs = useNpmCli ? [npmCli, ...args] : args;
+
+  const result = spawnSync(command, commandArgs, {
     cwd,
     stdio: 'inherit',
-    shell: true,
+    shell: useNpmCli ? false : process.platform === 'win32',
     env: process.env
   });
 
@@ -22,7 +28,7 @@ function run(command, args, cwd) {
 
   if (result.status !== 0) {
     throw new Error(
-      `Command failed with exit code ${result.status}: ${command} ${args.join(' ')}`
+      `Command failed with exit code ${result.status}: npm ${args.join(' ')}`
     );
   }
 }
@@ -37,8 +43,8 @@ function main() {
     ? ['ci', '--include=dev', '--no-audit', '--no-fund']
     : ['install', '--include=dev', '--no-audit', '--no-fund'];
 
-  run('npm', installArgs, landingDir);
-  run('npm', ['run', 'build'], landingDir);
+  runNpm(installArgs, landingDir);
+  runNpm(['run', 'build'], landingDir);
 
   const distIndex = path.join(distDir, 'index.html');
   if (!fs.existsSync(distIndex)) {
