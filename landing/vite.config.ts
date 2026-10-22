@@ -4,7 +4,10 @@ import { fileURLToPath, URL } from 'node:url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/landing/',
+  base: '/',
+  build: {
+    assetsDir: 'landing-assets',
+  },
   plugins: [react()],
   resolve: {
     alias: {

@@ -18,7 +18,7 @@ window.CROPSATHI_API_URL = window.CROPSATHI_API_URL ||
   (isLocal ? 'http://localhost:5000' : '${cleanUrl}');
 
 // Landing page URL (served from the same deployment)
-window.LANDING_PAGE_URL = window.LANDING_PAGE_URL || '/landing/';
+window.LANDING_PAGE_URL = window.LANDING_PAGE_URL || '/';
 `;
     fs.writeFileSync(configPath, configContent, 'utf8');
     console.log('[Vercel Build] Successfully injected backend URL into frontend/config.js');

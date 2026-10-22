@@ -55,6 +55,7 @@ yarn-error.log*
 .agents
 
 # Landing build output (generated during build)
-frontend/landing/
+frontend/index.html
+frontend/landing-assets/
 landing/node_modules/
 landing/dist/

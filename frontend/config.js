@@ -11,4 +11,4 @@ window.CROPSATHI_API_URL = window.CROPSATHI_API_URL ||
   (isLocal ? 'http://localhost:5000' : 'https://cropsathi-x8se.onrender.com');
 
 // Landing page URL (served from the same deployment)
-window.LANDING_PAGE_URL = window.LANDING_PAGE_URL || '/landing/';
+window.LANDING_PAGE_URL = window.LANDING_PAGE_URL || '/';
