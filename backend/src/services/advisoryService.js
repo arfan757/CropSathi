@@ -6,8 +6,16 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const ADVISORY_MODEL = 'gemini-3.6-flash';
-const ADVISORY_TIMEOUT_MS = 120000;
+// Model waterfall — text-only (advisory), cheaper than vision.
+// Tried in order; skipped on 503/404/429 (overloaded/not found/rate-limited).
+const ADVISORY_MODELS = [
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
+];
+const ADVISORY_MODEL = ADVISORY_MODELS[0]; // kept for legacy reference
+const ADVISORY_TIMEOUT_MS = 45000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -394,47 +402,66 @@ async function generateGeminiAdvisoryContent(diseaseCode, severity, cropStage, c
     cropStage,
     district: opts.district,
   });
-  const attempts = [
+  const prompts = [
     basePrompt,
-    `${basePrompt}\n\nIMPORTANT CORRECTION: your previous draft used a vague dosage. Every remedy with a named product MUST include a real concentration with a number and unit (e.g. "1g per litre of water", "2.5kg urea per 250 litres", "dip 18 minutes at 52°C"). Never write "apply appropriate fungicide", "recommended dose", or "as per guidance".`,
+    `${basePrompt}\n\nIMPORTANT CORRECTION: your previous draft used a vague dosage. Every remedy with a named product MUST include a real concentration with a number and unit (e.g. "1g per litre of water", "2.5kg urea per 250 litres", "dip 18 minutes at 52\u00b0C"). Never write "apply appropriate fungicide", "recommended dose", or "as per guidance".`,
   ];
 
-  for (let attempt = 0; attempt < attempts.length; attempt += 1) {
-    const model = genAI.getGenerativeModel({ model: ADVISORY_MODEL });
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(new Error('Gemini advisory timeout after 60s')), ADVISORY_TIMEOUT_MS);
-    try {
-      // Documented SDK shape: generation config rides inside the request
-      // object; only signal/timeout go in the second (request-options) arg.
-      // The previous `{ config: ... }` second-arg form was silently ignored,
-      // so the model returned free text instead of schema-validated JSON.
-      const result = await model.generateContent(
-        {
-          contents: [{ role: 'user', parts: [{ text: attempts[attempt] }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: GEMINI_RESPONSE_SCHEMA,
-          },
-        },
-        { signal: abortController.signal },
-      );
-      clearTimeout(timeoutId);
-      const text = result.response.text ? result.response.text() : '';
-      if (!text) continue;
-      let parsed;
+  // ── Model waterfall: for each prompt attempt, try every model before giving up.
+  for (let attempt = 0; attempt < prompts.length; attempt++) {
+    for (const modelName of ADVISORY_MODELS) {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(new Error(`Advisory timeout (${modelName})`)), ADVISORY_TIMEOUT_MS);
       try {
-        parsed = extractAdvisoryJson(text);
-      } catch (parseErr) {
-        console.warn(`Gemini advisory attempt ${attempt + 1} unparseable: ${parseErr.message}`);
+        console.log(`[advisory] Trying model: ${modelName} (attempt ${attempt + 1})`);
+        const result = await model.generateContent(
+          {
+            contents: [{ role: 'user', parts: [{ text: prompts[attempt] }] }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              responseSchema: GEMINI_RESPONSE_SCHEMA,
+            },
+          },
+          { signal: abortController.signal },
+        );
+        clearTimeout(timeoutId);
+        const text = result.response.text ? result.response.text() : '';
+        if (!text) continue;
+        let parsed;
+        try {
+          parsed = extractAdvisoryJson(text);
+        } catch (parseErr) {
+          console.warn(`[advisory] ${modelName} unparseable: ${parseErr.message}`);
+          continue;
+        }
+        const checked = validateGeminiAdvisory(parsed, promptSeverity);
+        if (checked.ok) {
+          console.log(`[advisory] Success with ${modelName}`);
+          return checked.content;
+        }
+        console.warn(`[advisory] ${modelName} attempt ${attempt + 1} rejected: ${checked.reason}`);
+        break; // bad content — retry with next prompt, not next model
+      } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.message || '';
+        const isRetriable = msg.includes('503') || msg.includes('Service Unavailable') ||
+          msg.includes('high demand') || msg.includes('429') ||
+          msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') ||
+          msg.includes('404') || msg.includes('Not Found') ||
+          msg.includes('no longer available') || msg.includes('timeout') ||
+          msg.includes('aborted') || msg.includes('500');
+        if (isRetriable) {
+          console.warn(`[advisory] ${modelName} transient error (${msg.slice(0, 100)}) — trying next model in waterfall`);
+          continue; // try next model in waterfall
+        }
+        if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || msg.includes('401')) {
+          console.warn(`[advisory] Fatal API key error with ${modelName}: ${msg} — using rule fallback`);
+          return null;
+        }
+        console.warn(`[advisory] ${modelName} error (${msg.slice(0, 100)}) — trying next model in waterfall`);
         continue;
       }
-      const checked = validateGeminiAdvisory(parsed, promptSeverity);
-      if (checked.ok) return checked.content;
-      console.warn(`Gemini advisory attempt ${attempt + 1} rejected: ${checked.reason}`);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.warn('Gemini advisory generation failed, using rule fallback:', err.message);
-      return null;
     }
   }
   return null;

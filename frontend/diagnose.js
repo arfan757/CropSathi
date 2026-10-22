@@ -360,10 +360,14 @@ function submitForDiagnosis() {
     } else if (res.status === "report_ready") {
       showReportResult(res);
     } else if (res.status === "retry_failed") {
+      var notes = (res.geminiResult && res.geminiResult.notes) || "";
+      var isBlurry = /blur|dark|quality|resolution/i.test(notes);
       document.getElementById("resultIcon").innerHTML = '<i data-lucide="refresh-cw" class="w-8 h-8 text-risk-red"></i>';
       document.getElementById("resultIcon").className = "w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3 shadow-sm";
       document.getElementById("resultTitle").textContent = "Retry Needed";
-      document.getElementById("resultText").textContent = "Image quality was too poor. Please try again with a clearer photo.";
+      document.getElementById("resultText").textContent = isBlurry
+        ? "Photo appears blurry or unclear. Please upload a sharp, well-lit photo of the affected leaves."
+        : "Automated analysis could not be completed. Tap below to retry with another photo.";
     }
 
     lucide.createIcons();
@@ -399,10 +403,14 @@ function pollCaseUntilFinished(caseId) {
         } else if (c.status === "retry_failed") {
           clearInterval(interval);
           activePollCaseId = null;
+          var notes = (c.geminiResult && c.geminiResult.notes) || "";
+          var isBlurry = /blur|dark|quality|resolution/i.test(notes);
           document.getElementById("resultIcon").innerHTML = '<i data-lucide="refresh-cw" class="w-8 h-8 text-risk-red"></i>';
           document.getElementById("resultIcon").className = "w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3 shadow-sm";
           document.getElementById("resultTitle").textContent = "Retry Needed";
-          document.getElementById("resultText").textContent = "Image quality was too poor. Please try again with a clearer photo.";
+          document.getElementById("resultText").textContent = isBlurry
+            ? "Photo appears blurry or unclear. Please upload a sharp, well-lit photo of the affected leaves."
+            : "Automated analysis could not be completed. Tap below to retry with another photo.";
           lucide.createIcons();
           loadActiveCases();
           loadCaseHistory();
@@ -480,7 +488,11 @@ function openCaseDetail(caseId) {
     }
 
     var symptomsHtml = "";
-    var symptoms = (c.geminiResult && (c.geminiResult.symptomsObserved || c.geminiResult.symptoms_observed)) || [];
+    var rawSymptoms = (c.geminiResult && (c.geminiResult.symptomsObserved || c.geminiResult.symptoms_observed)) || [];
+    // Guard: Gemini sometimes returns a string instead of an array
+    var symptoms = Array.isArray(rawSymptoms)
+      ? rawSymptoms
+      : (typeof rawSymptoms === 'string' ? rawSymptoms.split(/\.\s+|\n+/).map(function(s){ return s.trim(); }).filter(Boolean) : []);
     if (symptoms.length > 0) {
       symptomsHtml = '<div class="mt-4"><h4 class="font-heading font-bold text-xs text-forest-400 uppercase tracking-wide mb-1.5">Observed Symptoms</h4>' +
         '<ul class="text-xs text-forest-600 space-y-1 list-disc list-inside">' +

@@ -132,7 +132,35 @@ def run_tier_a_inference(img: Image.Image) -> PredictResponse:
     )
 
 
-def run_plantvillage_inference(img: Image.Image) -> PredictResponse:
+def _crop_prefix(class_name: str) -> str:
+    """Extract the crop name prefix from a class label (e.g. 'Tomato' from 'Tomato___Bacterial_spot')."""
+    if "___" in class_name:
+        return class_name.split("___")[0].strip().lower()
+    if "__" in class_name:
+        return class_name.split("__")[0].strip().lower()
+    return ""
+
+
+# Canonical crop-name aliases for mismatch detection
+_CROP_ALIASES: dict[str, str] = {
+    "corn_(maize)": "maize",
+    "corn": "maize",
+    "grape": "grapes",
+    "pepper,_bell": "pepper",
+    "bell pepper": "pepper",
+    "cherry_(including_sour)": "cherry",
+    "paddy": "rice",
+    "dhan": "rice",
+    "kapas": "cotton",
+}
+
+
+def _normalise_crop(name: str) -> str:
+    s = name.strip().lower()
+    return _CROP_ALIASES.get(s, s)
+
+
+def run_plantvillage_inference(img: Image.Image, requested_crop: str = "") -> PredictResponse:
     sess = _sessions["plantvillage"]
     meta = _meta["plantvillage"]
 
@@ -163,12 +191,26 @@ def run_plantvillage_inference(img: Image.Image) -> PredictResponse:
         for i in order[:5]
     ]
 
+    # Crop-mismatch guard: if the predicted class belongs to a different crop
+    # than what was requested, force fallback so we don't return nonsense.
+    fallback = top_conf < threshold
+    if not fallback and requested_crop:
+        predicted_crop = _normalise_crop(_crop_prefix(top_class))
+        norm_requested = _normalise_crop(requested_crop)
+        if predicted_crop and norm_requested and predicted_crop != norm_requested:
+            print(
+                f"[ml-service] Crop mismatch: requested={norm_requested!r}, "
+                f"predicted={predicted_crop!r} ({top_class}) — forcing fallback",
+                flush=True,
+            )
+            fallback = True
+
     return PredictResponse(
         class_name=top_class,
         confidence=top_conf,
         top_k=top_k,
         model_version="plantvillage-38-onnx",
-        fallback_recommended=top_conf < threshold,
+        fallback_recommended=fallback,
         confidence_threshold=threshold,
     )
 
@@ -210,7 +252,7 @@ def predict(req: PredictRequest):
         return run_tier_a_inference(image)
 
     if norm_crop in PLANTVILLAGE_CROPS and has_pv:
-        return run_plantvillage_inference(image)
+        return run_plantvillage_inference(image, requested_crop=norm_crop)
 
     # If crop_type not provided or unmapped, run Tier A first if available, else PlantVillage
     if has_tier_a:
@@ -219,10 +261,10 @@ def predict(req: PredictRequest):
             return tier_a_res
 
         # If Tier A was low confidence and PlantVillage is available, evaluate PlantVillage
-        pv_res = run_plantvillage_inference(image)
+        pv_res = run_plantvillage_inference(image, requested_crop=norm_crop)
         return pv_res if pv_res.confidence > tier_a_res.confidence else tier_a_res
 
     if has_pv:
-        return run_plantvillage_inference(image)
+        return run_plantvillage_inference(image, requested_crop=norm_crop)
 
     raise HTTPException(status_code=503, detail="No suitable model available for inference")

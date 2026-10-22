@@ -24,40 +24,50 @@ router.get('/latest', async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
-    // Find all fields for this user
-    const fields = await Field.find({ userId }).select('_id').lean();
-    const fieldIds = fields.map(f => f._id);
+    // 1. Find all fields for this user
+    const fields = await Field.find({ userId }).lean();
+    const fieldIds = fields.map(f => f._id || f.id);
     if (fieldIds.length === 0) return res.json({ advisories: [] });
 
-    // Join cases with their farm and latest advisory in one aggregation
-    // instead of one Advisory query per case (N+1).
-    const cases = await DiagnosisCase.aggregate([
-      {
-        $match: {
-          farmId: { $in: fieldIds },
-          status: { $ne: 'deleted' },
-          outcome: { $in: ['confirmed', 'expert_review'] },
-        },
-      },
-      { $sort: { createdAt: -1 } },
-      { $lookup: { from: 'fields', localField: 'farmId', foreignField: '_id', as: 'farm' } },
-      { $lookup: { from: 'advisories', localField: '_id', foreignField: 'caseId', as: 'advs' } },
-      {
-        $addFields: {
-          // latest advisory version wins
-          advisory: { $arrayElemAt: [{ $sortArray: { input: '$advs', sortBy: { version: -1 } } }, 0] },
-        },
-      },
-      { $match: { advisory: { $ne: null } } },
-      { $limit: 100 },
-    ]);
+    // 2. Find all relevant diagnosis cases (Supabase adapter — no aggregate())
+    const allCases = await DiagnosisCase.find({
+      farmId: fieldIds[0], // start with first field; expand below
+      status: { $ne: 'deleted' },
+    }).limit(200).lean();
 
-    const advisories = cases.map((dc) => {
-      const farm = dc.farm && dc.farm.length > 0 ? dc.farm[0] : null;
-      return {
-        ...dc.advisory,
+    // Collect cases across ALL fields (DiagnosisCase.find filters by one farmId,
+    // so we query each field's cases and merge)
+    const casesByField = await Promise.all(
+      fieldIds.map(fid => DiagnosisCase.find({ farmId: fid, status: { $ne: 'deleted' } }).limit(50).lean())
+    );
+    const cases = casesByField
+      .flat()
+      .filter(dc => dc.outcome === 'confirmed' || dc.outcome === 'expert_review')
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 100);
+
+    if (cases.length === 0) return res.json({ advisories: [] });
+
+    // 3. Build a farm lookup map
+    const farmMap = {};
+    for (const f of fields) farmMap[f._id || f.id] = f;
+
+    // 4. Fetch latest advisory for each case (parallel)
+    const advisoryResults = await Promise.all(
+      cases.map(dc => Advisory.findOne({ caseId: dc._id || dc.id }).sort({ version: -1 }).lean())
+    );
+
+    // 5. Assemble response — skip cases that have no advisory yet
+    const advisories = [];
+    for (let i = 0; i < cases.length; i++) {
+      const dc = cases[i];
+      const advisory = advisoryResults[i];
+      if (!advisory) continue;
+      const farm = farmMap[dc.farmId] || null;
+      advisories.push({
+        ...advisory,
         case: {
-          _id: dc._id,
+          _id: dc._id || dc.id,
           fieldName: farm?.name || 'Unknown Field',
           cropType: farm?.cropType || 'unknown',
           cropStage: farm?.cropStage || 'vegetative',
@@ -67,8 +77,8 @@ router.get('/latest', async (req, res) => {
           finalSeverity: dc.finalSeverity,
           createdAt: dc.createdAt,
         },
-      };
-    });
+      });
+    }
 
     res.json({ advisories });
   } catch (err) {
@@ -86,13 +96,13 @@ router.get('/case/:caseId', async (req, res) => {
     const { caseId } = req.params;
     const lang = req.query.lang || 'en';
 
-    const dc = await DiagnosisCase.findById(caseId)
-      .populate('farmId', 'name cropType cropStage')
-      .lean();
-
+    // Supabase adapter does not support .populate() — load farm separately
+    const dc = await DiagnosisCase.findById(caseId);
     if (!dc || dc.status === 'deleted') {
       return res.status(404).json({ error: 'Case not found' });
     }
+
+    const farm = dc.farmId ? await Field.findById(dc.farmId) : null;
 
     const advisory = await Advisory.findOne({ caseId })
       .sort({ version: -1 })
@@ -109,10 +119,10 @@ router.get('/case/:caseId', async (req, res) => {
       advisory: {
         ...localized,
         case: {
-          _id: dc._id,
-          fieldName: dc.farmId?.name || 'Unknown Field',
-          cropType: dc.farmId?.cropType || 'unknown',
-          cropStage: dc.farmId?.cropStage || 'vegetative',
+          _id: dc._id || dc.id,
+          fieldName: farm?.name || 'Unknown Field',
+          cropType: farm?.cropType || 'unknown',
+          cropStage: farm?.cropStage || 'vegetative',
           outcome: dc.outcome,
           finalDiseaseCode: dc.finalDiseaseCode,
           confidence: dc.confidence,
@@ -236,14 +246,12 @@ router.get('/case/:caseId/detail', async (req, res) => {
     const { caseId } = req.params;
     const lang = req.query.lang || 'en';
 
-    // 1. Diagnosis case + farm
-    const dc = await DiagnosisCase.findById(caseId)
-      .populate('farmId', 'name cropType cropStage centerLat centerLng')
-      .lean();
+    // 1. Diagnosis case + farm (Supabase adapter: no .populate(), load farm separately)
+    const dc = await DiagnosisCase.findById(caseId);
     if (!dc || dc.status === 'deleted') {
       return res.status(404).json({ error: 'Case not found' });
     }
-    const farm = dc.farmId || {};
+    const farm = (dc.farmId ? await Field.findById(dc.farmId) : null) || {};
 
     // 2. Latest advisory
     const advisory = await Advisory.findOne({ caseId })
