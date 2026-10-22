@@ -288,7 +288,25 @@
     let isSaving = false;
 
     document.addEventListener('DOMContentLoaded', async function() {
-      await loadUserLocation();
+      // Try device GPS first (10s timeout), then fall back to profile location
+      await new Promise((resolve) => {
+        if (!navigator.geolocation) { resolve(); return; }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            centerLat = pos.coords.latitude;
+            centerLng = pos.coords.longitude;
+            resolve();
+          },
+          () => resolve(), // denied or failed — fall back to profile
+          { timeout: 10000, maximumAge: 60000, enableHighAccuracy: false }
+        );
+      });
+
+      // If GPS wasn't available, try loading from user profile
+      if (centerLat === 20.5937 && centerLng === 78.9629) {
+        await loadUserLocation();
+      }
+
       initMap();
       loadEditMode();
       if (window.lucide) lucide.createIcons();

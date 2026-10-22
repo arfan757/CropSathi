@@ -81,7 +81,15 @@ export const createField = async (req, res) => {
     await field.save();
 
     // 3. Optical Spectral Baseline Verification
-    const ndviReading = await fetchNdviForFarm(field);
+    // Wrapped in try/catch: satellite API failures must NOT prevent a valid
+    // field save. If the NDVI fetch throws (network error, Supabase timeout,
+    // Copernicus auth issue), we fail open and let the cron job retry later.
+    let ndviReading = null;
+    try {
+      ndviReading = await fetchNdviForFarm(field);
+    } catch (ndviError) {
+      console.warn(`⚠️ NDVI fetch failed during field creation for ${field._id}:`, ndviError.message);
+    }
 
     const isValidVegetation = isVegetationDetected(
       ndviReading?.ndvi,
