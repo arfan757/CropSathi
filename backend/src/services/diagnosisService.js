@@ -7,6 +7,24 @@ import { isSupportedCrop, buildCnnResult } from '../config/modelClassMap.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import sharp from 'sharp';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function resolveUploadFilePath(storageKey) {
+  const candidates = [
+    path.resolve(__dirname, '../../uploads', storageKey),
+    path.resolve(process.cwd(), 'backend', 'uploads', storageKey),
+    path.resolve(process.cwd(), 'uploads', storageKey),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0];
+}
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -150,9 +168,9 @@ async function diagnoseWithCnn(caseId, dc, farm) {
   const pathMod = await import('path');
   let imageB64 = null;
   for (const photo of photos) {
-    const filePath = pathMod.join(process.cwd(), 'uploads', photo.storageKey);
+    const filePath = resolveUploadFilePath(photo.storageKey);
     try {
-      const bytes = await fsPromises.readFile(filePath);
+      const bytes = await fs.promises.readFile(filePath);
       // Resize with max dimension 512 to preserve detail for ONNX 288x288 / 128x128
       imageB64 = await sharp(bytes)
         .resize({ width: 512, height: 512, fit: 'inside' })
@@ -230,9 +248,9 @@ async function diagnoseWithGemini(caseId) {
   const fsPromises = (await import('fs')).promises;
   const pathMod = await import('path');
   for (const photo of photos) {
-    const filePath = pathMod.join(process.cwd(), 'uploads', photo.storageKey);
+    const filePath = resolveUploadFilePath(photo.storageKey);
     try {
-      const bytes = await fsPromises.readFile(filePath);
+      const bytes = await fs.promises.readFile(filePath);
       const resized = await sharp(bytes).resize({ width: 1024, height: 1024, fit: "inside" }).jpeg({ quality: 80 }).toBuffer();
       imageParts.push({ inlineData: { data: resized.toString("base64"), mimeType: "image/jpeg" } });
     } catch (e) { 
@@ -494,10 +512,14 @@ export async function deleteCase(caseId, userId) {
 }
 
 export async function getCaseDetail(caseId) {
-  const dc = await DiagnosisCase.findById(caseId)
-    .populate('farmId', 'name cropType cropStage areaInHectares').lean();
+  const dc = await DiagnosisCase.findById(caseId);
   if (!dc || dc.status === 'deleted') return null;
   const photos = await CasePhoto.find({ caseId }).sort({ uploadedAt: -1 }).lean();
+  let farmObj = null;
+  try {
+    const { default: Field } = await import('../models/Field.js');
+    farmObj = await Field.findById(dc.farmId);
+  } catch {}
   let advisory = null;
   try { 
     const A = (await import('../models/Advisory.js')).default; 
@@ -505,7 +527,16 @@ export async function getCaseDetail(caseId) {
   } catch (err) {
     console.warn('Failed to load Advisory module:', err.message);
   }
-  return { ...dc, photos, advisory };
+  const farmData = farmObj ? {
+    _id: farmObj._id,
+    id: farmObj._id,
+    name: farmObj.name,
+    cropType: farmObj.cropType,
+    cropStage: farmObj.cropStage,
+    areaInHectares: farmObj.areaInHectares,
+  } : dc.farmId;
+
+  return { ...dc, farmId: farmData, photos, advisory };
 }
 
 export async function listCasesForFarm(farmId, limit = 20, cursor = null) {

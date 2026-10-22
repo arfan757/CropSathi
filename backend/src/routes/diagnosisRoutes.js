@@ -3,6 +3,7 @@ import { protect } from '../middleware/authMiddleware.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import {
   createCaseEndpoint, uploadPhotosEndpoint, deleteCaseEndpoint,
   getCaseDetailEndpoint, listCasesEndpoint,
@@ -11,9 +12,14 @@ import {
 const router = Router();
 router.use(protect);
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOADS_ROOT = path.resolve(__dirname, '../../uploads');
+fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(process.cwd(), 'uploads', 'cases', req.params.caseId || 'pending');
+    const dir = path.join(UPLOADS_ROOT, 'cases', req.params.caseId || 'pending');
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },

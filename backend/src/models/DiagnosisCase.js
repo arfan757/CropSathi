@@ -135,7 +135,16 @@ DiagnosisCase.findOne = function (query = {}) {
     if (fid) q = q.eq('farm_id', fid);
     const uid = query.userId || query.user_id;
     if (uid) q = q.eq('user_id', uid);
-    if (query.status) q = q.eq('status', query.status);
+    if (typeof query.status === 'string') {
+      q = q.eq('status', query.status);
+    } else if (query.status?.$ne) {
+      q = q.neq('status', query.status.$ne);
+    } else if (query.status?.$in && Array.isArray(query.status.$in)) {
+      q = q.in('status', query.status.$in);
+    }
+    if (query.deletedAt === null) {
+      q = q.is('deleted_at', null);
+    }
 
     const { data, error } = await q.maybeSingle();
     if (error || !data) return null;
@@ -146,12 +155,27 @@ DiagnosisCase.findOne = function (query = {}) {
 DiagnosisCase.find = function (query = {}) {
   return new CaseQuery(async (sort, limit) => {
     let q = supabase.from('diagnosis_cases').select('*');
+    const id = query._id || query.id;
+    if (typeof id === 'string') q = q.eq('id', id);
+    if (query._id?.$lt) q = q.lt('id', query._id.$lt);
+    if (query.id?.$lt) q = q.lt('id', query.id.$lt);
+
     const fid = query.farmId || query.farm_id;
     if (fid) q = q.eq('farm_id', fid);
     const uid = query.userId || query.user_id;
     if (uid) q = q.eq('user_id', uid);
-    if (query.status) q = q.eq('status', query.status);
-    if (query.status?.$ne) q = q.neq('status', query.status.$ne);
+
+    if (typeof query.status === 'string') {
+      q = q.eq('status', query.status);
+    } else if (query.status?.$ne) {
+      q = q.neq('status', query.status.$ne);
+    } else if (query.status?.$in && Array.isArray(query.status.$in)) {
+      q = q.in('status', query.status.$in);
+    }
+
+    if (query.deletedAt === null) {
+      q = q.is('deleted_at', null);
+    }
 
     if (query.createdAt?.$gte) {
       q = q.gte('created_at', query.createdAt.$gte.toISOString ? query.createdAt.$gte.toISOString() : query.createdAt.$gte);
@@ -169,6 +193,13 @@ DiagnosisCase.find = function (query = {}) {
 DiagnosisCase.create = async function (fields) {
   const doc = new DiagnosisCaseDocument(fields);
   return doc.save();
+};
+
+DiagnosisCase.updateOne = async function (filter, updates) {
+  const id = filter._id || filter.id;
+  if (!id) return null;
+  const patch = updates.$set || updates;
+  return DiagnosisCase.findByIdAndUpdate(id, patch);
 };
 
 DiagnosisCase.findByIdAndUpdate = async function (id, updates, options = {}) {
