@@ -236,23 +236,77 @@
       document.getElementById('loginCard').classList.remove('hidden');
     }
 
+    // --- Render cold-start warm-up ---
+    // Ping the health endpoint silently on page load so Render's free-tier
+    // server wakes up before the user hits Sign In (~30-60s cold start).
+    (function warmUpServer() {
+      fetch(CropSathiPrefs.api + '/api/health', { method: 'GET', cache: 'no-store' })
+        .then(() => console.log('[CropSathi] Server warm-up ping OK'))
+        .catch(() => console.warn('[CropSathi] Server warm-up pending (cold start)'));
+    })();
+
+    // Fetch with a 60-second timeout to handle Render cold starts.
+    async function fetchWithTimeout(url, options, timeoutMs = 60000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timer);
+        return res;
+      } catch (err) {
+        clearTimeout(timer);
+        throw err;
+      }
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('loginBtn');
       const bannerEl = document.getElementById('errorBanner');
       const bannerSpan = bannerEl.querySelector('span') || bannerEl;
-      btn.disabled = true; btn.querySelector('span').textContent = CropSathiPrefs.t('login_signin') + '...';
+      btn.disabled = true;
+      btn.querySelector('span').textContent = CropSathiPrefs.t('login_signin') + '...';
       bannerEl.classList.add('hidden');
 
       const phone = document.getElementById('phoneInput').value.trim();
       const password = document.getElementById('passwordInput').value;
 
-      try {
-        const res = await fetch(`${CropSathiPrefs.api}/api/auth/login`, {
+      // Try once; if network fails due to cold start, show countdown and retry.
+      const attemptLogin = async (isRetry) => {
+        const res = await fetchWithTimeout(`${CropSathiPrefs.api}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phoneNumber: phone, password })
         });
+        return res;
+      };
+
+      try {
+        let res;
+        try {
+          res = await attemptLogin(false);
+        } catch (firstErr) {
+          // Cold start: show countdown banner, wait 25s, retry once.
+          bannerEl.classList.remove('hidden');
+          bannerEl.style.background = 'rgba(255,165,0,0.12)';
+          bannerEl.style.borderColor = 'rgba(255,165,0,0.4)';
+          bannerEl.style.color = '#92610a';
+          let secs = 25;
+          const tick = () => {
+            bannerSpan.textContent = `Server is starting up… retrying in ${secs}s`;
+            if (secs > 0) { secs--; setTimeout(tick, 1000); }
+          };
+          tick();
+          await new Promise(r => setTimeout(r, 25000));
+          // Reset banner style
+          bannerEl.classList.add('hidden');
+          bannerEl.style.background = '';
+          bannerEl.style.borderColor = '';
+          bannerEl.style.color = '';
+          btn.querySelector('span').textContent = CropSathiPrefs.t('login_signin') + '...';
+          res = await attemptLogin(true);
+        }
+
         const data = await res.json();
         if (data.success && data.token) {
           CropSathiSession.setSession(data.token, data.user);
@@ -262,7 +316,7 @@
           bannerEl.classList.remove('hidden');
         }
       } catch (err) {
-        bannerSpan.textContent = 'Cannot reach server';
+        bannerSpan.textContent = 'Cannot reach server. Please check your connection and try again.';
         bannerEl.classList.remove('hidden');
       }
       btn.disabled = false;
@@ -280,7 +334,7 @@
       const password = document.getElementById('regPassword').value;
 
       try {
-        const res = await fetch(`${CropSathiPrefs.api}/api/auth/register`, {
+        const res = await fetchWithTimeout(`${CropSathiPrefs.api}/api/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phoneNumber: phone, password })
@@ -294,7 +348,7 @@
           bannerEl.classList.remove('hidden');
         }
       } catch (err) {
-        bannerSpan.textContent = 'Cannot reach server';
+        bannerSpan.textContent = 'Cannot reach server. Please check your connection and try again.';
         bannerEl.classList.remove('hidden');
       }
     });
