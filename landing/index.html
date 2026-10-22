@@ -11,6 +11,49 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="CropSathi — Early Crop Disease Detection & Satellite Field Intelligence" />
     <meta name="twitter:description" content="Catch crop disease days before the damage shows. Satellite + AI leaf diagnostics for smallholder farmers." />
+    <script>
+      (function () {
+        function getCookie(name) {
+          var match = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+          return match ? decodeURIComponent(match[1]) : null;
+        }
+
+        function getToken() {
+          try {
+            return localStorage.getItem('token') || getCookie('cropsathi_token');
+          } catch (e) {
+            return getCookie('cropsathi_token');
+          }
+        }
+
+        function decodePayload(token) {
+          try {
+            var parts = token.split('.');
+            if (parts.length !== 3) return null;
+            var base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4 !== 0) base64 += '=';
+            return JSON.parse(window.atob(base64));
+          } catch (e) {
+            return null;
+          }
+        }
+
+        function clearToken() {
+          try { localStorage.removeItem('token'); } catch (e) {}
+          document.cookie = 'cropsathi_token=; path=/; max-age=0; SameSite=Lax';
+        }
+
+        var token = getToken();
+        if (!token) return;
+
+        var payload = decodePayload(token);
+        if (payload && typeof payload.exp === 'number' && payload.exp * 1000 > Date.now()) {
+          window.location.replace('/dashboard.html');
+        } else {
+          clearToken();
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
