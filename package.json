@@ -2,9 +2,14 @@
   "name": "cropsathi",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
-    "build": "node scripts/prepare-build.js",
-    "build:css": "npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o frontend/app.css --minify"
+    "build": "node scripts/prepare-build.js && node scripts/build-landing.js",
+    "build:css": "npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o frontend/app.css --minify",
+    "build:landing": "node scripts/build-landing.js",
+    "dev:landing": "npm --prefix landing run dev"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17"
