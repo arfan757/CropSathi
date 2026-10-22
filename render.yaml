@@ -44,10 +44,13 @@ services:
   # 2. plantvillage_38.onnx: 14 crops (38 classes, 128x128)
   - type: web
     name: cropsathi-ml
-    runtime: python@3.11
+    runtime: python
     region: oregon
     rootDir: ml-service
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
     healthCheckPath: /health
     autoDeploy: true

@@ -9,9 +9,10 @@ const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 // Model waterfall — text-only (advisory), cheaper than vision.
 // Tried in order; skipped on 503/404/429 (overloaded/not found/rate-limited).
 const ADVISORY_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-flash-lite-latest',
   'gemini-3.5-flash',
   'gemini-3.6-flash',
-  'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
 ];
 const ADVISORY_MODEL = ADVISORY_MODELS[0]; // kept for legacy reference

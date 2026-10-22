@@ -29,11 +29,12 @@ function resolveUploadFilePath(storageKey) {
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 // Model waterfall — tried in order; skipped on 503/404/429 (overloaded/quota/deprecated).
-// gemini-3.5-flash and gemini-3.6-flash are fast, highly capable, and confirmed active.
+// gemini-3.5-flash-lite and gemini-flash-lite-latest have higher free-tier quota and fast response.
 const DIAGNOSIS_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-flash-lite-latest',
   'gemini-3.5-flash',
   'gemini-3.6-flash',
-  'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
 ];
 const DIAGNOSIS_MODEL = DIAGNOSIS_MODELS[0]; // kept for modelVersion logging
