@@ -229,7 +229,7 @@
         sessionStorage.clear();
       } catch (e) {}
     }
-    window.location.href = 'login.html';
+    window.location.replace(window.LANDING_PAGE_URL || '/');
   }
   window.handleLogout = handleLogout;
 
