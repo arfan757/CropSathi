@@ -557,7 +557,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          if (typeof CropSathiCache !== 'undefined') CropSathiCache.invalidate('fields');
+          if (typeof CropSathiCache !== 'undefined') CropSathiCache.invalidate(`${CropSathiPrefs.api}/api/fields`);
           if (data.data && data.data._id && typeof CropSathiSession !== 'undefined') {
             CropSathiSession.setActiveFarm(data.data._id);
           }
