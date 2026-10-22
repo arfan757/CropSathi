@@ -36,8 +36,7 @@
     if (!name || typeof name !== 'string') return 'F';
     const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return 'F';
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0].charAt(0).toUpperCase();
   }
 
   function syncNavProfileFromCache() {
@@ -55,6 +54,11 @@
       if (rawMeta) meta = JSON.parse(rawMeta);
     } catch (e) {}
 
+    if (user && user.preferredLanguage && !localStorage.getItem('cropsathi_prefs') &&
+        typeof window.CropSathiPrefs !== 'undefined') {
+      window.CropSathiPrefs.applyLanguage(user.preferredLanguage);
+    }
+
     const name = (meta && meta.name) || (user && user.name) || '';
     const phone = (meta && meta.phone) || (user && (user.phoneNumber || user.phone)) || '';
     const initials = name ? getInitials(name) : 'F';
@@ -65,7 +69,6 @@
       const d = user.farmDetails.district;
       location = v ? `${v}${d ? ', ' + d : ''}` : (d || '');
     }
-    if (!location) location = 'Panvel';
 
     // Hydrate Topbar Elements
     const nameElem = document.getElementById('userName');
@@ -78,21 +81,21 @@
     if (navAvatar) navAvatar.textContent = initials;
 
     const userLocElem = document.getElementById('userLocation');
-    if (userLocElem && location) userLocElem.textContent = location;
+    if (userLocElem) userLocElem.textContent = location || 'Location not set';
 
     const locDisp = document.getElementById('locationDisplay');
-    if (locDisp && location) {
-      locDisp.innerHTML = `<i data-lucide="map-pin" class="w-3.5 h-3.5 text-terracotta-400"></i> <span>${location}</span>`;
+    if (locDisp) {
+      locDisp.innerHTML = `<i data-lucide="map-pin" class="w-3.5 h-3.5 text-terracotta-400"></i> <span>${location || 'Location not set'}</span>`;
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
         try { window.lucide.createIcons(); } catch (e) {}
       }
     }
 
     // Hydrate Dropdown Panel Elements
+    const cachedPhoto = localStorage.getItem('cropsathi_profile_photo');
     const menuPhoto = document.getElementById('userMenuPhoto');
     if (menuPhoto) {
       menuPhoto.textContent = initials;
-      const cachedPhoto = localStorage.getItem('cropsathi_profile_photo');
       if (cachedPhoto) {
         menuPhoto.innerHTML = `<img src="${cachedPhoto}" class="w-full h-full object-cover rounded-xl" alt="Profile">`;
       }
@@ -107,11 +110,8 @@
     const menuSub = document.getElementById('userMenuSub');
     if (menuSub) menuSub.textContent = phone ? phone : 'Signed in';
 
-    // Apply cached photo
-    const cachedPhoto = localStorage.getItem('cropsathi_profile_photo');
-    if (cachedPhoto) {
-      applyProfilePhoto(cachedPhoto);
-    }
+    // Apply cached photo (or clear a stale image when the photo was removed)
+    applyProfilePhoto(cachedPhoto || null);
   }
   window.syncNavProfileFromCache = syncNavProfileFromCache;
 
@@ -135,6 +135,8 @@
         }));
         if (u.profilePhoto) {
           localStorage.setItem('cropsathi_profile_photo', u.profilePhoto);
+        } else {
+          localStorage.removeItem('cropsathi_profile_photo');
         }
         if (u.farmDetails) {
           const v = u.farmDetails.village;
@@ -223,6 +225,7 @@
         localStorage.removeItem('user');
         localStorage.removeItem('cropsathi_profile_meta');
         localStorage.removeItem('cropsathi_profile_photo');
+        localStorage.removeItem('cropsathi_location');
         sessionStorage.clear();
       } catch (e) {}
     }
@@ -273,76 +276,11 @@
     }, { passive: true });
   }
 
-  // --- 6. Shared Auto-Location Geolocation Sync ---
-  async function autoUpdateLocation() {
-    if (!("geolocation" in navigator)) return;
-
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-
-      if (typeof window.fetchWeatherData === 'function') {
-        window.fetchWeatherData(lat, lng);
-      }
-
-      try {
-        const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-        const geoData = await geoRes.json();
-        const address = geoData.address || {};
-        const placeName = address.village || address.town || address.city || address.county || 'Current Location';
-
-        localStorage.setItem('cropsathi_location', placeName);
-
-        const locationElem = document.getElementById('userLocation');
-        if (locationElem) locationElem.textContent = placeName;
-
-        const locDisp = document.getElementById('locationDisplay');
-        if (locDisp) {
-          locDisp.innerHTML = `<i data-lucide="map-pin" class="w-3.5 h-3.5 text-terracotta-400"></i> <span>${placeName}</span>`;
-          if (window.lucide && typeof window.lucide.createIcons === 'function') {
-            try { window.lucide.createIcons(); } catch (e) {}
-          }
-        }
-
-        const token = (typeof window.CropSathiSession !== 'undefined') ? window.CropSathiSession.getToken() : localStorage.getItem('token');
-        if (token && typeof CropSathiPrefs !== 'undefined' && CropSathiPrefs.api) {
-          await fetch(`${CropSathiPrefs.api}/api/auth/update-location`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              latitude: lat,
-              longitude: lng,
-              fullAddress: placeName,
-              addressComponents: {
-                village: address.village,
-                district: address.district || address.county,
-                state: address.state,
-                country: address.country
-              }
-            })
-          });
-        }
-      } catch (err) {
-        console.warn("Auto-location update failed:", err);
-      }
-    }, (error) => {
-      console.warn("Geolocation permission denied or failed:", error.message);
-    }, {
-      enableHighAccuracy: false,
-      timeout: 10000
-    });
-  }
-  window.autoUpdateLocation = autoUpdateLocation;
-
-  // --- 7. DOM Ready Bootstrap ---
+  // --- 6. DOM Ready Bootstrap ---
   document.addEventListener('DOMContentLoaded', function () {
     syncNavProfileFromCache();
     syncNavProfileFromServer();
     setupLinkPrefetching();
-    autoUpdateLocation();
   });
 
 })();

@@ -182,7 +182,7 @@ export const changePassword = async (req, res) => {
 // @access  Private
 export const updateProfile = async (req, res) => {
   try {
-    const { name, profilePhoto, notificationPreferences } = req.body;
+    const { name, profilePhoto, notificationPreferences, preferredLanguage } = req.body;
 
     const updateFields = {};
 
@@ -192,6 +192,14 @@ export const updateProfile = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Name cannot be empty' });
       }
       updateFields.name = name.trim();
+    }
+
+    if (preferredLanguage !== undefined) {
+      const supportedLanguages = ['en', 'hi', 'mr', 'bn', 'te', 'ta', 'gu', 'kn', 'ml', 'or', 'pa', 'as', 'ur'];
+      if (!supportedLanguages.includes(preferredLanguage)) {
+        return res.status(400).json({ success: false, message: 'Unsupported language' });
+      }
+      updateFields.preferredLanguage = preferredLanguage;
     }
 
     // Handle photo: set if provided, clear if empty string
@@ -236,7 +244,10 @@ export const updateProfile = async (req, res) => {
         id: user._id,
         name: user.name,
         phoneNumber: user.phoneNumber,
+        role: user.role,
+        preferredLanguage: user.preferredLanguage,
         profilePhoto: user.profilePhoto || '',
+        farmDetails: user.farmDetails,
         notificationPreferences: user.notificationPreferences,
       },
     });

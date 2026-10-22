@@ -96,10 +96,14 @@ app.get('/api/user/profile', protect, async (req, res) => {
     res.status(200).json({
       success: true,
       user: {
+        id: user._id,
         name: user.name,
         phoneNumber: user.phoneNumber,
+        role: user.role,
+        preferredLanguage: user.preferredLanguage,
         farmDetails: user.farmDetails,
         profilePhoto: user.profilePhoto || '',
+        notificationPreferences: user.notificationPreferences,
       }
     });
   } catch (error) {
