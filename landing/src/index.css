@@ -1,0 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Noto Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #fbf9f8;
+  color: #1b1c1c;
+}
+
+.font-display {
+  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+}
+
+/* Scroll reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f6f3f2; }
+::-webkit-scrollbar-thumb { background: #006038; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #004025; }
+
+/* ---- 3D / Tactile Effects ---- */
+
+/* 3D green button (use on light backgrounds) */
+.btn-3d {
+  background: linear-gradient(180deg, #007a45 0%, #006038 100%);
+  box-shadow:
+    0 4px 0 #004025,
+    0 6px 14px rgba(0, 96, 56, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.15s ease;
+}
+.btn-3d:hover {
+  background: linear-gradient(180deg, #008a50 0%, #006e40 100%);
+  box-shadow:
+    0 5px 0 #004025,
+    0 8px 18px rgba(0, 96, 56, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+.btn-3d:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 #004025,
+    0 2px 6px rgba(0, 96, 56, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* 3D white button (use on green/dark backgrounds for contrast) */
+.btn-3d-white {
+  background: linear-gradient(180deg, #ffffff 0%, #f0eded 100%);
+  box-shadow:
+    0 4px 0 #dcd9d9,
+    0 6px 14px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: #006038;
+  transition: all 0.15s ease;
+}
+.btn-3d-white:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #eae8e7 100%);
+  box-shadow:
+    0 5px 0 #dcd9d9,
+    0 8px 18px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+}
+.btn-3d-white:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 #dcd9d9,
+    0 2px 6px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* 3D terracotta button */
+.btn-3d-tertiary {
+  background: linear-gradient(180deg, #b04a1b 0%, #933302 100%);
+  box-shadow:
+    0 4px 0 #5a1f00,
+    0 6px 14px rgba(147, 51, 2, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.15s ease;
+}
+.btn-3d-tertiary:hover {
+  background: linear-gradient(180deg, #c05828 0%, #a83d06 100%);
+  box-shadow:
+    0 5px 0 #5a1f00,
+    0 8px 18px rgba(147, 51, 2, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+.btn-3d-tertiary:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 #5a1f00,
+    0 2px 6px rgba(147, 51, 2, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* 3D card */
+.card-3d {
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.card-3d:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 12px 28px rgba(0, 0, 0, 0.08),
+    0 20px 48px rgba(0, 0, 0, 0.04);
+}
+
+/* 3D icon badge — green */
+.icon-3d-green {
+  background: linear-gradient(135deg, #007a45, #006038);
+  box-shadow:
+    0 4px 10px rgba(0, 96, 56, 0.3),
+    0 2px 4px rgba(0, 96, 56, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* 3D icon badge — terracotta */
+.icon-3d-terracotta {
+  background: linear-gradient(135deg, #b04a1b, #933302);
+  box-shadow:
+    0 4px 10px rgba(147, 51, 2, 0.3),
+    0 2px 4px rgba(147, 51, 2, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* 3D step icon */
+.step-3d {
+  box-shadow:
+    0 6px 0 #004025,
+    0 8px 16px rgba(0, 96, 56, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.2s ease;
+}
+.step-3d:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 9px 0 #004025,
+    0 12px 20px rgba(0, 96, 56, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Glass badge */
+.glass-badge {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 96, 56, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Grid pattern overlay */
+.grid-overlay {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Light green section bg */
+.bg-mint {
+  background-color: #edf5f0;
+}
