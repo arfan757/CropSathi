@@ -56,8 +56,8 @@
 </head>
 <body class="min-h-screen bg-offwhite-100 font-body text-forest-700 flex items-stretch">
 
-  <!-- Left hero panel (hidden on mobile) -->
-  <div class="hero-panel hidden lg:flex lg:w-[52%] xl:w-[55%] flex-col justify-between p-12 xl:p-16 text-offwhite-50 relative">
+  <!-- Left hero panel (hidden on mobile, visible on tablet & desktop) -->
+  <div class="hero-panel hidden md:flex md:w-[45%] lg:w-[52%] xl:w-[55%] flex-col justify-between p-8 lg:p-12 xl:p-16 text-offwhite-50 relative">
 
     <!-- Floating blobs -->
     <div class="leaf-blob absolute top-20 left-16 w-64 h-64 rounded-full bg-forest-400/20 blur-3xl pointer-events-none"></div>
@@ -123,7 +123,7 @@
   <div class="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:py-0 overflow-y-auto">
 
     <!-- Mobile brand -->
-    <div class="flex flex-col items-center mb-8 lg:hidden">
+    <div class="flex flex-col items-center mb-8 md:hidden">
       <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-forest-500 text-offwhite-50 shadow-elevated mb-3">
         <i data-lucide="sprout" class="w-7 h-7"></i>
       </div>
@@ -136,8 +136,8 @@
       <!-- Login card -->
       <div id="loginCard" class="bg-offwhite-50 border border-offwhite-300 rounded-2xl p-7 shadow-elevated">
         <div class="mb-6">
-          <h2 class="font-heading text-xl font-bold text-forest-700 hidden lg:block" data-i18n="login_subtitle">Welcome back</h2>
-          <p class="text-xs text-forest-400 mt-0.5 hidden lg:block">Sign in to your CropSathi account</p>
+          <h2 class="font-heading text-xl font-bold text-forest-700 hidden md:block" data-i18n="login_subtitle">Welcome back</h2>
+          <p class="text-xs text-forest-400 mt-0.5 hidden md:block">Sign in to your CropSathi account</p>
         </div>
 
         <!-- Error banner -->
@@ -216,8 +216,8 @@
       </div>
 
       <!-- Footer -->
-      <p class="text-center text-[10px] text-forest-400 pb-4">
-        By continuing you agree to the <a href="#" class="underline">Terms of Service</a> · <a href="#" class="underline">Privacy Policy</a>
+      <p class="text-center text-xs text-forest-400 pb-4">
+        By continuing you agree to the <a href="javascript:void(0)" onclick="alert('CropSathi Terms of Service: This service provides agricultural intelligence and advisories for farming support.')" class="underline hover:text-forest-600">Terms of Service</a> · <a href="javascript:void(0)" onclick="alert('CropSathi Privacy Policy: Your data and field coordinates are securely stored and never shared with third parties.')" class="underline hover:text-forest-600">Privacy Policy</a>
       </p>
     </div>
   </div>
