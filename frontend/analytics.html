@@ -129,25 +129,25 @@
     
     <!-- TopBar Header -->
     <header class="sticky top-0 z-30 flex items-center justify-between border-b border-offwhite-300 bg-offwhite-100/90 px-4 py-3 backdrop-blur-md lg:px-8">
-      <a href="dashboard.html" class="flex items-center gap-2 lg:hidden" aria-label="CropSathi">
-        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card">
+      <a href="dashboard.html" class="flex items-center gap-2 lg:hidden shrink-0" aria-label="CropSathi">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-forest-500 text-offwhite-50 shadow-card shrink-0">
           <i data-lucide="sprout" class="w-5 h-5"></i>
         </div>
-        <span class="font-heading font-bold text-base text-forest-700">CropSathi</span>
+        <span class="font-heading font-bold text-base text-forest-700 hidden sm:inline">CropSathi</span>
       </a>
 
       <!-- Field Selector in TopBar (Bolt TopBar.tsx style) -->
-      <div class="relative flex-1 max-w-xs sm:max-w-sm ml-2 sm:ml-0">
-        <div class="flex items-center gap-2.5 rounded-xl border border-offwhite-300 bg-offwhite-50 px-3 py-1.5 shadow-card hover:border-forest-200 transition-colors cursor-pointer">
-          <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-forest-50 text-forest-500">
+      <div class="relative flex-1 max-w-xs sm:max-w-sm ml-2 sm:ml-0 min-w-0">
+        <div class="flex items-center gap-2 rounded-xl border border-offwhite-300 bg-offwhite-50 px-2.5 py-1.5 shadow-card hover:border-forest-200 transition-colors cursor-pointer">
+          <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-forest-50 text-forest-500 shrink-0">
             <i data-lucide="sprout" class="w-4 h-4"></i>
           </div>
           <div class="min-w-0 flex-1">
-            <select id="farmSelector" class="w-full appearance-none bg-transparent font-heading text-xs font-semibold text-forest-700 outline-none cursor-pointer pr-6">
+            <select id="farmSelector" class="w-full appearance-none bg-transparent font-heading text-xs font-semibold text-forest-700 outline-none cursor-pointer pr-5 truncate" aria-label="Select Field">
               <option value="">Loading fields...</option>
             </select>
           </div>
-          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-forest-400 pointer-events-none absolute right-3"></i>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-forest-400 pointer-events-none absolute right-2.5 shrink-0"></i>
         </div>
       </div>
 
