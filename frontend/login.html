@@ -269,12 +269,20 @@
       const btn = document.getElementById('loginBtn');
       const bannerEl = document.getElementById('errorBanner');
       const bannerSpan = bannerEl.querySelector('span') || bannerEl;
-      btn.disabled = true;
-      btn.querySelector('span').textContent = CropSathiPrefs.t('login_signin') + '...';
-      bannerEl.classList.add('hidden');
 
       const phone = document.getElementById('phoneInput').value.trim();
       const password = document.getElementById('passwordInput').value;
+
+      if (!phone || !password) {
+        bannerSpan.textContent = 'Please enter your phone number and password.';
+        bannerEl.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.querySelector('span').textContent = CropSathiPrefs.t('login_signin') + '...';
+      bannerEl.classList.add('hidden');
 
       // Try once; if network fails due to cold start, show countdown and retry.
       const attemptLogin = async (isRetry) => {
