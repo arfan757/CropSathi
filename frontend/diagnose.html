@@ -284,8 +284,11 @@
           <div class="w-12 h-12 rounded-xl bg-forest-50 text-forest-500 flex items-center justify-center mx-auto mb-2 shadow-sm">
             <i data-lucide="camera" class="w-6 h-6"></i>
           </div>
-          <p class="text-xs font-heading font-semibold text-forest-700" id="dropZoneText">Tap to take photo or upload</p>
-          <p class="text-[11px] text-forest-400 mt-0.5" id="dropZoneHint">Up to 5 images</p>
+          <p class="text-xs font-heading font-semibold text-forest-700" id="dropZoneText">
+            <span class="hidden sm:inline">Drag &amp; drop leaf photos or click to upload</span>
+            <span class="sm:hidden">Tap to capture leaf photo with camera</span>
+          </p>
+          <p class="text-xs text-forest-400 mt-0.5" id="dropZoneHint">Up to 5 clear images of affected leaves</p>
           <input type="file" id="photoInput" accept="image/*" capture="environment" multiple class="hidden">
         </div>
 
