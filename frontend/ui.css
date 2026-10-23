@@ -625,12 +625,14 @@ a {
 
 .cs-tab {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 3px;
-  padding: 2px 2px 3px;
+  padding: 3px 2px;
   border: 0;
   border-radius: 14px;
   background: transparent;

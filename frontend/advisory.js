@@ -177,7 +177,7 @@ function renderAdvisoryCard(advisory) {
           <div class="flex items-center gap-2">
             ${sprayBadgeHtml || ''}
           </div>
-          <a href="advisory-detail.html?caseId=${c._id}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-heading font-bold bg-[#006038] text-white hover:bg-[#1a7a4c] shadow-sm transition">
+          <a href="advisory-detail.html?caseId=${c._id}" class="inline-flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-heading font-bold bg-[#006038] text-white hover:bg-[#1a7a4c] shadow-sm transition">
             <span>View Full Treatment Plan</span>
             <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
           </a>
