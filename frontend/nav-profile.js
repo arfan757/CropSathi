@@ -112,8 +112,107 @@
 
     // Apply cached photo (or clear a stale image when the photo was removed)
     applyProfilePhoto(cachedPhoto || null);
+
+    // Hydrate quick language switcher in dropdown
+    renderQuickLanguageSwitcher();
   }
   window.syncNavProfileFromCache = syncNavProfileFromCache;
+
+  // --- 2b. Quick Language Switcher inside Profile Dropdown ---
+  function renderQuickLanguageSwitcher() {
+    const panel = document.getElementById('topProfileMenuPanel');
+    if (!panel) return;
+    let section = document.getElementById('navQuickLanguageSection');
+    const currentLang = (typeof window.CropSathiPrefs !== 'undefined' && window.CropSathiPrefs.getPrefs)
+      ? window.CropSathiPrefs.getPrefs().language
+      : (localStorage.getItem('cropsathi_prefs') ? JSON.parse(localStorage.getItem('cropsathi_prefs')).language : 'en') || 'en';
+
+    if (!section) {
+      section = document.createElement('div');
+      section.id = 'navQuickLanguageSection';
+      section.className = 'my-2 p-2 rounded-xl bg-offwhite-200/70 border border-offwhite-300';
+      const firstChild = panel.firstElementChild;
+      if (firstChild && firstChild.nextSibling) {
+        panel.insertBefore(section, firstChild.nextSibling);
+      } else {
+        panel.appendChild(section);
+      }
+    }
+
+    const langs = [
+      { code: 'en', label: 'English', short: 'EN' },
+      { code: 'mr', label: 'मराठी', short: 'मराठी' },
+      { code: 'hi', label: 'हिंदी', short: 'हिंदी' },
+    ];
+
+    section.innerHTML = `
+      <div class="flex items-center justify-between mb-1.5 px-0.5">
+        <span class="text-[11px] font-heading font-semibold text-forest-600 uppercase tracking-wider flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 text-forest-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          Language / भाषा
+        </span>
+        <span class="text-[10px] text-forest-500 font-bold bg-offwhite-300/80 px-1.5 py-0.5 rounded">${currentLang.toUpperCase()}</span>
+      </div>
+      <div class="grid grid-cols-3 gap-1 p-0.5 bg-offwhite-50/90 rounded-lg border border-offwhite-200">
+        ${langs.map(l => {
+          const isActive = currentLang === l.code;
+          return `
+            <button type="button" onclick="window.switchAppLanguage('${l.code}', event)" class="py-1 px-1 rounded-md text-xs font-heading font-semibold text-center transition-all ${
+              isActive
+                ? 'bg-forest-500 text-offwhite-50 shadow-sm'
+                : 'text-forest-600 hover:bg-offwhite-200 hover:text-forest-800'
+            }">
+              ${l.short}
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+  window.renderQuickLanguageSwitcher = renderQuickLanguageSwitcher;
+
+  window.switchAppLanguage = function(lang, event) {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (typeof window.CropSathiPrefs !== 'undefined' && window.CropSathiPrefs.applyLanguage) {
+      window.CropSathiPrefs.applyLanguage(lang);
+    } else {
+      try {
+        const p = JSON.parse(localStorage.getItem('cropsathi_prefs') || '{}');
+        p.language = lang;
+        localStorage.setItem('cropsathi_prefs', JSON.stringify(p));
+      } catch (e) {}
+    }
+    renderQuickLanguageSwitcher();
+
+    // Async sync to server
+    const token = (typeof window.CropSathiSession !== 'undefined') ? window.CropSathiSession.getToken() : localStorage.getItem('token');
+    const apiBase = (typeof window.CropSathiPrefs !== 'undefined' && window.CropSathiPrefs.api) ? window.CropSathiPrefs.api : '';
+    if (token && apiBase) {
+      fetch(`${apiBase}/api/auth/update-profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ preferredLanguage: lang })
+      }).then(res => res.json()).then(data => {
+        if (data && data.success) {
+          try {
+            const u = JSON.parse(localStorage.getItem('user') || '{}');
+            u.preferredLanguage = lang;
+            localStorage.setItem('user', JSON.stringify(u));
+          } catch(e) {}
+        }
+      }).catch(() => {});
+    }
+
+    window.dispatchEvent(new CustomEvent('cropsathi:languageChanged', { detail: { language: lang } }));
+
+    // If on advisory or advisory-detail, reload so newly localized server payload & UI re-renders cleanly
+    if (window.location.pathname.includes('advisory')) {
+      window.location.reload();
+    }
+  };
 
   // Run immediately as script is loaded to defeat FOUC
   syncNavProfileFromCache();
@@ -197,6 +296,7 @@
 
     const isHidden = panel.classList.contains('hidden');
     if (isHidden) {
+      renderQuickLanguageSwitcher();
       panel.classList.remove('hidden');
       if (chevron) chevron.classList.add('rotate-180');
     } else {

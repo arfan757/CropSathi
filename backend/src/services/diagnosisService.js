@@ -99,9 +99,9 @@ function severityForAdvisory(severity) {
 }
 
 // Best-effort advisory context for the Gemini prompt: confidence comes from
-// the just-saved diagnosis, district from the user's farm profile. Never
-// throws — missing district falls back to '' (prompt uses 'unknown').
-async function resolveAdvisoryOpts(dc, parsed) {
+// the just-saved diagnosis, district from the user's farm profile, and weather
+// from the farm's latest weather observation. Never throws.
+async function resolveAdvisoryOpts(dc, parsed, farm = null) {
   const confidence = Number.isFinite(Number(parsed?.confidence ?? dc?.confidence))
     ? Number(parsed?.confidence ?? dc?.confidence)
     : undefined;
@@ -113,7 +113,26 @@ async function resolveAdvisoryOpts(dc, parsed) {
   } catch {
     district = '';
   }
-  return { confidence, district };
+
+  let weather = null;
+  try {
+    const farmId = farm?._id || farm?.id || dc?.farmId;
+    if (farmId) {
+      const { getRecentWeather, pollWeatherForFarm } = await import('./weatherService.js');
+      const recents = await getRecentWeather(farmId, 1);
+      if (recents && recents.length > 0) {
+        weather = recents[0];
+      } else if (farm && (farm.centerLat || farm.polygon?.[0]?.lat)) {
+        try {
+          weather = await pollWeatherForFarm(farm);
+        } catch { /* ignore weather poll error */ }
+      }
+    }
+  } catch (wErr) {
+    console.warn('Weather resolution for advisory failed:', wErr.message);
+  }
+
+  return { confidence, district, weather };
 }
 
 export async function createCase({ farmId, userId, triggeredBy, triggeringRiskScoreId = null, gpsPoint = null }) {
@@ -480,7 +499,7 @@ async function saveDiagnosisResult(dc, parsed, farm) {
         severityForAdvisory(parsed.severity),
         farm?.cropStage || 'vegetative',
         farm?.cropType || '',
-        await resolveAdvisoryOpts(dc, parsed)
+        await resolveAdvisoryOpts(dc, parsed, farm)
       );
       // NOTIFICATION TRIGGER 1: advisory_ready when case confirmed
       try {
@@ -531,7 +550,7 @@ async function saveDiagnosisResult(dc, parsed, farm) {
         severityForAdvisory(parsed.severity),
         farm?.cropStage || 'vegetative',
         farm?.cropType || '',
-        await resolveAdvisoryOpts(dc, parsed)
+        await resolveAdvisoryOpts(dc, parsed, farm)
       );
       // NOTIFICATION: advisory_ready + escalation_alert for expert review
       try {

@@ -45,8 +45,21 @@ const ACTION_TYPES = {
 // Remedy display order: cultural → physical → biological → chemical
 const REMEDY_ORDER = { cultural: 0, physical: 1, biological: 2, chemical: 3 };
 
+function isCleanVal(v) {
+  if (!v) return '';
+  const s = String(v).trim();
+  return /^(n\/?a|none|nil|-|not applicable)$/i.test(s) ? '' : s;
+}
+
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
+  // If ?caseId is in URL, redirect directly to full interactive advisory detail view
+  const urlParams = new URLSearchParams(window.location.search);
+  const caseIdParam = urlParams.get('caseId');
+  if (caseIdParam) {
+    window.location.replace(`advisory-detail.html?caseId=${encodeURIComponent(caseIdParam)}`);
+    return;
+  }
   loadAdvisories();
 });
 
@@ -111,19 +124,33 @@ function renderAdvisoryCard(advisory) {
   const advisorySymptoms = (advisory.symptoms || '').trim();
   const isAiAdvisory = advisory.source === 'gemini' && !advisory.isGeneric;
 
+  const sw = advisory.sprayWindow || advisory.chemicalRecommendation?.sprayWindow || null;
+  let sprayBadgeHtml = '';
+  if (sw) {
+    const swStatus = sw.status || 'favorable';
+    const swLabel = sw.ratingLocalized?.[currentLang] || sw.ratingLocalized?.en || sw.rating || 'Spray Window';
+    if (swStatus === 'favorable') {
+      sprayBadgeHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i> ${escapeHtml(swLabel)}</span>`;
+    } else if (swStatus === 'caution') {
+      sprayBadgeHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-600"></i> ${escapeHtml(swLabel)}</span>`;
+    } else {
+      sprayBadgeHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200/60"><i data-lucide="cloud-off" class="w-3.5 h-3.5 text-rose-600"></i> ${escapeHtml(swLabel)}</span>`;
+    }
+  }
+
   return `
     <div class="bg-white rounded-2xl shadow-sm border border-[#e4e2e1] overflow-hidden tactile-card">
       <!-- Header -->
       <div class="p-5 border-b border-[#e4e2e1] bg-[#f6f3f2]">
-        <div class="flex items-start justify-between">
+        <div class="flex items-start justify-between gap-3">
           <div class="flex items-start gap-3">
             <div class="w-11 h-11 rounded-full bg-[#006038]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
               <i data-lucide="wheat" class="w-5 h-5 text-[#006038]"></i>
             </div>
             <div>
-              <h3 class="font-headline font-semibold text-[#1b1c1c]">${cropName} — ${c.fieldName || 'Field'}</h3>
-              <p class="text-sm text-[#3f4941] mt-0.5">Disease: <span class="font-semibold text-[#1b1c1c]">${diseaseName}</span></p>
-              ${confidence ? `<p class="text-xs text-[#6f7a71] mt-0.5">Confidence: ${confidence}%</p>` : ''}
+              <h3 class="font-headline font-semibold text-[#1b1c1c] text-base">${cropName} — ${c.fieldName || 'Field'}</h3>
+              <p class="text-sm text-[#3f4941] mt-0.5">Disease: <span class="font-bold text-[#1b1c1c]">${diseaseName}</span></p>
+              ${confidence ? `<p class="text-xs text-[#6f7a71] mt-0.5">Diagnostic Confidence: ${confidence}%</p>` : ''}
             </div>
           </div>
           <div class="text-right flex-shrink-0">
@@ -131,11 +158,12 @@ function renderAdvisoryCard(advisory) {
             <p class="text-xs text-[#6f7a71] mt-1.5">${date}</p>
             ${hasRemedies
               ? (isAiAdvisory
-                ? `<span class="inline-block mt-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#006038]/10 text-[#006038]">AI Advisory</span>`
-                : `<span class="inline-block mt-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#6f7a71]/10 text-[#6f7a71]">General guidance</span>`)
+                ? `<span class="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#006038]/10 text-[#006038]">AI Advisory</span>`
+                : `<span class="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#6f7a71]/10 text-[#6f7a71]">General guidance</span>`)
               : ''}
           </div>
         </div>
+
         ${pathogen ? `<p class="text-xs text-[#3f4941] italic mt-2">${escapeHtml(pathogen)}</p>` : ''}
         ${advisorySymptoms ? `<p class="text-xs text-[#3f4941] leading-relaxed mt-1">${escapeHtml(advisorySymptoms)}</p>` : ''}
         ${symptoms.length > 0 ? `
@@ -143,6 +171,17 @@ function renderAdvisoryCard(advisory) {
             ${symptoms.slice(0, 3).map(s => `<span class="inline-block px-2 py-0.5 bg-[#eae8e7] text-[#3f4941] text-xs rounded-lg">${s.length > 40 ? s.substring(0, 40) + '...' : s}</span>`).join('')}
           </div>
         ` : ''}
+
+        <!-- Top-level Fast Action Bar -->
+        <div class="mt-4 pt-3 border-t border-[#e4e2e1]/80 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            ${sprayBadgeHtml || ''}
+          </div>
+          <a href="advisory-detail.html?caseId=${c._id}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-heading font-bold bg-[#006038] text-white hover:bg-[#1a7a4c] shadow-sm transition">
+            <span>View Full Treatment Plan</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </a>
+        </div>
       </div>
 
       <!-- Actions -->
@@ -154,10 +193,12 @@ function renderAdvisoryCard(advisory) {
              ${renderChemicalSection(advisory.chemicalRecommendation, checked, c._id)}`}
         ${renderPreventionSection(advisory.prevention, checked, c._id)}
       </div>
+
       <!-- View detail link -->
-      <div class="px-5 pb-5">
-        <a href="advisory-detail.html?caseId=${c._id}" class="block text-center text-xs font-semibold py-2.5 px-4 rounded-xl bg-[#f6f3f2] text-[#006038] hover:bg-[#eae8e7] transition border border-[#e4e2e1]">
-          View full advisory →
+      <div class="p-5 pt-3 border-t border-[#e4e2e1]/80 bg-[#fbf9f8]">
+        <a href="advisory-detail.html?caseId=${c._id}" class="flex items-center justify-center gap-2 text-center text-xs font-heading font-bold py-3 px-4 rounded-xl bg-[#006038] text-white hover:bg-[#1a7a4c] shadow-card transition">
+          <span>Open Full Interactive Advisory & Weather Forecast</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </a>
       </div>
     </div>
@@ -171,8 +212,8 @@ function escapeHtml(text) {
 }
 
 // New-shape rendering: group remedies[] by type (cultural → physical →
-// biological → chemical) and render full detail rows (product, dosage,
-// frequency, timing) instead of plain-text legacy actions.
+// biological → chemical) and render clean, farmer-friendly micro-chips
+// (suppressing robotic Product: N/A, Dosage: N/A).
 function renderRemedyGroups(remedies, checked, caseId) {
   const groups = {};
   (remedies || []).forEach(r => {
@@ -188,35 +229,49 @@ function renderRemedyGroups(remedies, checked, caseId) {
       const rows = groups[type].map((r, i) => {
         const key = `${type}_${i}`;
         const isChecked = checked[key] || false;
-        const hasDetail = r.productName || r.dosage || r.frequency || r.timing;
-        const body = hasDetail
-          ? `<div class="text-sm ${isChecked ? 'line-through text-[#bec9bf]' : ''}">
-               <p class="font-semibold text-[#1b1c1c]">${escapeHtml(r.action || '')}</p>
-               <div class="text-[#3f4941] text-xs mt-1 space-y-0.5">
-                 ${r.productName ? `<p>Product: ${escapeHtml(r.productName)}</p>` : ''}
-                 ${r.dosage ? `<p>Dosage: ${escapeHtml(r.dosage)}</p>` : ''}
-                 ${r.frequency ? `<p>Frequency: ${escapeHtml(r.frequency)}</p>` : ''}
-                 ${r.timing ? `<p>Timing: ${escapeHtml(r.timing)}</p>` : ''}
-               </div>
-               ${r.safetyNotes ? `<p class="text-xs font-semibold mt-1.5 ${type === 'chemical' ? 'text-[#933302]' : 'text-[#3f4941]'}">${escapeHtml(r.safetyNotes)}</p>` : ''}
-             </div>`
-          : `<span class="text-sm text-[#3f4941] group-hover:text-[#1b1c1c] transition ${isChecked ? 'line-through text-[#bec9bf]' : ''}">${escapeHtml(r.action || '')}</span>`;
+        const prod = isCleanVal(r.productName);
+        const dos = isCleanVal(r.dosage);
+        const freq = isCleanVal(r.frequency);
+        const tim = isCleanVal(r.timing);
+        const note = isCleanVal(r.safetyNotes);
+
+        const chips = [];
+        if (prod) {
+          chips.push(`<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"><i data-lucide="beaker" class="w-3.5 h-3.5 text-emerald-600"></i> ${escapeHtml(prod)}</span>`);
+        }
+        if (dos) {
+          chips.push(`<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200"><i data-lucide="droplet" class="w-3.5 h-3.5 text-sky-600"></i> ${escapeHtml(dos)}</span>`);
+        }
+        if (tim) {
+          chips.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200"><i data-lucide="clock" class="w-3 h-3 text-amber-600"></i> ${escapeHtml(tim)}</span>`);
+        }
+        if (freq) {
+          chips.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-offwhite-200 text-forest-700 border border-offwhite-300"><i data-lucide="repeat" class="w-3 h-3 text-forest-500"></i> ${escapeHtml(freq)}</span>`);
+        }
+
+        const chipsHtml = chips.length > 0 ? `<div class="flex flex-wrap items-center gap-1.5 mt-2">${chips.join('')}</div>` : '';
+        const noteHtml = note ? `<div class="mt-2 text-xs font-medium text-amber-900 bg-amber-50/90 p-2.5 rounded-xl border border-amber-200/90 flex items-start gap-1.5"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5"></i> <span>${escapeHtml(note)}</span></div>` : '';
+
         return `
-          <label class="flex items-start gap-3 cursor-pointer group p-2 -mx-2 rounded-lg hover:bg-[#f6f3f2] transition">
-            <input type="checkbox" class="advisory-check mt-0.5 rounded border-[#bec9bf] text-[#006038] focus:ring-[#006038] w-4 h-4"
+          <label class="flex items-start gap-3 cursor-pointer group p-3 rounded-xl border border-offwhite-300 hover:border-forest-400 bg-offwhite-100/60 hover:bg-offwhite-100 transition shadow-xs">
+            <input type="checkbox" class="advisory-check mt-1 rounded border-offwhite-400 text-[#006038] focus:ring-[#006038] w-4 h-4 cursor-pointer"
               data-case="${caseId}" data-key="${key}" ${isChecked ? 'checked' : ''}>
-            ${body}
+            <div class="flex-1 min-w-0 ${isChecked ? 'line-through opacity-60' : ''}">
+              <p class="font-heading font-semibold text-sm text-[#1b1c1c] leading-snug">${escapeHtml(r.action || prod || 'Action item')}</p>
+              ${chipsHtml}
+              ${noteHtml}
+            </div>
           </label>`;
       }).join('');
       return `
         <div>
-          <div class="flex items-center gap-2.5 mb-3">
+          <div class="flex items-center gap-2.5 mb-2.5">
             <div class="w-8 h-8 rounded-lg ${config.color} flex items-center justify-center flex-shrink-0">
               <i data-lucide="${config.icon}" class="w-4 h-4"></i>
             </div>
             <h4 class="font-headline font-semibold text-sm text-[#1b1c1c]">${label}</h4>
           </div>
-          <div class="ml-10 space-y-2">${rows}</div>
+          <div class="space-y-2">${rows}</div>
         </div>`;
     }).join('');
 }

@@ -90,6 +90,7 @@ function renderAll(data) {
   renderHeader(a);
   renderEscalation(a);
   renderClosedBanner(a);
+  renderSprayWindow(a.sprayWindow);
   renderAboutDisease(a);
   renderRemedyPlan(a, reminders, a.escalateToCropsap, a.status);
   renderWhereToBuy(a);
@@ -130,9 +131,66 @@ function renderEscalation(a) {
 // ── 4. Closed banner ────────────────────────────────────────────────────────
 function renderClosedBanner(a) {
   const el = document.getElementById('closed-banner');
+  if (!el) return;
   if (a.status !== 'closed') { el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
   document.getElementById('closed-date').textContent = 'This case has been resolved.';
+}
+
+// ── 4a. Weather & Safe Spray Window ─────────────────────────────────────────
+function renderSprayWindow(sw) {
+  const el = document.getElementById('spray-window-card');
+  if (!el) return;
+  if (!sw) {
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+
+  const status = sw.status || 'favorable';
+  const badge = document.getElementById('spray-status-badge');
+  const iconWrap = document.getElementById('spray-status-icon-wrap');
+  const reasonEl = document.getElementById('spray-window-reason');
+  const timingEl = document.getElementById('spray-window-timing');
+  const noteIcon = document.getElementById('spray-note-icon');
+
+  const tempEl = document.getElementById('spray-metric-temp');
+  const humEl = document.getElementById('spray-metric-humidity');
+  const windEl = document.getElementById('spray-metric-wind');
+  const rainEl = document.getElementById('spray-metric-rain');
+
+  const m = sw.metrics || {};
+  if (tempEl) tempEl.textContent = m.temperatureC !== null && m.temperatureC !== undefined ? `${m.temperatureC}°C` : '--';
+  if (humEl) humEl.textContent = m.humidityPct !== null && m.humidityPct !== undefined ? `${m.humidityPct}%` : '--';
+  if (windEl) windEl.textContent = m.windSpeedKmh !== null && m.windSpeedKmh !== undefined ? `${m.windSpeedKmh} km/h` : (m.windSpeedMs !== null && m.windSpeedMs !== undefined ? `${Math.round(m.windSpeedMs * 3.6)} km/h` : '--');
+  if (rainEl) rainEl.textContent = m.rainfallMm24h !== null && m.rainfallMm24h !== undefined ? `${m.rainfallMm24h} mm` : '0 mm';
+
+  const localizedRating = sw.ratingLocalized?.[currentLang] || sw.ratingLocalized?.en || sw.rating || 'Optimal Window';
+  const localizedReason = sw.reasonLocalized?.[currentLang] || sw.reasonLocalized?.en || sw.reason || '';
+  const localizedTiming = sw.recommendedTiming?.[currentLang] || sw.recommendedTiming?.en || '';
+
+  if (reasonEl) reasonEl.textContent = localizedReason;
+  if (timingEl) timingEl.textContent = localizedTiming ? `Ideal window: ${localizedTiming}` : '';
+
+  if (status === 'favorable') {
+    badge.className = 'shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/70';
+    badge.textContent = localizedRating;
+    iconWrap.className = 'w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 shadow-sm text-emerald-600';
+    iconWrap.innerHTML = '<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600"></i>';
+    if (noteIcon) noteIcon.className = 'w-4 h-4 text-emerald-600 shrink-0 mt-0.5';
+  } else if (status === 'caution') {
+    badge.className = 'shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200/70';
+    badge.textContent = localizedRating;
+    iconWrap.className = 'w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0 shadow-sm text-amber-600';
+    iconWrap.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600"></i>';
+    if (noteIcon) noteIcon.className = 'w-4 h-4 text-amber-600 shrink-0 mt-0.5';
+  } else {
+    badge.className = 'shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200/70';
+    badge.textContent = localizedRating;
+    iconWrap.className = 'w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center shrink-0 shadow-sm text-rose-600';
+    iconWrap.innerHTML = '<i data-lucide="cloud-off" class="w-5 h-5 text-rose-600"></i>';
+    if (noteIcon) noteIcon.className = 'w-4 h-4 text-rose-600 shrink-0 mt-0.5';
+  }
 }
 
 // ── 4b. About this disease (pathogen + symptoms, above remedy cards) ──────
@@ -181,44 +239,41 @@ function renderRemedyPlan(a, reminders, escalated, status) {
     const wrapperClass = isLastResort ? 'opacity-80 text-sm' : '';
 
     const itemsHtml = tier.items.map(item => {
-      const hasRichDetail = item.productName || item.dosage || item.frequency || item.timing;
-      if (isChemical) {
-        const safetyNote = item.safetyNotes
-          ? `<div class="mt-3 p-3 bg-[#933302]/5 border border-[#933302]/20 rounded-xl">
-               <div class="flex items-center gap-2">
-                 <i data-lucide="alert-triangle" class="w-4 h-4 text-[#933302] shrink-0"></i>
-                 <p class="text-[#933302] text-xs font-semibold">${escHtml(item.safetyNotes)}</p>
-               </div>
-             </div>`
-          : '';
-        return `
-          <div class="p-3 bg-[#f6f3f2] rounded-xl">
-            <p class="font-semibold text-sm text-[#1b1c1c]">${escHtml(item.productClass || item.productName || item.action)}</p>
-            ${item.action && (item.productClass || item.productName) && item.action !== (item.productClass || item.productName) ? `<p class="text-xs text-[#3f4941] mt-1">${escHtml(item.action)}</p>` : ''}
-            <div class="text-xs text-[#3f4941] mt-1.5 space-y-0.5">
-              ${item.dosage ? `<p>Dosage: ${escHtml(item.dosage)}${item.unit ? ` ${escHtml(item.unit)}` : ''}</p>` : ''}
-              ${item.frequency ? `<p>Frequency: ${escHtml(item.frequency)}</p>` : ''}
-              ${item.timing ? `<p>Timing: ${escHtml(item.timing)}</p>` : ''}
-            </div>
-            ${safetyNote}
-          </div>`;
+      const cleanVal = (v) => (!v || /^(n\/?a|none|nil|-|not applicable)$/i.test(String(v).trim())) ? '' : String(v).trim();
+      const prod = cleanVal(item.productClass || item.productName);
+      const dos = cleanVal(item.dosage);
+      const freq = cleanVal(item.frequency);
+      const tim = cleanVal(item.timing);
+      const note = cleanVal(item.safetyNotes);
+      const actionText = item.action || item.text || prod || 'Field action';
+
+      const chips = [];
+      if (prod && prod !== actionText) {
+        chips.push(`<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${isChemical ? 'bg-amber-100/90 text-amber-900 border border-amber-300' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}"><i data-lucide="${isChemical ? 'flask-conical' : 'beaker'}" class="w-3.5 h-3.5"></i> ${escHtml(prod)}</span>`);
       }
-      if (hasRichDetail) {
-        return `
-          <div class="p-3 bg-[#f6f3f2] rounded-xl">
-            <p class="font-semibold text-sm text-[#1b1c1c]">${escHtml(item.action || item.text || '')}</p>
-            <div class="text-xs text-[#3f4941] mt-1.5 space-y-0.5">
-              ${item.productName ? `<p>Product: ${escHtml(item.productName)}</p>` : ''}
-              ${item.dosage ? `<p>Dosage: ${escHtml(item.dosage)}</p>` : ''}
-              ${item.frequency ? `<p>Frequency: ${escHtml(item.frequency)}</p>` : ''}
-              ${item.timing ? `<p>Timing: ${escHtml(item.timing)}</p>` : ''}
-              ${item.safetyNotes ? `<p class="font-semibold">Note: ${escHtml(item.safetyNotes)}</p>` : ''}
-            </div>
-          </div>`;
+      if (dos) {
+        chips.push(`<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200"><i data-lucide="droplet" class="w-3.5 h-3.5 text-sky-600"></i> ${escHtml(dos)}${item.unit ? ` ${escHtml(item.unit)}` : ''}</span>`);
       }
+      if (tim) {
+        chips.push(`<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200"><i data-lucide="clock" class="w-3.5 h-3.5 text-amber-600"></i> ${escHtml(tim)}</span>`);
+      }
+      if (freq) {
+        chips.push(`<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-offwhite-200 text-forest-700 border border-offwhite-300"><i data-lucide="repeat" class="w-3.5 h-3.5 text-forest-500"></i> ${escHtml(freq)}</span>`);
+      }
+
+      const chipsHtml = chips.length > 0 ? `<div class="flex flex-wrap items-center gap-1.5 mt-2">${chips.join('')}</div>` : '';
+      const safetyNoteHtml = note
+        ? `<div class="mt-2.5 p-2.5 ${isChemical ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-offwhite-200 text-forest-700 border border-offwhite-300'} rounded-xl text-xs font-medium flex items-start gap-2">
+             <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+             <span>${escHtml(note)}</span>
+           </div>`
+        : '';
+
       return `
-        <div class="p-3 bg-[#f6f3f2] rounded-xl text-sm text-[#3f4941]">
-          ${escHtml(item.text || item.action || '')}
+        <div class="p-3.5 bg-offwhite-100/70 border border-offwhite-200 rounded-xl hover:border-forest-300 transition shadow-xs">
+          <p class="font-heading font-semibold text-sm text-[#1b1c1c]">${escHtml(actionText)}</p>
+          ${chipsHtml}
+          ${safetyNoteHtml}
         </div>`;
     }).join('');
 

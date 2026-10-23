@@ -219,6 +219,60 @@
           </div>
         </div>
 
+        <!-- ── Weather & Safe Spray Window Card ────────────── -->
+        <div id="spray-window-card" class="hidden bg-offwhite-50 border border-offwhite-300 rounded-2xl p-5 shadow-card advisory-card">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div class="flex items-center gap-2.5">
+              <div id="spray-status-icon-wrap" class="w-9 h-9 rounded-xl bg-forest-50 flex items-center justify-center shrink-0 shadow-sm text-forest-600">
+                <i data-lucide="cloud-sun" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 id="spray-window-title" class="font-heading font-semibold text-sm text-forest-700">Weather & Spray Window</h3>
+                <p id="spray-window-timing" class="text-xs text-forest-400 mt-0.5"></p>
+              </div>
+            </div>
+            <span id="spray-status-badge" class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider"></span>
+          </div>
+
+          <!-- Weather conditions grid chips -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 py-3 border-y border-offwhite-200/80 my-3">
+            <div class="bg-offwhite-100 rounded-xl p-2.5 flex items-center gap-2 border border-offwhite-200/60">
+              <i data-lucide="thermometer" class="w-4 h-4 text-forest-400 shrink-0"></i>
+              <div>
+                <div class="text-[10px] text-forest-400 uppercase font-semibold">Temperature</div>
+                <div id="spray-metric-temp" class="text-xs font-bold text-forest-700">--</div>
+              </div>
+            </div>
+            <div class="bg-offwhite-100 rounded-xl p-2.5 flex items-center gap-2 border border-offwhite-200/60">
+              <i data-lucide="droplets" class="w-4 h-4 text-forest-400 shrink-0"></i>
+              <div>
+                <div class="text-[10px] text-forest-400 uppercase font-semibold">Humidity</div>
+                <div id="spray-metric-humidity" class="text-xs font-bold text-forest-700">--</div>
+              </div>
+            </div>
+            <div class="bg-offwhite-100 rounded-xl p-2.5 flex items-center gap-2 border border-offwhite-200/60">
+              <i data-lucide="wind" class="w-4 h-4 text-forest-400 shrink-0"></i>
+              <div>
+                <div class="text-[10px] text-forest-400 uppercase font-semibold">Wind Speed</div>
+                <div id="spray-metric-wind" class="text-xs font-bold text-forest-700">--</div>
+              </div>
+            </div>
+            <div class="bg-offwhite-100 rounded-xl p-2.5 flex items-center gap-2 border border-offwhite-200/60">
+              <i data-lucide="cloud-rain" class="w-4 h-4 text-forest-400 shrink-0"></i>
+              <div>
+                <div class="text-[10px] text-forest-400 uppercase font-semibold">24h Rain</div>
+                <div id="spray-metric-rain" class="text-xs font-bold text-forest-700">--</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spray Guidance Note -->
+          <div class="flex items-start gap-2 pt-1">
+            <i id="spray-note-icon" data-lucide="info" class="w-4 h-4 text-forest-500 shrink-0 mt-0.5"></i>
+            <p id="spray-window-reason" class="text-xs text-forest-600 leading-relaxed"></p>
+          </div>
+        </div>
+
         <!-- ── About This Disease ──────────────────────────── -->
         <div id="disease-about" class="hidden bg-offwhite-50 border border-offwhite-300 rounded-2xl p-5 shadow-card advisory-card">
           <div class="flex items-center gap-2.5 mb-3">

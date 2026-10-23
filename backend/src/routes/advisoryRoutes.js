@@ -66,6 +66,8 @@ router.get('/latest', async (req, res) => {
       const farm = farmMap[dc.farmId] || null;
       advisories.push({
         ...advisory,
+        sprayWindow: advisory.sprayWindow || advisory.chemicalRecommendation?.sprayWindow || null,
+        weatherContext: advisory.weatherContext || advisory.chemicalRecommendation?.weatherContext || null,
         case: {
           _id: dc._id || dc.id,
           fieldName: farm?.name || 'Unknown Field',
@@ -157,6 +159,7 @@ function buildRemedyPlan(advisory) {
   // `text` preserves the legacy shape for old clients.
   if (Array.isArray(advisory.remedies) && advisory.remedies.length > 0) {
     const labels = { cultural: 'Cultural & Mechanical', physical: 'Physical', biological: 'Biological', chemical: 'Chemical' };
+    const cleanNA = (v) => (!v || /^(n\/?a|none|nil|-|not applicable)$/i.test(String(v).trim())) ? '' : String(v).trim();
     const plan = [];
     for (const tier of ['cultural', 'physical', 'biological', 'chemical']) {
       const group = advisory.remedies.filter((r) => r.type === tier);
@@ -166,21 +169,23 @@ function buildRemedyPlan(advisory) {
         label: labels[tier],
         items: group.map((r, i) => {
           const phi = r.preHarvestIntervalDays ?? null;
+          const cleanProd = cleanNA(r.productName);
+          const cleanDos = cleanNA(r.dosage);
           const base = {
             actionKey: `${tier}_${i + 1}`,
             text: r.action || '',
             action: r.action || '',
-            productName: r.productName || '',
-            dosage: r.dosage || '',
-            frequency: r.frequency || '',
-            timing: r.timing || '',
+            productName: cleanProd,
+            dosage: cleanDos,
+            frequency: cleanNA(r.frequency),
+            timing: cleanNA(r.timing),
             preHarvestIntervalDays: phi,
             safetyNotes: r.safetyNotes || '',
           };
           if (tier === 'chemical') {
             return {
               ...base,
-              productClass: r.productName || r.action || '',
+              productClass: cleanProd || r.action || 'Chemical Treatment',
               unit: '',
               safetyNotes: r.safetyNotes
                 || (phi ? `Do not harvest for ${phi} days after application` : ''),
@@ -305,6 +310,23 @@ router.get('/case/:caseId/detail', async (req, res) => {
     // About-disease fields pass through null-safe for legacy advisories.
     const summary = advisory.summary || dc.geminiResult?.diseaseDescription || '';
 
+    // Weather & Safe Spray Window resolution
+    let sprayWindow = advisory.sprayWindow || advisory.chemicalRecommendation?.sprayWindow || null;
+    let weatherContext = advisory.weatherContext || advisory.chemicalRecommendation?.weatherContext || null;
+    if (!sprayWindow && farm._id) {
+      try {
+        const { getRecentWeather } = await import('../services/weatherService.js');
+        const { calculateSprayWindow } = await import('../services/advisoryService.js');
+        const recents = await getRecentWeather(farm._id, 1);
+        if (recents && recents.length > 0) {
+          sprayWindow = calculateSprayWindow(recents[0]);
+          weatherContext = sprayWindow.metrics;
+        }
+      } catch (swErr) {
+        console.warn('Dynamic spray window computation failed:', swErr.message);
+      }
+    }
+
     // 10. Assemble response
     res.json({
       advisory: {
@@ -324,6 +346,8 @@ router.get('/case/:caseId/detail', async (req, res) => {
         source: advisory.source || 'rules',
         isGeneric: Boolean(advisory.isGeneric),
         remedyPlan: buildRemedyPlan(localized),
+        sprayWindow,
+        weatherContext,
         escalateToCropsap,
         escalationReason,
         createdAt: advisory.generatedAt || advisory.createdAt,

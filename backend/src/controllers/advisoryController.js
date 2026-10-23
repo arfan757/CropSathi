@@ -64,16 +64,24 @@ export async function regenerateAdvisory(req, res) {
       cropType = farm?.cropType || '';
       district = user?.farmDetails?.district || '';
       if (Number.isFinite(Number(dc?.confidence))) confidence = Number(dc.confidence);
-    } catch { /* context is advisory-only; never block regeneration */ }
 
-    const advisory = await generateAdvisoryForCase(
-      caseId,
-      finalDiseaseCode,
-      finalSeverity,
-      finalCropStage,
-      cropType,
-      { confidence, district },
-    );
+      let weather = null;
+      if (farmId) {
+        try {
+          const { getRecentWeather } = await import('../services/weatherService.js');
+          const recents = await getRecentWeather(farmId, 1);
+          if (recents && recents.length > 0) weather = recents[0];
+        } catch { /* weather is optional */ }
+      }
+
+      const advisory = await generateAdvisoryForCase(
+        caseId,
+        finalDiseaseCode,
+        finalSeverity,
+        finalCropStage,
+        cropType,
+        { confidence, district, weather },
+      );
 
     return res.json({ success: true, data: advisory });
   } catch (err) {

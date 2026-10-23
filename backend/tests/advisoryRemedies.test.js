@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { hasConcreteDosage, validateGeminiAdvisory, REMEDY_TYPE_ORDER, extractAdvisoryJson, normalizeDiseaseCode } from '../src/services/advisoryService.js';
+import { hasConcreteDosage, validateGeminiAdvisory, REMEDY_TYPE_ORDER, extractAdvisoryJson, normalizeDiseaseCode, calculateSprayWindow } from '../src/services/advisoryService.js';
 
 const validPayload = {
   summary: 'Red rot detected.',
@@ -101,5 +101,67 @@ describe('normalizeDiseaseCode', () => {
     assert.strictEqual(normalizeDiseaseCode('mystery blight xyz', 'wheat', keys), null);
     assert.strictEqual(normalizeDiseaseCode('healthy', 'wheat', keys), null);
     assert.strictEqual(normalizeDiseaseCode('', 'wheat', keys), null);
+  });
+});
+
+describe('calculateSprayWindow', () => {
+  it('returns favorable for calm, clear, moderate temperature conditions', () => {
+    const sw = calculateSprayWindow({
+      temperatureC: 24,
+      humidityPct: 65,
+      rainfallMm24h: 0,
+      windSpeedMs: 2.0, // 7.2 km/h
+    });
+    assert.strictEqual(sw.status, 'favorable');
+    assert.strictEqual(sw.rating, 'Safe to Spray');
+    assert.strictEqual(sw.risks.rain, 'none');
+    assert.strictEqual(sw.risks.wind, 'low');
+    assert.strictEqual(sw.risks.temperature, 'optimal');
+  });
+
+  it('returns unfavorable when rain is high (wash-off risk)', () => {
+    const sw = calculateSprayWindow({
+      temperatureC: 25,
+      humidityPct: 90,
+      rainfallMm24h: 8.5,
+      windSpeedMs: 2.0,
+    });
+    assert.strictEqual(sw.status, 'unfavorable');
+    assert.strictEqual(sw.rating, 'Postpone Spraying');
+    assert.strictEqual(sw.risks.rain, 'high');
+    assert.match(sw.reason, /wash-off/);
+  });
+
+  it('returns unfavorable when wind speed exceeds 15 km/h (drift risk)', () => {
+    const sw = calculateSprayWindow({
+      temperatureC: 26,
+      humidityPct: 60,
+      rainfallMm24h: 0,
+      windSpeedMs: 5.0, // 18 km/h
+    });
+    assert.strictEqual(sw.status, 'unfavorable');
+    assert.strictEqual(sw.rating, 'Postpone Spraying');
+    assert.strictEqual(sw.risks.wind, 'high');
+    assert.match(sw.reason, /spray drift/);
+  });
+
+  it('returns caution when temperature exceeds 35°C (droplet evaporation/scorch)', () => {
+    const sw = calculateSprayWindow({
+      temperatureC: 37,
+      humidityPct: 40,
+      rainfallMm24h: 0,
+      windSpeedMs: 2.0,
+    });
+    assert.strictEqual(sw.status, 'caution');
+    assert.strictEqual(sw.rating, 'Spray with Caution');
+    assert.strictEqual(sw.risks.temperature, 'high');
+  });
+
+  it('handles null/missing weather gracefully with favorable defaults', () => {
+    const sw = calculateSprayWindow(null);
+    assert.strictEqual(sw.status, 'favorable');
+    assert.ok(sw.ratingLocalized.hi);
+    assert.ok(sw.ratingLocalized.mr);
+    assert.ok(sw.recommendedTiming.en);
   });
 });

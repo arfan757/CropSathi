@@ -22,6 +22,8 @@ export function rowToAdvisory(row) {
     ipmCulturalActions:      row.ipm_cultural_actions ?? [],
     ipmBiologicalActions:    row.ipm_biological_actions ?? [],
     chemicalRecommendation:  row.chemical_recommendation,
+    sprayWindow:             row.spray_window ?? row.chemical_recommendation?.sprayWindow ?? null,
+    weatherContext:          row.weather_context ?? row.chemical_recommendation?.weatherContext ?? null,
     followUpDays:            row.follow_up_days,
     escalateToCropsap:       row.escalate_to_cropsap,
     escalationReason:        row.escalation_reason,

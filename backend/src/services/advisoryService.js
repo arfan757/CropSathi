@@ -143,16 +143,137 @@ export function generateAdvisoryContent(diseaseCode, severity, cropStage = 'vege
  * @param {object} [opts] - { confidence: number (0-1), district: string }
  * @returns {Promise<Advisory>}
  */
+/**
+ * Evaluate spray window clearance from weather conditions.
+ *
+ * Rules based on standard agricultural extension protocols:
+ * - Rain: If >= 5mm in 24h or currently raining, foliage is wet -> "unfavorable" (wash-off risk).
+ * - Wind: > 15 km/h (> 4.2 m/s) -> "unfavorable" (severe spray drift risk).
+ *         10-15 km/h (2.8 - 4.2 m/s) -> "caution" (moderate drift risk).
+ * - Temperature: >= 35°C -> "caution" (droplet evaporation & phytotoxicity scorch risk).
+ * - Optimal: 18°C - 30°C, wind < 10 km/h, no rain.
+ *
+ * @param {object} [weather]
+ * @returns {object} sprayWindow
+ */
+export function calculateSprayWindow(weather = null) {
+  const temp = Number.isFinite(Number(weather?.temperatureC)) ? Number(weather.temperatureC) : null;
+  const humidity = Number.isFinite(Number(weather?.humidityPct)) ? Number(weather.humidityPct) : null;
+  const rain = Number.isFinite(Number(weather?.rainfallMm24h)) ? Number(weather.rainfallMm24h) : 0;
+  const windMs = Number.isFinite(Number(weather?.windSpeedMs)) ? Number(weather.windSpeedMs) : null;
+  const windKmh = windMs !== null ? Math.round(windMs * 3.6 * 10) / 10 : null;
+
+  let rainRisk = 'none';
+  if (rain >= 5) rainRisk = 'high';
+  else if (rain > 0.5) rainRisk = 'moderate';
+
+  let windRisk = 'low';
+  if (windKmh !== null) {
+    if (windKmh > 15) windRisk = 'high';
+    else if (windKmh >= 10) windRisk = 'moderate';
+  }
+
+  let tempRisk = 'optimal';
+  if (temp !== null) {
+    if (temp >= 35) tempRisk = 'high';
+    else if (temp >= 31 || temp < 12) tempRisk = 'moderate';
+  }
+
+  let status = 'favorable';
+  let rating = 'Safe to Spray';
+  let ratingHi = 'छिड़काव के लिए अनुकूल';
+  let ratingMr = 'फवारणीसाठी अनुकूल';
+  let reason = 'Weather conditions are optimal for foliar application. Light winds and no rain expected.';
+  let reasonHi = 'मौसम की स्थिति छिड़काव के लिए अनुकूल है। हल्की हवा और बारिश का कोई अनुमान नहीं है।';
+  let reasonMr = 'हवामान फवारणीसाठी अतिशय अनुकूल आहे. मंद वारा आणि पावसाची शक्यता नाही.';
+
+  if (rainRisk === 'high') {
+    status = 'unfavorable';
+    rating = 'Postpone Spraying';
+    ratingHi = 'छिड़काव स्थगित करें';
+    ratingMr = 'फवारणी पुढे ढकला';
+    reason = `Recent rainfall (${rain} mm) or wet crop canopy detected. Postpone spraying to prevent chemical wash-off and wastage.`;
+    reasonHi = `हालिया बारिश (${rain} मिमी) या गीली पत्तियां पाई गईं। दवा बहने से बचाने के लिए छिड़काव टालें।`;
+    reasonMr = `नुकताच पाऊस (${rain} मिमी) किंवा झाडांवर ओलावा आहे. औषध वाहून जाणे टाळण्यासाठी फवारणी पुढे ढकला.`;
+  } else if (windRisk === 'high') {
+    status = 'unfavorable';
+    rating = 'Postpone Spraying';
+    ratingHi = 'छिड़काव स्थगित करें';
+    ratingMr = 'फवारणी पुढे ढकला';
+    reason = `High wind speed (${windKmh} km/h) creates significant spray drift risk. Postpone until winds calm below 12 km/h.`;
+    reasonHi = `तेज हवा (${windKmh} किमी/घंटा) से दवा उड़ने का खतरा है। हवा धीमी होने तक छिड़काव रोकें।`;
+    reasonMr = `वाऱ्याचा वेग जास्त (${windKmh} किमी/तास) असल्याने औषध उडण्याचा धोका आहे. वारा शांत होईपर्यंत थांबा.`;
+  } else if (tempRisk === 'high') {
+    status = 'caution';
+    rating = 'Spray with Caution';
+    ratingHi = 'सावधानी से छिड़काव करें';
+    ratingMr = 'काळजीपूर्वक फवारणी करा';
+    reason = `High daytime temperature (${temp}°C) causes rapid droplet evaporation and leaf scorch. Spray only in late evening hours.`;
+    reasonHi = `अधिक तापमान (${temp}°C) से दवा जल्दी सूख सकती है और पत्तियां जल सकती हैं। केवल देर शाम को छिड़काव करें।`;
+    reasonMr = `दुपारचे तापमान जास्त (${temp}°C) असल्याने औषध लवकर सुकते व पाने करपण्याचा धोका असतो. फक्त संध्याकाळी फवारणी करा.`;
+  } else if (windRisk === 'moderate' || rainRisk === 'moderate' || tempRisk === 'moderate') {
+    status = 'caution';
+    rating = 'Spray with Caution';
+    ratingHi = 'सावधानी से छिड़काव करें';
+    ratingMr = 'काळजीपूर्वक फवारणी करा';
+    reason = 'Conditions are borderline. Spray during calm early morning hours using medium droplet nozzles.';
+    reasonHi = 'मौसम सामान्य है। सुबह के शांत समय में मध्यम नोजल का प्रयोग करके छिड़काव करें।';
+    reasonMr = 'हवामान मध्यम आहे. सकाळी शांत वेळेत मध्यम आकाराचे तुषार वापरून फवारणी करा.';
+  }
+
+  return {
+    status,
+    rating,
+    ratingLocalized: { en: rating, hi: ratingHi, mr: ratingMr },
+    reason,
+    reasonLocalized: { en: reason, hi: reasonHi, mr: reasonMr },
+    recommendedTiming: {
+      en: 'Early morning (6:30 AM – 9:00 AM) or late evening (4:30 PM – 6:30 PM)',
+      hi: 'सुबह (6:30 से 9:00 बजे) या शाम (4:30 से 6:30 बजे)',
+      mr: 'सकाळी (6:30 ते 9:00) किंवा संध्याकाळी (4:30 ते 6:30)',
+    },
+    metrics: {
+      temperatureC: temp,
+      humidityPct: humidity,
+      windSpeedKmh: windKmh,
+      windSpeedMs: windMs,
+      rainfallMm24h: rain,
+    },
+    risks: {
+      rain: rainRisk,
+      wind: windRisk,
+      temperature: tempRisk,
+    },
+    evaluatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Generate an advisory for a confirmed diagnosis: Gemini writes it first
+ * (new role), falling back to the rule-based advisoryRules.json when the
+ * Gemini key is missing or the call fails.
+ *
+ * @param {string} caseId - ObjectId of the DiagnosisCase
+ * @param {string} diseaseCode
+ * @param {string} severity - backend tier: "low" | "medium" | "high" | "critical"
+ * @param {string} cropStage
+ * @param {string} cropType
+ * @param {object} [opts] - { confidence: number (0-1), district: string, weather: object }
+ * @returns {Promise<Advisory>}
+ */
 export async function generateAdvisoryForCase(caseId, diseaseCode, severity, cropStage = 'vegetative', cropType = '', opts = {}) {
+  const sprayWindow = calculateSprayWindow(opts.weather);
+  const extra = { sprayWindow, weatherContext: sprayWindow.metrics };
+
   // 1. Try Gemini first
   const geminiContent = await generateGeminiAdvisoryContent(diseaseCode, severity, cropStage, cropType, opts);
   if (geminiContent) {
-    return persistAdvisory(caseId, diseaseCode, severity, cropStage, geminiContent, 'gemini');
+    return persistAdvisory(caseId, diseaseCode, severity, cropStage, geminiContent, 'gemini', extra);
   }
 
   // 2. Fallback to rule-based advisoryRules.json
   const content = generateAdvisoryContent(diseaseCode, severity, cropStage, cropType);
-  return persistAdvisory(caseId, diseaseCode, severity, cropStage, content, 'rules');
+  return persistAdvisory(caseId, diseaseCode, severity, cropStage, content, 'rules', extra);
 }
 
 export const REMEDY_TYPE_ORDER = { cultural: 0, physical: 1, biological: 2, chemical: 3 };
@@ -185,18 +306,36 @@ export function hasConcreteDosage(dosage) {
   return hasNumber && hasUnit;
 }
 
-function buildAdvisoryPrompt({ crop, diseaseCode, confidence, severity, cropStage, district }) {
+function buildAdvisoryPrompt({ crop, diseaseCode, confidence, severity, cropStage, district, weather }) {
   const confStr = (confidence == null || Number.isNaN(Number(confidence)))
     ? 'unknown'
     : String(Math.round(Number(confidence) * 100) / 100);
-  return `You are an agricultural extension advisor for Maharashtra, India, writing advisories to the same standard as TNAU Agritech (agritech.tnau.ac.in) crop protection pages — specific causal organism, specific symptoms, specific product names with exact concentrations and durations. Never write vague guidance like "apply appropriate fungicide" or "use recommended dose" — always give the actual chemical name, concentration, and quantity per litre/hectare.
+
+  let weatherLine = '';
+  if (weather) {
+    const parts = [];
+    if (weather.temperatureC != null) parts.push(`Temperature: ${weather.temperatureC}°C`);
+    if (weather.humidityPct != null) parts.push(`Humidity: ${weather.humidityPct}%`);
+    if (weather.windSpeedMs != null) parts.push(`Wind speed: ${Math.round(weather.windSpeedMs * 3.6)} km/h`);
+    if (weather.rainfallMm24h != null) parts.push(`24h Rain: ${weather.rainfallMm24h} mm`);
+    if (parts.length > 0) {
+      weatherLine = `\n- Current ambient weather: ${parts.join(', ')}`;
+    }
+  }
+
+  return `You are an agricultural extension advisor for Maharashtra, India, writing advisories to the standard of TNAU Agritech and ICAR KVK crop protection guides.
+Your advice must be farmer-friendly, clear, and actionable in the field:
+- Give specific, practical causal organism and clear field symptoms that a farmer can easily identify on plants.
+- For chemical and biological remedies, always provide the exact product/fungicide name, exact concentration, and quantity per litre or hectare (e.g. "1g per litre of water"). Never write vague advice like "apply appropriate fungicide" or "use recommended dose".
+- For cultural, mechanical, and sanitation actions (such as field cleanup, crop rotation, seed spacing), set "product_name": "" and "dosage": "" (do not write "N/A" or "None").
+- Avoid overly academic botanical jargon. Keep instructions direct, encouraging, and easy for smallholder farmers to execute.
 
 Given:
 - Crop: ${crop || 'unknown'}
 - Confirmed diagnosis: ${diseaseCode} (confidence: ${confStr})
 - Severity: ${severity}
 - Growth stage: ${cropStage || 'vegetative'}
-- District: ${district || 'unknown'}
+- District: ${district || 'unknown'}${weatherLine}
 
 Return ONLY valid JSON (no markdown, no preamble) matching this schema:
 {
@@ -226,15 +365,15 @@ Order remedies: cultural, then physical, then biological, then chemical. Only in
 Reference style (red rot in sugarcane, for calibration only — do not reuse this content for unrelated diagnoses):
 {
   "pathogen_name": "Glomerella tucumanensis (syn. Colletotrichum falcatum)",
-  "symptoms": "Reddening of internal tissue with white patches, visible when cane is split lengthwise; sour smell; drying of leaves from top downward.",
+  "symptoms": "Reddening of internal stem tissue with white patches visible when cane is split lengthwise; sour alcohol smell; leaves dry up from top downward.",
   "remedies": [
-    {"type": "cultural", "action": "Use disease-free setts from a healthy field", "product_name": "N/A", "dosage": "N/A", "frequency": "At planting", "timing": "Before sett selection", "pre_harvest_interval_days": null, "safety_notes": "Rotate affected field with rice for 1 season, other crops for 2 seasons"},
+    {"type": "cultural", "action": "Use disease-free setts from a certified healthy nursery", "product_name": "", "dosage": "", "frequency": "At planting", "timing": "Before sett selection", "pre_harvest_interval_days": null, "safety_notes": "Rotate affected field with rice for 1 season, other crops for 2 seasons"},
     {"type": "physical", "action": "Soil drenching at base of affected clumps", "product_name": "Carbendazim 50 WP", "dosage": "1g per litre of water", "frequency": "Once at first sign of disease", "timing": "Early stage, before spread", "pre_harvest_interval_days": null, "safety_notes": "Remove and burn affected clumps first"},
     {"type": "chemical", "action": "Sett treatment before planting", "product_name": "Carbendazim 50 WP", "dosage": "0.5g per litre of water, with 2.5kg urea per 250 litres", "frequency": "Single pre-plant dip", "timing": "Dip setts 18 minutes at 52°C", "pre_harvest_interval_days": null, "safety_notes": "Ensure water temperature is controlled precisely; overheating damages setts"}
   ]
 }
 
-Match this density and specificity for the actual crop-disease pair given above.`;
+Match this density, farmer clarity, and specificity for the actual crop-disease pair given above.`;
 }
 
 /**
@@ -254,25 +393,27 @@ export function validateGeminiAdvisory(parsed, promptSeverity) {
   let remedies = Array.isArray(parsed.remedies) ? parsed.remedies : null;
   if (!remedies || remedies.length === 0) return { ok: false, reason: 'missing remedies' };
 
+  const cleanNA = (v) => (!v || /^(n\/?a|none|nil|-|not applicable)$/i.test(String(v).trim())) ? '' : String(v).trim();
+
   const normalized = [];
   for (const r of remedies) {
     if (!r || typeof r !== 'object') continue;
     const type = String(r.type || '').toLowerCase().trim();
     if (!REMEDY_TYPES.includes(type)) continue;
     if (promptSeverity === 'mild' && type === 'chemical') continue; // spec: no chemical on mild
-    const productName = String(r.product_name ?? r.productName ?? '').trim();
-    const dosage = String(r.dosage ?? '').trim();
-    const needsConcreteDosage = productName && !/^n\/?a$/i.test(productName);
-    if (needsConcreteDosage && !hasConcreteDosage(dosage)) {
-      return { ok: false, reason: `generic dosage for ${type}: "${dosage || '(empty)'}"` };
+    const rawProduct = String(r.product_name ?? r.productName ?? '').trim();
+    const rawDosage = String(r.dosage ?? '').trim();
+    const needsConcreteDosage = rawProduct && !/^n\/?a$/i.test(rawProduct);
+    if (needsConcreteDosage && !hasConcreteDosage(rawDosage)) {
+      return { ok: false, reason: `generic dosage for ${type}: "${rawDosage || '(empty)'}"` };
     }
     normalized.push({
       type,
       action: String(r.action ?? '').trim(),
-      productName,
-      dosage,
-      frequency: String(r.frequency ?? '').trim(),
-      timing: String(r.timing ?? '').trim(),
+      productName: cleanNA(rawProduct),
+      dosage: cleanNA(rawDosage),
+      frequency: cleanNA(r.frequency),
+      timing: cleanNA(r.timing),
       preHarvestIntervalDays: r.pre_harvest_interval_days ?? r.preHarvestIntervalDays ?? null,
       safetyNotes: String(r.safety_notes ?? r.safetyNotes ?? '').trim(),
     });
@@ -402,6 +543,7 @@ async function generateGeminiAdvisoryContent(diseaseCode, severity, cropStage, c
     severity: promptSeverity,
     cropStage,
     district: opts.district,
+    weather: opts.weather,
   });
   const prompts = [
     basePrompt,
@@ -473,7 +615,7 @@ async function generateGeminiAdvisoryContent(diseaseCode, severity, cropStage, c
  * Dual-write: new remedies[] (+ pathogen/symptoms/follow-up/escalation)
  * are stored alongside the legacy tier fields so old readers keep working.
  */
-async function persistAdvisory(caseId, diseaseCode, severity, cropStage, content, source) {
+async function persistAdvisory(caseId, diseaseCode, severity, cropStage, content, source, extra = {}) {
   // Check if advisory already exists for this case
   const existing = await Advisory.findOne({ caseId }).sort({ version: -1 });
   const version = existing ? existing.version + 1 : 1;
@@ -518,6 +660,9 @@ async function persistAdvisory(caseId, diseaseCode, severity, cropStage, content
   let escalationReason = null;
   let prevention = [];
 
+  const sprayWindow = extra.sprayWindow || content.sprayWindow || null;
+  const weatherContext = extra.weatherContext || content.weatherContext || null;
+
   if (Array.isArray(content.remedies)) {
     // Gemini (new) shape — derive legacy tiers so old clients keep working.
     // Physical has no legacy tier; it folds into cultural ("Cultural &
@@ -555,6 +700,12 @@ async function persistAdvisory(caseId, diseaseCode, severity, cropStage, content
     prevention = Array.isArray(content.prevention) ? content.prevention : [];
   }
 
+  if (sprayWindow || weatherContext) {
+    chemicalRecommendation = chemicalRecommendation || {};
+    if (sprayWindow) chemicalRecommendation.sprayWindow = sprayWindow;
+    if (weatherContext) chemicalRecommendation.weatherContext = weatherContext;
+  }
+
   const advisory = await Advisory.create({
     caseId,
     version,
@@ -564,6 +715,8 @@ async function persistAdvisory(caseId, diseaseCode, severity, cropStage, content
     ipmCulturalActions,
     ipmBiologicalActions,
     chemicalRecommendation,
+    sprayWindow,
+    weatherContext,
     prevention,
     summary,
     pathogenName,

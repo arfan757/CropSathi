@@ -23,6 +23,8 @@ export class AdvisoryDocument {
     this.ipmCulturalActions = row.ipm_cultural_actions || row.ipmCulturalActions || [];
     this.ipmBiologicalActions = row.ipm_biological_actions || row.ipmBiologicalActions || [];
     this.chemicalRecommendation = row.chemical_recommendation || row.chemicalRecommendation || null;
+    this.sprayWindow = row.spray_window || row.sprayWindow || this.chemicalRecommendation?.sprayWindow || null;
+    this.weatherContext = row.weather_context || row.weatherContext || this.chemicalRecommendation?.weatherContext || null;
     this.followUpDays = row.follow_up_days !== null && row.follow_up_days !== undefined ? Number(row.follow_up_days) : (row.followUpDays !== undefined ? row.followUpDays : null);
     this.escalateToCropsap = Boolean(row.escalate_to_cropsap ?? row.escalateToCropsap ?? false);
     this.escalationReason = row.escalation_reason || row.escalationReason || null;
@@ -43,6 +45,13 @@ export class AdvisoryDocument {
   }
 
   async save() {
+    let chemRec = this.chemicalRecommendation;
+    if (this.sprayWindow || this.weatherContext) {
+      chemRec = chemRec ? { ...chemRec } : {};
+      if (this.sprayWindow) chemRec.sprayWindow = this.sprayWindow;
+      if (this.weatherContext) chemRec.weatherContext = this.weatherContext;
+    }
+
     const record = {
       id: this._id,
       case_id: this.caseId,
@@ -56,7 +65,7 @@ export class AdvisoryDocument {
       remedies: this.remedies,
       ipm_cultural_actions: this.ipmCulturalActions,
       ipm_biological_actions: this.ipmBiologicalActions,
-      chemical_recommendation: this.chemicalRecommendation,
+      chemical_recommendation: chemRec,
       follow_up_days: this.followUpDays,
       escalate_to_cropsap: this.escalateToCropsap,
       escalation_reason: this.escalationReason,

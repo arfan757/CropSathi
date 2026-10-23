@@ -507,7 +507,7 @@ function openCaseDetail(caseId) {
 
     var nextStepsHtml = "";
     if (outcome === "confirmed" || outcome === "expert_review" || c.status === "report_ready") {
-      nextStepsHtml = '<button onclick="window.location.href=\'advisory.html?caseId=' + (c._id || c.id) + '\'" class="mt-5 w-full px-4 py-2.5 bg-forest-500 text-offwhite-50 font-heading text-xs font-semibold rounded-xl hover:bg-forest-600 transition-colors shadow-card flex items-center justify-center gap-2">View Field Advisory <i data-lucide="arrow-right" class="w-4 h-4"></i></button>';
+      nextStepsHtml = '<button onclick="window.location.href=\'advisory-detail.html?caseId=' + (c._id || c.id) + '\'" class="mt-5 w-full px-4 py-2.5 bg-forest-500 text-offwhite-50 font-heading text-xs font-semibold rounded-xl hover:bg-forest-600 transition-colors shadow-card flex items-center justify-center gap-2">View Full Field Advisory <i data-lucide="arrow-right" class="w-4 h-4"></i></button>';
     }
 
     var expertHtml = c.requiresExpertReview
