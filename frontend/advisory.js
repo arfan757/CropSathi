@@ -173,11 +173,11 @@ function renderAdvisoryCard(advisory) {
         ` : ''}
 
         <!-- Top-level Fast Action Bar -->
-        <div class="mt-4 pt-3 border-t border-[#e4e2e1]/80 flex flex-wrap items-center justify-between gap-2">
+        <div class="mt-4 pt-3 border-t border-[#e4e2e1]/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div class="flex items-center gap-2">
             ${sprayBadgeHtml || ''}
           </div>
-          <a href="advisory-detail.html?caseId=${c._id}" class="inline-flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-heading font-bold bg-[#006038] text-white hover:bg-[#1a7a4c] shadow-sm transition">
+          <a href="advisory-detail.html?caseId=${c._id}" class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-heading font-bold bg-[#006038] text-white hover:bg-[#1a7a4c] shadow-sm transition w-full sm:w-auto">
             <span>View Full Treatment Plan</span>
             <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
           </a>
