@@ -78,6 +78,9 @@ function showError() {
   document.getElementById('loading-state').classList.add('hidden');
   document.getElementById('error-state').classList.remove('hidden');
   document.getElementById('advisory-content').classList.add('hidden');
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons();
+  }
 }
 
 // ── Master render ───────────────────────────────────────────────────────────
