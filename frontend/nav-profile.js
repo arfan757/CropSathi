@@ -157,7 +157,7 @@
         ${langs.map(l => {
           const isActive = currentLang === l.code;
           return `
-            <button type="button" onclick="window.switchAppLanguage('${l.code}', event)" class="py-1 px-1 rounded-md text-xs font-heading font-semibold text-center transition-all ${
+            <button type="button" onclick="window.switchAppLanguage('${l.code}', event)" class="py-2.5 px-2 min-h-[44px] flex items-center justify-center rounded-md text-xs font-heading font-semibold text-center transition-all ${
               isActive
                 ? 'bg-forest-500 text-offwhite-50 shadow-sm'
                 : 'text-forest-600 hover:bg-offwhite-200 hover:text-forest-800'

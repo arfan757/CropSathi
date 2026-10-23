@@ -738,3 +738,11 @@ a {
     font-size: 16px;
   }
 }
+
+/* Avatar initial baseline alignment */
+#navAvatarInitial, #modalAvatarInitial, #userMenuPhoto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
