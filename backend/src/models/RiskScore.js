@@ -44,6 +44,16 @@ export class RiskScoreDocument {
     this.calibrationVersion = row.calibration_version || row.calibrationVersion || 'v1.0.0-literature_seed';
     this.calibrationStatus = row.calibration_status || row.calibrationStatus || 'literature_seed';
 
+    // Phase 3: Confidence Model & Metadata
+    this.confidence = row.confidence || 'low';
+    this.confidenceReasons = row.confidence_reasons || row.confidenceReasons || [];
+    this.cloudCoverPct = row.cloud_cover_pct !== null && row.cloud_cover_pct !== undefined
+      ? Number(row.cloud_cover_pct)
+      : (row.cloudCoverPct !== undefined ? Number(row.cloudCoverPct) : null);
+    this.sceneAgeDays = row.scene_age_days !== null && row.scene_age_days !== undefined
+      ? Number(row.scene_age_days)
+      : (row.sceneAgeDays !== undefined ? Number(row.sceneAgeDays) : null);
+
     // F-07: Top-level noVegetationDetected boolean
     this.noVegetationDetected = Boolean(
       row.no_vegetation_detected ??
@@ -94,6 +104,10 @@ export class RiskScoreDocument {
       stage_source: this.stageSource,
       calibration_version: this.calibrationVersion,
       calibration_status: this.calibrationStatus,
+      confidence: this.confidence,
+      confidence_reasons: this.confidenceReasons,
+      cloud_cover_pct: this.cloudCoverPct,
+      scene_age_days: this.sceneAgeDays,
       no_vegetation_detected: this.noVegetationDetected,
       scene_source: this.sceneSource,
       is_simulated: this.isSimulated,

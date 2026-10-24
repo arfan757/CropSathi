@@ -297,6 +297,87 @@ export function healthLevelForScore(score) {
 }
 
 /**
+ * Compute confidence ('high' | 'medium' | 'low') and confidence reasons
+ * according to Audit Section 7:
+ *   high   : sentinel-2, age < 7 d, cloud < 20%
+ *   medium : sentinel-2, age 7-14 d or cloud 20-40%
+ *   low    : simulated, or age > 14 d, or cloud > 40%, or any
+ *            uncalibrated-constant dependency flagged lowConfidence
+ *
+ * Ground Rule 4: Low confidence scores must NEVER trigger an alert or photo prompt.
+ * Phase 6: While calibrationStatus === 'literature_seed', confidence is capped at 'medium'.
+ */
+export function computeConfidence({
+  sceneSource = 'unknown',
+  sceneAgeDays = null,
+  cloudCoverPct = null,
+  calibrationStatus = CALIBRATION_STATUS,
+  isSimulated = false,
+  thermalConfidence = 'high',
+  validPixelCount = null,
+} = {}) {
+  const reasons = [];
+
+  if (isSimulated || sceneSource === 'simulated') {
+    reasons.push('simulated_data');
+    return { confidence: 'low', reasons };
+  }
+
+  if (sceneSource !== 'sentinel-2' && sceneSource !== 'landsat-8-9') {
+    reasons.push('unknown_satellite_source');
+    return { confidence: 'low', reasons };
+  }
+
+  // Scene age checks
+  if (sceneAgeDays === null || sceneAgeDays > 14) {
+    reasons.push(sceneAgeDays === null ? 'unknown_scene_age' : 'scene_age_gt_14d');
+  } else if (sceneAgeDays >= 7) {
+    reasons.push('scene_age_7_to_14d');
+  }
+
+  // Cloud cover checks
+  if (cloudCoverPct === null || cloudCoverPct > 40) {
+    reasons.push(cloudCoverPct === null ? 'unknown_cloud_cover' : 'cloud_gt_40pct');
+  } else if (cloudCoverPct >= 20) {
+    reasons.push('cloud_20_to_40pct');
+  }
+
+  // Valid pixel count check (F-17: fields with < 5 valid pixels)
+  if (validPixelCount !== null && validPixelCount < 5) {
+    reasons.push('insufficient_valid_pixels');
+  }
+
+  // Uncalibrated dependency or thermal resolution issues
+  if (thermalConfidence === 'low') {
+    reasons.push('low_thermal_resolution');
+  }
+
+  let confidence = 'high';
+  if (
+    reasons.includes('scene_age_gt_14d') ||
+    reasons.includes('cloud_gt_40pct') ||
+    reasons.includes('unknown_scene_age') ||
+    reasons.includes('unknown_cloud_cover') ||
+    reasons.includes('insufficient_valid_pixels')
+  ) {
+    confidence = 'low';
+  } else if (
+    reasons.includes('scene_age_7_to_14d') ||
+    reasons.includes('cloud_20_to_40pct')
+  ) {
+    confidence = 'medium';
+  }
+
+  // Capped at medium while thresholds are uncalibrated (literature_seed)
+  if (calibrationStatus === 'literature_seed' && confidence === 'high') {
+    confidence = 'medium';
+    reasons.push('literature_seed_calibration');
+  }
+
+  return { confidence, reasons };
+}
+
+/**
  * Check if a signal is stale (older than its staleness limit).
  */
 export function isStale(signalName, lastUpdated, now) {
@@ -703,6 +784,8 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
       score: null,
       level: null,
       triggeredAlert: false,
+      confidence: 'low',
+      confidenceReasons: staleSignals.length > 0 ? ['all_signals_stale'] : ['no_satellite_data'],
       reason: staleSignals.length > 0 ? 'all_signals_stale' : 'no_satellite_data',
       staleSignals,
       lowConfidence: true,
@@ -712,6 +795,8 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
       thermalConfidence: thermalResolutionConfidence,
       maxSignalGapDays: 0,
       noRecentSatelliteData: true,
+      cloudCoverPct: ndviReading?.cloudCoverPct ?? null,
+      sceneAgeDays: ndviResult.lastValidAge ?? null,
       calibrationVersion: CALIBRATION_VERSION,
       calibrationStatus: CALIBRATION_STATUS,
     };
@@ -733,7 +818,7 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
   const score = Math.max(0, Math.min(100, Math.round(weightedSum)));
   const level = healthLevelForScore(score);
 
-  // ── 12. Compute metadata ──
+  // ── 12. Compute metadata & confidence ──
   const signalDates = {
     ndvi: ndviReading?.observedAt || null,
     ndre: ndviReading?.observedAt || null, // same Sentinel-2 image
@@ -750,13 +835,37 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
     ? 'low'
     : thermalResult.confidence;
 
-  const lowConfidence = thermalConfidence === 'low' || baselines.source === 'default';
+  const ageDays = ndviReading?.observedAt
+    ? Math.max(0, Math.floor((now.getTime() - new Date(ndviReading.observedAt).getTime()) / (24 * 60 * 60 * 1000)))
+    : (ndviReading?.sceneAgeDays ?? null);
+
+  const confidenceResult = computeConfidence({
+    sceneSource: ndviReading?.sceneSource || 'unknown',
+    sceneAgeDays: ageDays,
+    cloudCoverPct: ndviReading?.cloudCoverPct ?? null,
+    calibrationStatus: CALIBRATION_STATUS,
+    isSimulated: ndviReading?.sceneSource === 'simulated',
+    thermalConfidence,
+    validPixelCount: ndviReading?.pixelCountPureCrop ?? null,
+  });
+
+  const confidence = confidenceResult.confidence;
+  const confidenceReasons = confidenceResult.reasons;
+
+  // Ground Rule 4: Low confidence scores must NEVER trigger an alert
+  const triggeredAlert = confidence === 'low'
+    ? false
+    : (level === HealthLevel.ELEVATED || level === HealthLevel.HIGH);
 
   // ── 13. Return result ──
   return {
     score,
     level,
-    triggeredAlert: level === HealthLevel.ELEVATED || level === HealthLevel.HIGH,
+    triggeredAlert,
+    confidence,
+    confidenceReasons,
+    cloudCoverPct: ndviReading?.cloudCoverPct ?? null,
+    sceneAgeDays: ageDays,
     weightsUsed: normalizedWeights,
     growthScenario: droughtContext ? 'drought' : (STAGE_TO_SCENARIO[effectiveStage] || 'balanced'),
     effectiveStage: effectiveStage || null,
@@ -765,7 +874,7 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
     maxSignalGapDays: Math.round(maxGapDays),
     baselineSource: baselines.source,
     thermalConfidence,
-    lowConfidence,
+    lowConfidence: confidence === 'low',
     noRecentSatelliteData: maxGapDays > MAX_STALENESS_DAYS,
     normalizedScores,
     signalDates,

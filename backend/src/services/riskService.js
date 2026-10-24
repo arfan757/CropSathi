@@ -169,7 +169,7 @@ export async function computeRiskScore(farmId) {
     weatherEval.weatherReading || null,
   );
 
-  // ── 4. Field validity & simulation overrides ──
+  // ── 4. Field validity, confidence & simulation overrides ──
   const sceneSource = ndviReading?.sceneSource || thermalReading?.sceneSource || 'unknown';
   const isSimulated = sceneSource === 'simulated' || ndviReading?.sceneSource === 'simulated';
 
@@ -184,8 +184,11 @@ export async function computeRiskScore(farmId) {
     vegetationResult.triggeredAlert = false;
   }
 
-  // Simulated data must NEVER trigger an alert (F-01/F-10, Ground Rule 4)
-  if (isSimulated) {
+  const confidence = vegetationResult.confidence || 'low';
+  const confidenceReasons = vegetationResult.confidenceReasons || [];
+
+  // Low confidence or simulated data must NEVER trigger an alert (Audit Section 7, Ground Rule 4)
+  if (isSimulated || confidence === 'low') {
     vegetationResult.triggeredAlert = false;
   }
 
@@ -228,6 +231,10 @@ export async function computeRiskScore(farmId) {
     compositeScore: vegetationResult.score,
     triggeredAlert: vegetationResult.triggeredAlert,
     healthLevel: vegetationResult.level,
+    confidence,
+    confidenceReasons,
+    cloudCoverPct: ndviReading?.cloudCoverPct ?? null,
+    sceneAgeDays: vegetationResult.sceneAgeDays ?? ndviReading?.sceneAgeDays ?? null,
     staleSignals: vegetationResult.staleSignals || [],
     thresholdUsed,
     sceneSource,
