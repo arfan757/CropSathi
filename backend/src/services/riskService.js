@@ -200,6 +200,7 @@ export async function computeRiskScore(farmId) {
   );
 
   // ── 6. Diagnostic: pest history (not in health score) ──
+  const pestHistoryStress = await computePestHistoryComponent(farm);
   // Component stress values (0-1 stress semantics; null when no vegetation detected: F-07, F-20)
   const ndviStress = vegetationDetected && vegetationResult.normalizedScores?.ndvi?.score != null
     ? Math.round((1 - vegetationResult.normalizedScores.ndvi.score / 100) * 1000) / 1000

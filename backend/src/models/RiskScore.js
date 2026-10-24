@@ -72,6 +72,18 @@ export class RiskScoreDocument {
     this.updatedAt = row.updated_at || row.updatedAt || new Date().toISOString();
   }
 
+  get score() {
+    return this.compositeScore;
+  }
+
+  get level() {
+    return this.healthLevel;
+  }
+
+  get hasData() {
+    return this.compositeScore !== null || this.noVegetationDetected;
+  }
+
   toObject() {
     return { ...this };
   }
@@ -81,7 +93,27 @@ export class RiskScoreDocument {
   }
 
   async save() {
-    const record = {
+    const inputsSnapshot = {
+      ...(this.inputsSnapshot || {}),
+      growthScenario: this.growthScenario,
+      cropStage: this.cropStage,
+      stageSource: this.stageSource,
+      calibrationVersion: this.calibrationVersion,
+      calibrationStatus: this.calibrationStatus,
+      confidence: this.confidence,
+      confidenceReasons: this.confidenceReasons,
+      cloudCoverPct: this.cloudCoverPct,
+      sceneAgeDays: this.sceneAgeDays,
+      noVegetationDetected: this.noVegetationDetected,
+      sceneSource: this.sceneSource,
+      isSimulated: this.isSimulated,
+      ndviStress: this.ndviStress,
+      ndreStress: this.ndreStress,
+      thermalStress: this.thermalStress,
+      weatherRiskHypothesis: this.weatherRiskHypothesis,
+    };
+
+    const fullRecord = {
       id: this._id,
       farm_id: this.farmId,
       computed_at: this.computedAt,
@@ -114,14 +146,46 @@ export class RiskScoreDocument {
       no_vegetation_detected: this.noVegetationDetected,
       scene_source: this.sceneSource,
       is_simulated: this.isSimulated,
-      inputs_snapshot: this.inputsSnapshot,
+      inputs_snapshot: inputsSnapshot,
     };
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('risk_scores')
-      .upsert(record, { onConflict: 'id' })
+      .upsert(fullRecord, { onConflict: 'id' })
       .select('*')
       .single();
+
+    if (error && error.message && error.message.includes('column of \'risk_scores\' in the schema cache')) {
+      const baseRecord = {
+        id: this._id,
+        farm_id: this.farmId,
+        computed_at: this.computedAt,
+        weather_component: this.weatherComponent,
+        ndvi_component: this.ndviComponent,
+        ndre_component: this.ndreComponent,
+        thermal_component: this.thermalComponent,
+        pest_history_component: this.pestHistoryComponent,
+        composite_score: this.compositeScore,
+        health_level: this.healthLevel,
+        stale_signals: this.staleSignals,
+        weights_used: this.weightsUsed,
+        triggered_alert: this.triggeredAlert,
+        disease_hypothesis: this.diseaseHypothesis,
+        matched_weather_rules: this.matchedWeatherRules,
+        threshold_used: this.thresholdUsed,
+        inputs_snapshot: inputsSnapshot,
+      };
+
+      const retryRes = await supabase
+        .from('risk_scores')
+        .upsert(baseRecord, { onConflict: 'id' })
+        .select('*')
+        .single();
+
+      if (retryRes.error) throw new Error(retryRes.error.message);
+      data = retryRes.data;
+      error = null;
+    }
 
     if (error) throw new Error(error.message);
     return new RiskScoreDocument(data);
