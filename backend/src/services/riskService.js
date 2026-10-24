@@ -274,15 +274,22 @@ export async function computeRiskScore(farmId) {
   // Update farm timestamps
   await Field.findByIdAndUpdate(farmId, { lastRiskScoreAt: new Date() });
 
-  // Create notification when triggeredAlert is true (NEVER for simulated data)
-  if (vegetationResult.triggeredAlert && !isSimulated && farm.userId) {
+  // Create notification when triggeredAlert is true (NEVER for simulated or low-confidence data: Ground Rule 4)
+  if (vegetationResult.triggeredAlert && !isSimulated && confidence !== 'low' && farm.userId) {
     try {
-      await createNotification(farm.userId, 'weather_alert', {
+      const diseaseName = weatherEval.weatherRiskHypothesis || weatherEval.diseaseHypothesis;
+      const customBody = diseaseName
+        ? `Weather conditions favorable for ${diseaseName.replace(/_/g, ' ')}. Take a photo to confirm.`
+        : 'Weather conditions favorable for crop stress. Take a photo to confirm.';
+
+      await createNotification(farm.userId, 'weather_disease_risk', {
         farmId: farm._id,
+        title: 'Weather Risk Advisory',
+        body: customBody,
         deepLink: `/dashboard?farm=${farmId}`,
       });
     } catch (err) {
-      console.warn('Failed to create weather_alert notification:', err.message);
+      console.warn('Failed to create weather_disease_risk notification:', err.message);
     }
   }
 

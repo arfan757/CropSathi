@@ -600,7 +600,7 @@ export function computeSpatialHotspot(ndviGrid, ndreGrid = null, thermalGrid = n
     }
   }
 
-  const message = 'Localized anomaly detected — pattern consistent with root/vascular stress — recommend inspection.';
+  const message = 'Localized low-vigor patch detected. Inspect the field for the cause (disease, waterlogging, compaction, or nutrient deficiency).';
 
   return {
     isHeterogeneous: true,

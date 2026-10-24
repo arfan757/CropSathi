@@ -35,6 +35,7 @@ export const createField = async (req, res) => {
     const {
       name,
       cropType,
+      variety,
       sowingDate,
       polygon,
       boundary,
@@ -46,6 +47,7 @@ export const createField = async (req, res) => {
     // field does not silently score as 'vegetative' forever. Empty string
     // (form "Auto" option) counts as "not provided".
     let { cropStage } = req.body;
+    let stageSource = cropStage ? 'user' : 'inferred';
     if (!cropStage && cropType && sowingDate) {
       cropStage = inferCropStage(cropType, sowingDate) || undefined;
     }
@@ -70,7 +72,9 @@ export const createField = async (req, res) => {
       userId,
       name,
       cropType,
+      variety: variety || null,
       cropStage,
+      stageSource,
       sowingDate,
       polygon,
       boundary,
@@ -193,7 +197,9 @@ export const updateField = async (req, res) => {
     const allowedFields = [
       'name',
       'cropType',
+      'variety',
       'cropStage',
+      'stageSource',
       'sowingDate',
       'polygon',
       'boundary',
@@ -213,11 +219,14 @@ export const updateField = async (req, res) => {
     // Empty-string stage (form "Auto") means "re-infer", not "store ''".
     if (updates.cropStage === '') delete updates.cropStage;
 
-    if (updates.cropStage !== undefined && !isValidCropStage(updates.cropStage)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid cropStage. Must be one of: sowing, vegetative, flowering, fruiting, maturity, harvested.',
-      });
+    if (updates.cropStage !== undefined) {
+      if (!isValidCropStage(updates.cropStage)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid cropStage. Must be one of: sowing, vegetative, flowering, fruiting, maturity, harvested.',
+        });
+      }
+      updates.stageSource = 'user';
     }
 
     // Sowing date or crop changed without an explicit stage: re-infer so the
@@ -232,7 +241,10 @@ export const updateField = async (req, res) => {
         const effectiveCrop = updates.cropType ?? current.cropType;
         const effectiveSowing = updates.sowingDate ?? current.sowingDate;
         const inferred = inferCropStage(effectiveCrop, effectiveSowing);
-        if (inferred) updates.cropStage = inferred;
+        if (inferred) {
+          updates.cropStage = inferred;
+          updates.stageSource = 'inferred';
+        }
       }
     }
 

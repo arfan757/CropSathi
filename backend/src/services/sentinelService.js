@@ -104,6 +104,51 @@ export async function fetchSentinelNdvi(farm, options = {}) {
 }
 
 /**
+ * Apply an inner buffer (about -10 m) to field polygon coordinates (F-17).
+ * Prevents mixed-pixel edge contamination from neighboring plots/roads/structures.
+ *
+ * @param {Array<[number, number]>} coords - [[lng, lat], ...]
+ * @param {number} bufferMeters - Negative buffer distance in meters (default -10m)
+ * @returns {Array<[number, number]>} Buffered coordinates
+ */
+export function applyInnerBuffer(coords, bufferMeters = -10) {
+  if (!coords || coords.length < 3) return coords;
+
+  // Approximate centroid
+  const cLng = coords.reduce((sum, p) => sum + p[0], 0) / coords.length;
+  const cLat = coords.reduce((sum, p) => sum + p[1], 0) / coords.length;
+
+  const latRad = (cLat * Math.PI) / 180;
+  const metersPerDegLat = 111320;
+  const metersPerDegLng = 111320 * Math.cos(latRad);
+
+  const buffered = coords.map(([lng, lat]) => {
+    const dEast = (lng - cLng) * metersPerDegLng;
+    const dNorth = (lat - cLat) * metersPerDegLat;
+    const dist = Math.sqrt(dEast * dEast + dNorth * dNorth);
+
+    // If vertex is already very close to center, keep minimal scaling (at least 50%)
+    if (dist <= Math.abs(bufferMeters)) {
+      return [cLng + (lng - cLng) * 0.5, cLat + (lat - cLat) * 0.5];
+    }
+
+    const scale = (dist + bufferMeters) / dist; // bufferMeters is negative
+    return [cLng + (lng - cLng) * scale, cLat + (lat - cLat) * scale];
+  });
+
+  // Ensure closed ring
+  if (buffered.length > 0) {
+    const first = buffered[0];
+    const last = buffered[buffered.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      buffered.push([first[0], first[1]]);
+    }
+  }
+
+  return buffered;
+}
+
+/**
  * Single attempt at fetching Sentinel-2 NDVI. Throws on API error or
  * returns a simulated fallback if all pixels are cloud-masked.
  */
@@ -114,6 +159,33 @@ async function fetchSentinelNdviOnce(farm, { startDate, endDate, maxCloudCover }
   if (!bbox) throw new Error('Farm has no boundary geometry for satellite query');
 
   const token = await getToken();
+
+  // Extract polygon coordinates if available (F-17)
+  let polygonCoords = null;
+  if (farm.boundary?.coordinates?.[0]?.length >= 3) {
+    polygonCoords = farm.boundary.coordinates[0];
+  } else if (Array.isArray(farm.polygon) && farm.polygon.length >= 3) {
+    polygonCoords = farm.polygon.map(p => Array.isArray(p) ? p : [p.lng, p.lat]);
+  }
+
+  let boundsGeometry = null;
+  if (polygonCoords) {
+    const bufferedCoords = applyInnerBuffer(polygonCoords, -10);
+    boundsGeometry = {
+      type: 'Polygon',
+      coordinates: [bufferedCoords],
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RESOLUTION DOCUMENTATION (F-17):
+  // Native Sentinel-2 spatial resolutions:
+  //   - B04 (Red): 10 m
+  //   - B08 (NIR): 10 m
+  //   - B05 (RedEdge 1): 20 m native resolution, resampled to 10 m by Sentinel Hub.
+  // NDVI is calculated from 10m native bands (B08, B04).
+  // NDRE uses B05 which is 20m native resampled to 10m.
+  // ══════════════════════════════════════════════════════════════════════════
 
   // Request NDVI, NDRE, and an explicit dataMask band (5 bands total).
   // Uses multi-temporal ORBIT mosaicking with Scene Classification Layer (SCL)
@@ -145,12 +217,19 @@ function evaluatePixel(samples) {
   return [0, 0, 0, 0, 0];
 }`;
 
-  const request = {
-    input: {
-      bounds: {
+  const boundsObj = boundsGeometry
+    ? {
+        geometry: boundsGeometry,
+        properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' },
+      }
+    : {
         bbox: [bbox.west, bbox.south, bbox.east, bbox.north],
         properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' },
-      },
+      };
+
+  const request = {
+    input: {
+      bounds: boundsObj,
       data: [{
         type: 'sentinel-2-l2a',
         dataFilter: {
@@ -232,7 +311,7 @@ function evaluatePixel(samples) {
     const sceneAgeDays = observedAt
       ? Math.floor((Date.now() - new Date(observedAt).getTime()) / (24 * 60 * 60 * 1000))
       : null;
-    const isStale = observedAt === null || (sceneAgeDays !== null && sceneAgeDays > 10);
+    const isSufficientPixels = validPixelCount >= 5;
 
     return {
       ndviGrid,
@@ -244,10 +323,13 @@ function evaluatePixel(samples) {
         source: 'sentinel-2',
         sceneAgeDays,
         isStale,
+        validPixelCount,
+        lowConfidence: !isSufficientPixels,
       },
       observedAt,
       sceneAgeDays,
       isStale,
+      pixelCountPureCrop: validPixelCount,
     };
   } catch (error) {
     // Re-throw so the outer retry loop can try a wider window or fall back

@@ -33,7 +33,9 @@ export class RiskScoreDocument {
     this.staleSignals = row.stale_signals || row.staleSignals || [];
     this.weightsUsed = row.weights_used || row.weightsUsed || null;
     this.triggeredAlert = Boolean(row.triggered_alert ?? row.triggeredAlert ?? false);
-    this.diseaseHypothesis = row.disease_hypothesis || row.diseaseHypothesis || null;
+    // F-04: weatherRiskHypothesis rename with diseaseHypothesis read-compat shim
+    this.weatherRiskHypothesis = row.weather_risk_hypothesis || row.weatherRiskHypothesis || row.disease_hypothesis || row.diseaseHypothesis || null;
+    this.diseaseHypothesis = this.weatherRiskHypothesis;
     this.matchedWeatherRules = row.matched_weather_rules || row.matchedWeatherRules || [];
 
     // F-14: Persisted threshold and scoring metadata
@@ -96,6 +98,7 @@ export class RiskScoreDocument {
       stale_signals: this.staleSignals,
       weights_used: this.weightsUsed,
       triggered_alert: this.triggeredAlert,
+      weather_risk_hypothesis: this.weatherRiskHypothesis,
       disease_hypothesis: this.diseaseHypothesis,
       matched_weather_rules: this.matchedWeatherRules,
       threshold_used: this.thresholdUsed,

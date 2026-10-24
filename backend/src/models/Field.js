@@ -37,7 +37,9 @@ export class FieldDocument {
     this.userId = row.user_id || row.userId;
     this.name = row.name;
     this.cropType = row.crop_type || row.cropType;
+    this.variety = row.variety || null;
     this.cropStage = row.crop_stage || row.cropStage;
+    this.stageSource = row.stage_source || row.stageSource || (row.crop_stage || row.cropStage ? 'user' : 'inferred');
     this.sowingDate = row.sowing_date || row.sowingDate;
     this.polygon = row.polygon || [];
     this.boundary = row.boundary || buildBoundary(this.polygon);
@@ -92,7 +94,9 @@ export class FieldDocument {
       user_id: this.userId,
       name: this.name,
       crop_type: this.cropType,
+      variety: this.variety,
       crop_stage: this.cropStage,
+      stage_source: this.stageSource,
       sowing_date: this.sowingDate,
       polygon: this.polygon,
       boundary: boundaryWkt,
