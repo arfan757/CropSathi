@@ -47,14 +47,14 @@ export class RiskScoreDocument {
     this.calibrationStatus = row.calibration_status || row.calibrationStatus || 'literature_seed';
 
     // Phase 3: Confidence Model & Metadata
-    this.confidence = row.confidence || 'low';
-    this.confidenceReasons = row.confidence_reasons || row.confidenceReasons || [];
+    this.confidence = row.confidence || row.inputs_snapshot?.confidence || 'low';
+    this.confidenceReasons = row.confidence_reasons || row.confidenceReasons || row.inputs_snapshot?.confidenceReasons || [];
     this.cloudCoverPct = row.cloud_cover_pct !== null && row.cloud_cover_pct !== undefined
       ? Number(row.cloud_cover_pct)
-      : (row.cloudCoverPct !== undefined ? Number(row.cloudCoverPct) : null);
+      : (row.cloudCoverPct !== undefined ? Number(row.cloudCoverPct) : (row.inputs_snapshot?.cloudCoverPct ?? row.inputsSnapshot?.cloudCoverPct ?? null));
     this.sceneAgeDays = row.scene_age_days !== null && row.scene_age_days !== undefined
       ? Number(row.scene_age_days)
-      : (row.sceneAgeDays !== undefined ? Number(row.sceneAgeDays) : null);
+      : (row.sceneAgeDays !== undefined ? Number(row.sceneAgeDays) : (row.inputs_snapshot?.sceneAgeDays ?? row.inputsSnapshot?.sceneAgeDays ?? null));
 
     // F-07: Top-level noVegetationDetected boolean
     this.noVegetationDetected = Boolean(
@@ -65,8 +65,8 @@ export class RiskScoreDocument {
       false
     );
 
-    this.sceneSource = row.scene_source || row.sceneSource || 'unknown';
-    this.isSimulated = Boolean(row.is_simulated ?? row.isSimulated ?? false);
+    this.sceneSource = row.scene_source || row.sceneSource || row.inputs_snapshot?.sceneSource || row.inputs_snapshot?.dataSources?.ndvi || 'unknown';
+    this.isSimulated = Boolean(row.is_simulated ?? row.isSimulated ?? row.inputs_snapshot?.isSimulated ?? false);
     this.inputsSnapshot = row.inputs_snapshot || row.inputsSnapshot || null;
     this.createdAt = row.created_at || row.createdAt || new Date().toISOString();
     this.updatedAt = row.updated_at || row.updatedAt || new Date().toISOString();

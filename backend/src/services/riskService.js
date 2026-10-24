@@ -1,6 +1,7 @@
 import RiskScore from '../models/RiskScore.js';
 import Field from '../models/Field.js';
 import DiagnosisCase from '../models/DiagnosisCase.js';
+import { createNotification } from './notificationService.js';
 import { evaluateWeatherForFarm } from './weatherService.js';
 import { fetchNdviForFarm, isVegetationDetected, computeSpatialHotspot } from './ndviService.js';
 import { computeThermalReading, resolveDistrictFarmIds, getLatestThermalGrid } from './thermalService.js';
@@ -217,60 +218,70 @@ export async function computeRiskScore(farmId) {
   // Actual alert threshold (F-14)
   const thresholdUsed = getAlertThreshold(farm.cropType, weatherEval.diseaseHypothesis);
 
-  // ── 7. Save ──
-  const riskScore = await RiskScore.create({
-    farmId,
-    computedAt: new Date(),
-    weatherComponent: Math.round((weatherEval.score || 0) * 1000) / 1000,
-    ndviStress,
-    ndreStress,
-    thermalStress,
-    ndviComponent: ndviStress,
-    ndreComponent: ndreStress,
-    thermalComponent: thermalStress,
-    pestHistoryComponent: Math.round(pestHistoryStress * 1000) / 1000,
-    compositeScore: vegetationResult.score,
-    triggeredAlert: vegetationResult.triggeredAlert,
-    healthLevel: vegetationResult.level,
-    confidence,
-    confidenceReasons,
-    cloudCoverPct: ndviReading?.cloudCoverPct ?? null,
-    sceneAgeDays: vegetationResult.sceneAgeDays ?? ndviReading?.sceneAgeDays ?? null,
-    staleSignals: vegetationResult.staleSignals || [],
-    thresholdUsed,
-    sceneSource,
-    isSimulated,
-    growthScenario: vegetationResult.growthScenario || 'balanced',
-    cropStage: farm.cropStage || vegetationResult.effectiveStage || null,
-    stageSource: vegetationResult.stageSource || 'default',
-    calibrationVersion: vegetationResult.calibrationVersion || CALIBRATION_VERSION,
-    calibrationStatus: vegetationResult.calibrationStatus || CALIBRATION_STATUS,
-    noVegetationDetected: !vegetationDetected,
-    diseaseHypothesis: weatherEval.diseaseHypothesis,
-    matchedWeatherRules: weatherEval.matchedRules || [],
-    weightsUsed: vegetationResult.weightsUsed,
-    inputsSnapshot: {
-      weatherReadingId: weatherEval.weatherReading?._id,
-      ndviReadingId: ndviReading?._id,
-      thermalReadingId: thermalReading?._id,
-      weights: vegetationResult.weightsUsed,
-      cropType: farm.cropType,
-      cropStage: farm.cropStage,
-      source: 'vegetationHealth',
-      dataSources: {
-        ndvi: ndviReading?.sceneSource || 'unknown',
-        thermal: thermalReading?.sceneSource || 'unknown',
-      },
-      groundTruthVerified: ndviReading?.sceneSource === 'sentinel-2' || thermalReading?.sceneSource === 'landsat-8-9',
+    const finalSceneAgeDays = ndviReading?.observedAt
+      ? Math.floor((Date.now() - new Date(ndviReading.observedAt).getTime()) / (24 * 60 * 60 * 1000))
+      : (vegetationResult.sceneAgeDays ?? ndviReading?.sceneAgeDays ?? null);
+
+    // ── 7. Save ──
+    const riskScore = await RiskScore.create({
+      farmId,
+      computedAt: new Date(),
+      weatherComponent: Math.round((weatherEval.score || 0) * 1000) / 1000,
+      ndviStress,
+      ndreStress,
+      thermalStress,
+      ndviComponent: ndviStress,
+      ndreComponent: ndreStress,
+      thermalComponent: thermalStress,
+      pestHistoryComponent: Math.round(pestHistoryStress * 1000) / 1000,
+      compositeScore: vegetationResult.score,
+      triggeredAlert: vegetationResult.triggeredAlert,
+      healthLevel: vegetationResult.level,
+      confidence,
+      confidenceReasons,
+      cloudCoverPct: ndviReading?.cloudCoverPct ?? null,
+      sceneAgeDays: finalSceneAgeDays,
+      staleSignals: vegetationResult.staleSignals || [],
+      thresholdUsed,
+      sceneSource,
+      isSimulated,
+      growthScenario: vegetationResult.growthScenario || 'balanced',
+      cropStage: farm.cropStage || vegetationResult.effectiveStage || null,
+      stageSource: vegetationResult.stageSource || 'default',
+      calibrationVersion: vegetationResult.calibrationVersion || CALIBRATION_VERSION,
+      calibrationStatus: vegetationResult.calibrationStatus || CALIBRATION_STATUS,
       noVegetationDetected: !vegetationDetected,
-      spatialAnomaly,
-      growthScenario: vegetationResult.growthScenario,
-      effectiveStage: vegetationResult.effectiveStage || null,
-      stageSource: vegetationResult.stageSource || null,
-      baselineSource: vegetationResult.baselineSource,
-      thermalConfidence: vegetationResult.thermalConfidence,
-    },
-  });
+      diseaseHypothesis: weatherEval.diseaseHypothesis,
+      matchedWeatherRules: weatherEval.matchedRules || [],
+      weightsUsed: vegetationResult.weightsUsed,
+      inputsSnapshot: {
+        weatherReadingId: weatherEval.weatherReading?._id,
+        ndviReadingId: ndviReading?._id,
+        thermalReadingId: thermalReading?._id,
+        weights: vegetationResult.weightsUsed,
+        cropType: farm.cropType,
+        cropStage: farm.cropStage,
+        source: 'vegetationHealth',
+        sceneSource,
+        sceneAgeDays: finalSceneAgeDays,
+        cloudCoverPct: ndviReading?.cloudCoverPct ?? null,
+        isSimulated,
+        confidence,
+        confidenceReasons,
+        dataSources: {
+          ndvi: ndviReading?.sceneSource || 'unknown',
+          thermal: thermalReading?.sceneSource || 'unknown',
+        },
+        groundTruthVerified: ndviReading?.sceneSource === 'sentinel-2' || thermalReading?.sceneSource === 'landsat-8-9',
+        noVegetationDetected: !vegetationDetected,
+        spatialAnomaly,
+        growthScenario: vegetationResult.growthScenario,
+        effectiveStage: vegetationResult.effectiveStage || null,
+        stageSource: vegetationResult.stageSource || null,
+        baselineSource: vegetationResult.baselineSource,
+        thermalConfidence: vegetationResult.thermalConfidence,
+      },
+    });
 
   // Update farm timestamps
   await Field.findByIdAndUpdate(farmId, { lastRiskScoreAt: new Date() });

@@ -69,29 +69,39 @@ export async function searchSentinel2Scenes(bbox, startDate, endDate, options = 
     `OData.CSC.Intersects(area=geography'SRID=4326;POLYGON((${bbox.west} ${bbox.south},${bbox.east} ${bbox.south},${bbox.east} ${bbox.north},${bbox.west} ${bbox.north},${bbox.west} ${bbox.south}))')`,
     `ContentDate/Start gt ${formatDate(startDate)}T00:00:00.000Z`,
     `ContentDate/Start lt ${formatDate(endDate)}T23:59:59.999Z`,
-    `Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType' and att/OData.CSC.StringAttribute/Value eq 'S2MSI2A')`,
-    `Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq 'cloudCover' and att/OData.CSC.DoubleAttribute/Value lt ${maxCloudCover})`,
   ].join(' and ');
 
   const { data } = await axios.get(`${ODATA_BASE}/Products`, {
     params: {
       $filter: filter,
-      $orderby: 'Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq \'cloudCover\' and att/OData.CSC.DoubleAttribute/Value) asc',
-      $top: maxResults,
+      $orderby: 'ContentDate/Start desc',
+      $top: 20,
       $expand: 'Attributes',
     },
     timeout: 30_000,
   });
 
-  return (data.value || []).map(scene => ({
+  const allScenes = (data.value || []).map(scene => ({
     id: scene.Id,
     name: scene.Name,
     cloudCover: extractAttribute(scene.Attributes, 'cloudCover'),
     orbitNumber: extractAttribute(scene.Attributes, 'orbitNumber'),
     beginPosition: scene.ContentDate?.Start,
     endPosition: scene.ContentDate?.End,
-    productType: extractAttribute(scene.Attributes, 'productType'),
+    productType: extractAttribute(scene.Attributes, 'productType') || (scene.Name?.includes('_MSIL2A_') ? 'S2MSI2A' : 'S2MSI1C'),
   }));
+
+  const l2aFiltered = allScenes.filter(s => {
+    if (s.productType && s.productType !== 'S2MSI2A') return false;
+    if (s.cloudCover != null && s.cloudCover > maxCloudCover) return false;
+    return true;
+  });
+
+  if (l2aFiltered.length > 0) {
+    return l2aFiltered.slice(0, maxResults);
+  }
+
+  return allScenes.slice(0, maxResults);
 }
 
 /**
@@ -107,26 +117,28 @@ export async function searchLandsatScenes(bbox, startDate, endDate, options = {}
     `OData.CSC.Intersects(area=geography'SRID=4326;POLYGON((${bbox.west} ${bbox.south},${bbox.east} ${bbox.south},${bbox.east} ${bbox.north},${bbox.west} ${bbox.north},${bbox.west} ${bbox.south}))')`,
     `ContentDate/Start gt ${formatDate(startDate)}T00:00:00.000Z`,
     `ContentDate/Start lt ${formatDate(endDate)}T23:59:59.999Z`,
-    `Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq 'cloudCover' and att/OData.CSC.DoubleAttribute/Value lt ${maxCloudCover})`,
   ].join(' and ');
 
   const { data } = await axios.get(`${ODATA_BASE}/Products`, {
     params: {
       $filter: filter,
-      $orderby: 'Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq \'cloudCover\' and att/OData.CSC.DoubleAttribute/Value) asc',
-      $top: maxResults,
+      $orderby: 'ContentDate/Start desc',
+      $top: 20,
       $expand: 'Attributes',
     },
     timeout: 30_000,
   });
 
-  return (data.value || []).map(scene => ({
+  const scenes = (data.value || []).map(scene => ({
     id: scene.Id,
     name: scene.Name,
     cloudCover: extractAttribute(scene.Attributes, 'cloudCover'),
     beginPosition: scene.ContentDate?.Start,
     endPosition: scene.ContentDate?.End,
   }));
+
+  const filtered = scenes.filter(s => s.cloudCover == null || s.cloudCover <= maxCloudCover);
+  return (filtered.length > 0 ? filtered : scenes).slice(0, maxResults);
 }
 
 /**

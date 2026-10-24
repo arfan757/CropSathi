@@ -207,6 +207,8 @@ Field.findOne = function (query = {}) {
     const id = query._id || query.id;
     if (id) q = q.eq('id', id);
 
+    if (query.name) q = q.eq('name', query.name);
+
     const uid = query.userId || query.user_id;
     if (uid) q = q.eq('user_id', uid);
 

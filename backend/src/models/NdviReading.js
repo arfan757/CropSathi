@@ -54,11 +54,22 @@ export class NdviReadingDocument {
       scene_age_days: this.sceneAgeDays,
     };
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('ndvi_readings')
       .upsert(record, { onConflict: 'id' })
       .select('*')
       .single();
+
+    if (error && error.message && error.message.includes("column of 'ndvi_readings' in the schema cache")) {
+      delete record.scene_age_days;
+      const retry = await supabase
+        .from('ndvi_readings')
+        .upsert(record, { onConflict: 'id' })
+        .select('*')
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) throw new Error(error.message);
     return new NdviReadingDocument(data);

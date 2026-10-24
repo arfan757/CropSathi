@@ -263,11 +263,10 @@ describe('Phase 1: Data Integrity & Ground Rules', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // TC-13: observedAt unresolvable -> treated as stale, never "today"
-  // ─────────────────────────────────────────────────────────────────────────
   describe('TC-13: observedAt unresolvable', () => {
     it('resolveSentinelAcquisitionDate returns null when search fails (never today)', async () => {
-      const bbox = { west: 73.1, south: 19.0, east: 73.2, north: 19.1 };
+      // Use out-of-bounds coordinates where no satellite scene can ever exist
+      const bbox = { west: 190.0, south: 89.0, east: 191.0, north: 90.0 };
       const startDate = new Date('2026-08-01');
       const endDate = new Date('2026-10-24');
 

@@ -169,20 +169,25 @@ export function formatFieldHealthScore(score) {
   const isSim = Boolean(score.is_simulated ?? score.isSimulated ?? false);
   const conf = score.confidence || 'low';
 
+  const snapshot = score.inputs_snapshot || score.inputsSnapshot || {};
+  const sceneSource = score.scene_source || score.sceneSource || snapshot.sceneSource || snapshot.dataSources?.ndvi || 'unknown';
+  const sceneAgeDays = score.scene_age_days !== null && score.scene_age_days !== undefined
+    ? Number(score.scene_age_days)
+    : (score.sceneAgeDays !== undefined ? score.sceneAgeDays : (snapshot.sceneAgeDays ?? null));
+  const cloudCoverPct = score.cloud_cover_pct !== null && score.cloud_cover_pct !== undefined
+    ? Number(score.cloud_cover_pct)
+    : (score.cloudCoverPct !== undefined ? score.cloudCoverPct : (snapshot.cloudCoverPct ?? null));
+
   return {
     hasData: compScore !== null || noVeg,
     compositeScore: compScore,
     healthLevel: score.health_level || score.healthLevel || null,
     confidence: conf,
     confidenceReasons: score.confidence_reasons || score.confidenceReasons || [],
-    sceneSource: score.scene_source || score.sceneSource || 'unknown',
-    isSimulated: isSim,
-    sceneAgeDays: score.scene_age_days !== null && score.scene_age_days !== undefined
-      ? Number(score.scene_age_days)
-      : (score.sceneAgeDays ?? null),
-    cloudCoverPct: score.cloud_cover_pct !== null && score.cloud_cover_pct !== undefined
-      ? Number(score.cloud_cover_pct)
-      : (score.cloudCoverPct ?? null),
+    sceneSource,
+    isSimulated: isSim || Boolean(snapshot.isSimulated),
+    sceneAgeDays,
+    cloudCoverPct,
     noVegetationDetected: noVeg,
     triggeredAlert: Boolean(score.triggered_alert ?? score.triggeredAlert ?? false),
     weatherRiskHypothesis: score.weather_risk_hypothesis || score.disease_hypothesis || null,

@@ -190,6 +190,24 @@ DiagnosisCase.find = function (query = {}) {
   });
 };
 
+DiagnosisCase.countDocuments = async function (query = {}) {
+  try {
+    let q = supabase.from('diagnosis_cases').select('*', { count: 'exact', head: true });
+    const fid = query.farmId || query.farm_id;
+    if (fid) q = q.eq('farm_id', fid);
+    const uid = query.userId || query.user_id;
+    if (uid) q = q.eq('user_id', uid);
+    if (query.createdAt?.$gte) {
+      q = q.gte('created_at', query.createdAt.$gte.toISOString ? query.createdAt.$gte.toISOString() : query.createdAt.$gte);
+    }
+    const { count, error } = await q;
+    if (error) return 0;
+    return count || 0;
+  } catch {
+    return 0;
+  }
+};
+
 DiagnosisCase.create = async function (fields) {
   const doc = new DiagnosisCaseDocument(fields);
   return doc.save();

@@ -311,6 +311,7 @@ function evaluatePixel(samples) {
     const sceneAgeDays = observedAt
       ? Math.floor((Date.now() - new Date(observedAt).getTime()) / (24 * 60 * 60 * 1000))
       : null;
+    const isStale = sceneAgeDays != null ? sceneAgeDays > 14 : true;
     const isSufficientPixels = validPixelCount >= 5;
 
     return {
