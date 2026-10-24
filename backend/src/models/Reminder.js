@@ -134,6 +134,28 @@ Reminder.findById = function (id) {
   return Reminder.findOne({ _id: id });
 };
 
+Reminder.findByIdAndUpdate = async function (id, updates, options = {}) {
+  const existing = await Reminder.findById(id);
+  if (!existing) return null;
+
+  const patch = {};
+  if (updates.status !== undefined) patch.status = updates.status;
+  if (updates.remindAt !== undefined) patch.remind_at = updates.remindAt;
+  if (updates.snoozedUntil !== undefined) patch.snoozed_until = updates.snoozedUntil;
+  if (updates.completedAt !== undefined) patch.completed_at = updates.completedAt;
+  if (updates.reminderCount !== undefined) patch.reminder_count = updates.reminderCount;
+
+  const { data, error } = await supabase
+    .from('reminders')
+    .update(patch)
+    .eq('id', existing._id)
+    .select('*')
+    .maybeSingle();
+
+  if (error || !data) return existing;
+  return new ReminderDocument(data);
+};
+
 Reminder.create = async function (fields) {
   const doc = new ReminderDocument(fields);
   return doc.save();
