@@ -113,14 +113,29 @@ export class FieldDocument {
       last_photo_prompt_at: this.lastPhotoPromptAt,
     };
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('fields')
       .upsert(record, { onConflict: 'id' })
       .select('*')
       .single();
 
+    if (error && error.message && error.message.includes("column of 'fields' in the schema cache")) {
+      delete record.stage_source;
+      delete record.variety;
+      const retry = await supabase
+        .from('fields')
+        .upsert(record, { onConflict: 'id' })
+        .select('*')
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) throw new Error(error.message);
-    return new FieldDocument(data);
+    const doc = new FieldDocument(data);
+    doc.variety = this.variety;
+    doc.stageSource = this.stageSource;
+    return doc;
   }
 }
 
