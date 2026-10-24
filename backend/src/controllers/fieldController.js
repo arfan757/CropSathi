@@ -167,9 +167,9 @@ export function formatFieldHealthScore(score) {
     ? Number(score.composite_score)
     : (score.compositeScore !== undefined ? Number(score.compositeScore) : null);
   const isSim = Boolean(score.is_simulated ?? score.isSimulated ?? false);
-  const conf = score.confidence || 'low';
-
   const snapshot = score.inputs_snapshot || score.inputsSnapshot || {};
+  const conf = score.confidence || score.confidenceLevel || snapshot.confidence || 'low';
+  const confReasons = score.confidence_reasons || score.confidenceReasons || snapshot.confidenceReasons || [];
   const sceneSource = score.scene_source || score.sceneSource || snapshot.sceneSource || snapshot.dataSources?.ndvi || 'unknown';
   const sceneAgeDays = score.scene_age_days !== null && score.scene_age_days !== undefined
     ? Number(score.scene_age_days)
@@ -183,7 +183,7 @@ export function formatFieldHealthScore(score) {
     compositeScore: compScore,
     healthLevel: score.health_level || score.healthLevel || null,
     confidence: conf,
-    confidenceReasons: score.confidence_reasons || score.confidenceReasons || [],
+    confidenceReasons: confReasons,
     sceneSource,
     isSimulated: isSim || Boolean(snapshot.isSimulated),
     sceneAgeDays,
