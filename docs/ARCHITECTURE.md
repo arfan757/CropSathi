@@ -53,16 +53,27 @@ Farmer captures a photo (when prompted) → the Android app screens it offline w
 | CROPSAP | Official reporting | Confirmed cases reach scout teams / field experts; framework already active in Maharashtra |
 | PMKSK / Krishi Seva Kendra | Regulated input sourcing | Informational routing — nearest regulated retail, fixed prices, no dealer-commission bias |
 
-## 4. Design Principle: False-Alarm Control
+## 4. Design Principles: Scientific Rigor & False-Alarm Control
 
-Satellite and weather signals alone are **never** sufficient to declare a disease. They only ever trigger a photo request from the farmer — the image diagnosis is the confirmation gate. Healthy tissue despite an elevated risk score is logged as a false alarm and recalibrates the risk-fusion thresholds, rather than reaching the farmer as an alarm. See `PRD.md` Part 2 for the full flow.
+1. **Environmental Suitability vs. Diagnosis (`weatherRiskHypothesis`):**
+   Satellite and weather signals alone are **never** presented as disease diagnoses. Weather and spectral rules evaluate environmental favorability (`weatherRiskHypothesis`), presented as: *"Weather conditions favorable for <disease>. Take a photo to confirm."* Disease names and pathogen findings are generated exclusively after leaf photo confirmation.
+2. **Deterministic Simulation Policy:**
+   Simulation is strictly gated on the environment variable `ALLOW_SIMULATION === 'true'`. When enabled, simulation uses a deterministic PRNG seeded with `farmId + date` (no random jitter). Simulated readings have `sceneSource = 'simulated'` and `isSimulated = true`, and are strictly prohibited from triggering alerts or photo prompts. When credentials and flags are absent, the API returns `{ hasData: false, data: null }` rather than fabricated scores.
+3. **Multi-Tier Confidence Model:**
+   Every risk calculation evaluates data recency, satellite provenance, and cloud cover:
+   - **High:** Sentinel-2 optical data, scene age < 7 days, cloud cover < 20%, empirically calibrated.
+   - **Medium:** Sentinel-2 optical data, scene age 7–14 days, or cloud cover 20–40%, or capped while `calibrationStatus = 'literature_seed'`.
+   - **Low:** Simulated data, scene age > 14 days, cloud cover > 40%, valid pixel count < 5, or uncalibrated dependency.
+   *Low-confidence scores never fire alerts (`triggeredAlert = false`).*
+4. **Calibration Status Scaffolding:**
+   The scoring engine tracks `calibrationVersion` and `calibrationStatus` (`literature_seed` | `calibrated`). While in `literature_seed` status, score confidence is capped at `medium` and the UI alerts users that literature-seed thresholds are active.
 
-## 5. Honest Caveats (say these out loud to judges, don't let them get asked)
+## 5. Remote Sensing Caveats & Physics Constraints
 
-- **Satellite thermal resolution/revisit**: Sentinel-2 has no thermal band. Landsat (30m resampled, 16-day/8-day combined revisit) and MODIS (1km, daily) are the only thermal sources, and MODIS is far too coarse for a 1–2 hectare smallholder plot. Thermal therefore contributes more at **district level** within the fusion score than at individual-farm level.
-- **Cloud cover**: Maharashtra's monsoon — exactly when fungal/bacterial disease risk peaks — blocks optical/thermal satellite passes for stretches at a time. Satellite signals lag; they are a complement to weather-risk and photo confirmation, not a replacement.
-- **NDVI/NDRE lag**: vegetation indices react to chlorophyll/structural change, which happens *after* the very first stomatal closure a true ground thermal sensor would catch. NDRE narrows this gap versus plain NDVI but doesn't close it.
-- **Mixed pixels**: very small/fragmented plots (<0.1 ha) may have few pure-crop Sentinel-2 pixels (10–20m); works best aggregated or with farmer-drawn field boundaries.
+- **NDRE Resolution (Band 5):** Sentinel-2 Band 5 (705 nm, red edge) has a **20 m native spatial resolution**, which Copernicus Sentinel Hub resamples to 10 m to match B04/B08. Users must recognize that NDRE represents a 20 m spatial footprint.
+- **Satellite Thermal Resolution/Revisit:** Sentinel-2 has no thermal band. Landsat 8/9 Thermal Infrared Sensor (TIRS) provides 100 m native data resampled to 30 m with an 8–16 day revisit. Formula-estimated canopy temperatures (derived without true thermal bands) do not contribute to the score and are redistributed proportionally to prevent circular weather reasoning.
+- **Cloud Cover:** Monsoon cloud cover frequently obscures optical passes. Scenes with cloud cover > 40% or older than 14 days drop to low confidence, preventing false alert triggers.
+- **Mixed Pixels & Small Fields:** Fields smaller than 1 hectare (< 100 optical pixels) carry edge contamination risk. The backend applies an inner buffer (-10 m) to field boundaries, and the UI displays a *"Small field (<1 ha): mixed-pixel risk"* indicator.
 
 ## 6. Testing Deployment (Vercel)
 

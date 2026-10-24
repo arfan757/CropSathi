@@ -31,27 +31,33 @@ export function isVegetationDetected(ndvi, ndre, sceneSource) {
 ```
 
 **Thresholds:**
-- `NO_VEGETATION_NDVI = 0.15`
-- `NO_VEGETATION_NDRE = 0.2`
+- `NO_VEGETATION_NDVI = 0.20` (confirmed against `ndviService.js` and `vegetationHealth.js`)
+- `NO_VEGETATION_NDRE = 0.20`
 
 **Key Design:**
 - **Only applies to real satellite data** (Sentinel-2, Landsat-8/9)
 - Simulated NDVI is generated FROM crop assumptions, not real pixels, so it can never detect misdrawn boundaries
-- Mature/harvested crops can legitimately read very low in simulated data (wheat at maturity: base ~0.35, can drop to 0.05 with anomaly injection)
+- Mature/harvested crops can legitimately read very low in simulated data
 - Requires **BOTH** indices to independently agree before declaring no vegetation
 - Prevents false positives on just-planted fields (bare soil at sowing stage)
 - Returns `true` when data is missing or simulated (insufficient evidence to invalidate)
 
 ### 2. Backend - Risk Score Override (riskService.js)
 
-**Location:** Lines 424-444 (after fusion, before save)
+**Location:** In `riskService.js` / `vegetationHealth.js` (per F-07 and F-20):
 
 ```javascript
 const vegetationDetected = isVegetationDetected(ndviReading?.ndvi, ndviReading?.ndre, ndviReading?.sceneSource);
 if (!vegetationDetected) {
-  fusionResult.score = 0;
-  fusionResult.level = HealthLevel.HIGH;
-  fusionResult.triggeredAlert = false;  // boundary problem, not disease
+  // Ground Rule 3 & F-07: Never fabricate a fake score or level for missing crops.
+  // Setting score = 0 and level = HIGH would falsely alert farmers to disease.
+  fusionResult.score = null;
+  fusionResult.level = null;
+  fusionResult.ndviStress = null;
+  fusionResult.ndreStress = null;
+  fusionResult.thermalStress = null;
+  fusionResult.triggeredAlert = false;
+  fusionResult.noVegetationDetected = true;
 }
 ```
 
