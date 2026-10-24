@@ -111,8 +111,16 @@ export function evaluateWeatherRules(weatherReading, cropType, farmCropStage = n
   const cropRules = rules.rules[cropKey] || [];
   const defaults = rules.defaultThresholds;
 
-  if (!weatherReading) {
-    return { score: 0.5, severity: 'medium', matchedRules: [], diseaseHypothesis: null, cropStage: farmCropStage };
+  if (!weatherReading || !farmCropStage) {
+    return {
+      score: 0,
+      severity: 'low',
+      matchedRules: [],
+      weatherRiskHypothesis: null,
+      diseaseHypothesis: null,
+      reason: 'no_weather_data',
+      cropStage: farmCropStage || null,
+    };
   }
 
   const { humidityPct, temperatureC, rainfallMm24h, windSpeedMs, soilTempC } = weatherReading;
@@ -196,6 +204,7 @@ export function evaluateWeatherRules(weatherReading, cropType, farmCropStage = n
     score: Math.min(score, 1),
     severity,
     matchedRules,
+    weatherRiskHypothesis: diseaseHypothesis,
     diseaseHypothesis,
     cropStage: farmCropStage,
   };
@@ -209,8 +218,21 @@ export async function evaluateWeatherForFarm(farmId) {
   const latest = readings[0] || null;
 
   const farm = await Field.findById(farmId).lean();
-  const cropType = farm?.cropType || 'Other';
-  const cropStage = farm?.cropStage || 'vegetative';
+  if (!latest || !farm?.cropStage) {
+    return {
+      weatherReading: latest,
+      score: 0,
+      severity: 'low',
+      matchedRules: [],
+      weatherRiskHypothesis: null,
+      diseaseHypothesis: null,
+      reason: 'no_weather_data',
+      cropStage: farm?.cropStage || null,
+    };
+  }
+
+  const cropType = farm.cropType || 'Other';
+  const cropStage = farm.cropStage;
 
   const evaluation = evaluateWeatherRules(latest, cropType, cropStage);
 

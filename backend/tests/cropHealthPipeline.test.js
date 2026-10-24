@@ -24,9 +24,11 @@ import {
   estimateCanopyTemp,
 } from '../src/services/thermalService.js';
 import {
-  computeFusedHealthScore,
   HealthLevel,
 } from '../src/services/riskService.js';
+import {
+  computeVegetationHealthScore,
+} from '../src/services/vegetationHealth.js';
 
 describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
 
@@ -239,77 +241,64 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
   // ══════════════════════════════════════════════════════════════════
 
   describe('End-to-End Pipeline Cases (12 - 13)', () => {
-    it('Case 12: Recreate original failing rooftop field (NDVI=-0.04, NDRE=-0.04, cropType=null) → compositeScore is concerning (<75), NOT 100', () => {
-      const ndviStress = 0.76;
-      const ndreStress = 0.60;
-      const weatherStress = 0.2;
-      const thermalStress = 0.0;
-      const pestHistoryStress = 0.0;
+    it('Case 12: Recreate original failing rooftop field (NDVI=-0.04, NDRE=-0.04, cropType=null) → compositeScore is concerning (<75), NOT 100', async () => {
+      const origNdviFindOne = NdviReading.findOne;
+      const origThermalFindOne = ThermalReading.findOne;
+      NdviReading.findOne = () => ({
+        sort: () => ({
+          lean: async () => ({
+            ndvi: -0.04,
+            ndre: -0.04,
+            cloudCoverPct: 0,
+            observedAt: new Date(),
+          }),
+        }),
+      });
+      ThermalReading.findOne = () => ({
+        sort: () => ({
+          lean: async () => null,
+        }),
+      });
 
-      const fusionResult = computeFusedHealthScore(
-        {
-          weather: weatherStress,
-          ndvi: ndviStress,
-          ndre: ndreStress,
-          thermal: thermalStress,
-          pestHistory: pestHistoryStress,
-        },
-        {},
-        null,
-        new Date(),
-        null,
-      );
-
-      assert.ok(
-        fusionResult.score < 75,
-        `Expected compositeScore to be significantly depressed (<75), got ${fusionResult.score}`
-      );
-      assert.notEqual(fusionResult.score, 100, 'Original bug reproduced: rooftop must NOT score 100');
-      assert.ok(
-        fusionResult.componentStress.ndvi >= 0.75,
-        `NDVI component must accurately capture bare surface severity (>=0.75), got ${fusionResult.componentStress.ndvi}`
-      );
+      try {
+        const farm = { _id: 'dummyRooftop', cropType: null, cropStage: null, areaInHectares: 0.1 };
+        const result = await computeVegetationHealthScore(farm, null, new Date());
+        assert.ok(result.score < 75, `Expected score < 75, got ${result.score}`);
+        assert.notEqual(result.score, 100, 'Original bug reproduced: rooftop must NOT score 100');
+      } finally {
+        NdviReading.findOne = origNdviFindOne;
+        ThermalReading.findOne = origThermalFindOne;
+      }
     });
 
-    it('Case 13: Same field with valid cropType="cotton", vegetative stage → score is at least as concerning as Case 12', () => {
-      const ndviStressWithCrop = 1.0;
-      const ndreStressWithCrop = 0.60;
-      const weatherStress = 0.2;
-      const thermalStress = 0.0;
-      const pestHistoryStress = 0.0;
+    it('Case 13: Same field with valid cropType="cotton", vegetative stage → score is concerning and alert fires', async () => {
+      const origNdviFindOne = NdviReading.findOne;
+      const origThermalFindOne = ThermalReading.findOne;
+      NdviReading.findOne = () => ({
+        sort: () => ({
+          lean: async () => ({
+            ndvi: -0.04,
+            ndre: -0.04,
+            cloudCoverPct: 0,
+            observedAt: new Date(),
+          }),
+        }),
+      });
+      ThermalReading.findOne = () => ({
+        sort: () => ({
+          lean: async () => null,
+        }),
+      });
 
-      const fusionResultWithCrop = computeFusedHealthScore(
-        {
-          weather: weatherStress,
-          ndvi: ndviStressWithCrop,
-          ndre: ndreStressWithCrop,
-          thermal: thermalStress,
-          pestHistory: pestHistoryStress,
-        },
-        {},
-        'vegetative',
-        new Date(),
-        'cotton',
-      );
-
-      const fusionResultNoCrop = computeFusedHealthScore(
-        {
-          weather: weatherStress,
-          ndvi: 0.76,
-          ndre: 0.60,
-          thermal: thermalStress,
-          pestHistory: pestHistoryStress,
-        },
-        {},
-        null,
-        new Date(),
-        null,
-      );
-
-      assert.ok(
-        fusionResultWithCrop.score <= fusionResultNoCrop.score,
-        `Score with cropType (${fusionResultWithCrop.score}) must be <= score without cropType (${fusionResultNoCrop.score})`
-      );
+      try {
+        const farm = { _id: 'dummyCotton', cropType: 'Cotton', cropStage: 'vegetative', areaInHectares: 1.0 };
+        const result = await computeVegetationHealthScore(farm, null, new Date());
+        assert.ok(result.score < 40, `Expected score < 40, got ${result.score}`);
+        assert.equal(result.triggeredAlert, true, 'Vegetative crop with rooftop-like NDVI/NDRE must trigger alert');
+      } finally {
+        NdviReading.findOne = origNdviFindOne;
+        ThermalReading.findOne = origThermalFindOne;
+      }
     });
   });
 });

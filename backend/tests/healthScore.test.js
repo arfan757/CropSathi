@@ -5,27 +5,62 @@
  * Uses Node's built-in test runner (node:test + node:assert).
  * Run: node --test backend/tests/healthScore.test.js
  *
- * Tests the 3-signal fusion logic (ndvi + ndre + thermal) from riskService.js.
- * These are small, fast unit tests with no I/O, no network, no database.
+ * Ported from deprecated computeFusedHealthScore to computeVegetationHealthScore
+ * in accordance with F-09.
  */
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  computeFusedHealthScore,
   healthLevelForScore,
   shouldPromptForPhoto,
   isStale,
-  getCropWeights,
   getAlertThreshold,
   recalibrateThreshold,
   HealthLevel,
 } from '../src/services/riskService.js';
 
+import {
+  computeVegetationHealthScore,
+} from '../src/services/vegetationHealth.js';
+
+import NdviReading from '../src/models/NdviReading.js';
+import ThermalReading from '../src/models/ThermalReading.js';
+import CropBaseline from '../src/models/CropBaseline.js';
+
 // ─── Helper: create a reference date ──────────────────────────────────────
 const NOW = new Date('2026-08-20T12:00:00Z');
 const daysAgo = (n) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
+
+// Helper to mock readings for computeVegetationHealthScore
+function mockMongooseReadings({ ndviDoc = null, thermalDoc = null, baselineDoc = null } = {}) {
+  const origNdviFindOne = NdviReading.findOne;
+  const origThermalFindOne = ThermalReading.findOne;
+  const origBaselineFindOne = CropBaseline.findOne;
+
+  NdviReading.findOne = () => ({
+    sort: () => ({
+      lean: async () => ndviDoc,
+    }),
+  });
+
+  ThermalReading.findOne = () => ({
+    sort: () => ({
+      lean: async () => thermalDoc,
+    }),
+  });
+
+  CropBaseline.findOne = () => ({
+    lean: async () => baselineDoc,
+  });
+
+  return () => {
+    NdviReading.findOne = origNdviFindOne;
+    ThermalReading.findOne = origThermalFindOne;
+    CropBaseline.findOne = origBaselineFindOne;
+  };
+}
 
 // ─── Test Suite ───────────────────────────────────────────────────────────
 
@@ -100,7 +135,7 @@ describe('isStale', () => {
     assert.equal(isStale('thermal', daysAgo(21), NOW), true);
   });
 
-  it('returns false at exact boundary (1 day = not stale for ndvi)', () => {
+  it('returns false at exact boundary (10 days = not stale for ndvi)', () => {
     assert.equal(isStale('ndvi', daysAgo(10), NOW), false);
   });
 
@@ -110,261 +145,264 @@ describe('isStale', () => {
   });
 });
 
-describe('getCropWeights', () => {
-  it('returns balanced weights', () => {
-    const w = getCropWeights('unknown');
-    assert.equal(w.ndvi, 0.40);
-    assert.equal(w.ndre, 0.40);
-    assert.equal(w.thermal, 0.20);
+describe('computeVegetationHealthScore — 3-signal fusion (F-09)', () => {
+  const baseFarm = {
+    _id: 'farm123',
+    cropType: 'Cotton',
+    cropStage: 'flowering',
+    areaInHectares: 2.0,
+  };
+
+  it('returns high health (>85, HEALTHY) when all signals are optimal', async () => {
+    const restore = mockMongooseReadings({
+      ndviDoc: {
+        ndvi: 0.80,
+        ndre: 0.70,
+        cloudCoverPct: 5,
+        observedAt: daysAgo(2),
+      },
+      thermalDoc: {
+        sceneSource: 'landsat-8-9',
+        estimatedCanopyTempC: 28,
+        cloudCoverPct: 5,
+        observedAt: daysAgo(3),
+      },
+    });
+
+    try {
+      const weather = { temperatureC: 30, humidityPct: 60 };
+      const result = await computeVegetationHealthScore(baseFarm, weather, NOW);
+
+      assert.ok(result.score >= 85, `Expected score >= 85, got ${result.score}`);
+      assert.equal(result.level, HealthLevel.HEALTHY);
+      assert.equal(result.triggeredAlert, false);
+      assert.equal(result.staleSignals.length, 0);
+    } finally {
+      restore();
+    }
   });
 
-  it('weights always sum to 1.0', () => {
-    const w = getCropWeights('default');
-    const sum = w.ndvi + w.ndre + w.thermal;
-    assert.ok(Math.abs(sum - 1.0) < 0.001, `Weights sum to ${sum}, expected 1.0`);
+  it('returns lowest possible score for max stress on all signals', async () => {
+    const restore = mockMongooseReadings({
+      ndviDoc: {
+        ndvi: 0.0, // baseline min -> 0 score
+        ndre: -0.1, // baseline min -> 0 score
+        cloudCoverPct: 5,
+        observedAt: daysAgo(2),
+      },
+      thermalDoc: {
+        sceneSource: 'landsat-8-9',
+        estimatedCanopyTempC: 45, // very hot canopy -> high CWSI -> 0 score
+        cloudCoverPct: 5,
+        observedAt: daysAgo(3),
+      },
+    });
+
+    try {
+      const weather = { temperatureC: 30, humidityPct: 60 };
+      const result = await computeVegetationHealthScore(baseFarm, weather, NOW);
+
+      assert.ok(result.score <= 5, `Expected score <= 5, got ${result.score}`);
+      assert.equal(result.level, HealthLevel.HIGH);
+      assert.equal(result.triggeredAlert, true);
+    } finally {
+      restore();
+    }
+  });
+
+  it('no single signal can push score below 60 alone (false-alarm gate)', async () => {
+    // Only NDVI is stressed (0.20), NDRE and Thermal are optimal
+    const restore = mockMongooseReadings({
+      ndviDoc: {
+        ndvi: 0.20, // 0 score
+        ndre: 0.75, // 100 score
+        cloudCoverPct: 5,
+        observedAt: daysAgo(2),
+      },
+      thermalDoc: {
+        sceneSource: 'landsat-8-9',
+        estimatedCanopyTempC: 28, // healthy
+        cloudCoverPct: 5,
+        observedAt: daysAgo(3),
+      },
+    });
+
+    try {
+      const weather = { temperatureC: 30, humidityPct: 60 };
+      const result = await computeVegetationHealthScore(baseFarm, weather, NOW);
+
+      assert.ok(result.score >= 60, `Score ${result.score} should be >= 60 (WATCH)`);
+      assert.equal(result.level, HealthLevel.WATCH);
+      assert.equal(result.triggeredAlert, false);
+    } finally {
+      restore();
+    }
+  });
+
+  it('requires at least two signals to corroborate for elevated/high alert', async () => {
+    // NDVI and NDRE both stressed
+    const restore = mockMongooseReadings({
+      ndviDoc: {
+        ndvi: 0.20, // 0 score
+        ndre: 0.15, // 0 score
+        cloudCoverPct: 5,
+        observedAt: daysAgo(2),
+      },
+      thermalDoc: {
+        sceneSource: 'landsat-8-9',
+        estimatedCanopyTempC: 28, // optimal thermal (~100 score, weight 0.25)
+        cloudCoverPct: 5,
+        observedAt: daysAgo(3),
+      },
+    });
+
+    try {
+      const weather = { temperatureC: 30, humidityPct: 60 };
+      const result = await computeVegetationHealthScore(baseFarm, weather, NOW);
+
+      assert.ok(result.score < 40, `Expected score < 40, got ${result.score}`);
+      assert.equal(result.level, HealthLevel.HIGH);
+      assert.equal(result.triggeredAlert, true);
+    } finally {
+      restore();
+    }
   });
 });
 
-describe('computeFusedHealthScore — 3-signal fusion', () => {
-  it('returns 100 (perfectly healthy) when all stress is 0', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0, ndre: 0, thermal: 0 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.equal(result.score, 100);
-    assert.equal(result.level, HealthLevel.HEALTHY);
+describe('computeVegetationHealthScore — staleness redistribution (TC-07 / TC-07b)', () => {
+  const baseFarm = {
+    _id: 'farm123',
+    cropType: 'Cotton',
+    cropStage: 'flowering',
+    areaInHectares: 2.0,
+  };
+
+  it('TC-07: drops stale ndvi/ndre; fresh real Landsat carries 100% of the weight', async () => {
+    const restore = mockMongooseReadings({
+      ndviDoc: {
+        ndvi: 0.20,
+        ndre: 0.15,
+        cloudCoverPct: 5,
+        observedAt: daysAgo(14), // stale (>10d)
+      },
+      thermalDoc: {
+        sceneSource: 'landsat-8-9',
+        estimatedCanopyTempC: 24, // fresh real Landsat, well-watered (CWSI=0)
+        cloudCoverPct: 5,
+        observedAt: daysAgo(3),
+      },
+    });
+
+    try {
+      const weather = { temperatureC: 30, humidityPct: 60 };
+      const result = await computeVegetationHealthScore(baseFarm, weather, NOW);
+
+      assert.ok(result.staleSignals.includes('ndvi'));
+      assert.ok(result.staleSignals.includes('ndre'));
+      assert.equal(result.weightsUsed.thermal, 1.0);
+      assert.equal(result.weightsUsed.ndvi, 0);
+      assert.equal(result.weightsUsed.ndre, 0);
+      assert.ok(result.score >= 80, `Expected score >= 80, got ${result.score}`);
+    } finally {
+      restore();
+    }
+  });
+
+  it('TC-07b: drops formula-estimated thermal from contributing to score', async () => {
+    const restore = mockMongooseReadings({
+      ndviDoc: {
+        ndvi: 0.20,
+        ndre: 0.15,
+        cloudCoverPct: 5,
+        observedAt: daysAgo(14), // stale
+      },
+      thermalDoc: {
+        sceneSource: 'formula', // formula-estimated, not real Landsat
+        estimatedCanopyTempC: 28,
+        observedAt: daysAgo(3),
+      },
+    });
+
+    try {
+      const weather = { temperatureC: 30, humidityPct: 60 };
+      const result = await computeVegetationHealthScore(baseFarm, weather, NOW);
+
+      assert.equal(result.score, null);
+      assert.equal(result.triggeredAlert, false);
+      assert.equal(result.reason, 'all_signals_stale');
+    } finally {
+      restore();
+    }
+  });
+
+  it('TC-01: returns null score when all signals are stale', async () => {
+    const restore = mockMongooseReadings({
+      ndviDoc: {
+        ndvi: 0.80,
+        ndre: 0.70,
+        cloudCoverPct: 5,
+        observedAt: daysAgo(14), // stale
+      },
+      thermalDoc: {
+        sceneSource: 'landsat-8-9',
+        estimatedCanopyTempC: 28,
+        cloudCoverPct: 5,
+        observedAt: daysAgo(25), // stale (>20d)
+      },
+    });
+
+    try {
+      const weather = { temperatureC: 30, humidityPct: 60 };
+      const result = await computeVegetationHealthScore(baseFarm, weather, NOW);
+
+      assert.equal(result.score, null);
+      assert.equal(result.level, null);
+      assert.equal(result.triggeredAlert, false);
+      assert.equal(result.reason, 'all_signals_stale');
+    } finally {
+      restore();
+    }
+  });
+
+  it('TC-08: harvested stage returns null score and false alert', async () => {
+    const harvestedFarm = { ...baseFarm, cropStage: 'harvested' };
+    const result = await computeVegetationHealthScore(harvestedFarm, null, NOW);
+
+    assert.equal(result.score, null);
+    assert.equal(result.level, null);
     assert.equal(result.triggeredAlert, false);
+    assert.equal(result.reason, 'harvested');
   });
 
-  it('returns lowest possible score for max stress on all signals', () => {
-    // All 3 components at max stress (1.0) with balanced weights:
-    //   weighted = 0.40*1 + 0.40*1 + 0.20*1 = 1.0
-    //   health = 100 * (1 - 1.0) = 0
-    const result = computeFusedHealthScore(
-      { ndvi: 1, ndre: 1, thermal: 1 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.equal(result.score, 0);
-    assert.equal(result.level, HealthLevel.HIGH);
-    assert.equal(result.triggeredAlert, true);
-  });
+  it('TC-09: drought conditions set growthScenario drought and thermal weight 0.40', async () => {
+    const restore = mockMongooseReadings({
+      ndviDoc: {
+        ndvi: 0.70,
+        ndre: 0.60,
+        cloudCoverPct: 5,
+        observedAt: daysAgo(2),
+      },
+      thermalDoc: {
+        sceneSource: 'landsat-8-9',
+        estimatedCanopyTempC: 32,
+        cloudCoverPct: 5,
+        observedAt: daysAgo(2),
+      },
+    });
 
-  it('computes correct weighted average for uniform stress', () => {
-    // All 3 at 0.5 stress with balanced weights:
-    // weighted = 0.40*0.5 + 0.40*0.5 + 0.20*0.5 = 0.5
-    // health = 100 * (1 - 0.5) = 50
-    const result = computeFusedHealthScore(
-      { ndvi: 0.5, ndre: 0.5, thermal: 0.5 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.equal(result.score, 50);
-    assert.equal(result.level, HealthLevel.ELEVATED);
-  });
+    try {
+      const droughtWeather = { temperatureC: 38, rainfallMm24h: 0.5, humidityPct: 30 };
+      const result = await computeVegetationHealthScore(baseFarm, droughtWeather, NOW);
 
-  it('uses balanced weights by default', () => {
-    // ndvi alone at max stress: 0.40 * 1.0 = 0.40 → health = 60
-    const result = computeFusedHealthScore(
-      { ndvi: 1.0, ndre: 0, thermal: 0 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.equal(result.score, 60);
-    assert.equal(result.level, HealthLevel.WATCH);
-  });
-
-  it('no single signal can push score below 60 alone (false-alarm gate)', () => {
-    // Max single weight is 0.40 (balanced). At max stress (1.0):
-    // weighted_stress = 0.40 * 1.0 = 0.40 → health = 60 → WATCH
-    const result = computeFusedHealthScore(
-      { ndvi: 1.0, ndre: 0, thermal: 0 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.ok(result.score >= 60, `Score ${result.score} should be >= 60 (WATCH)`);
-    assert.equal(result.level, HealthLevel.WATCH);
-    assert.equal(result.triggeredAlert, false);
-  });
-
-  it('requires at least two signals to corroborate for elevated/high', () => {
-    // ndvi (0.40) + ndre (0.40) both at stress 0.8:
-    // weighted = 0.40*0.8 + 0.40*0.8 = 0.64 → health = 36 → HIGH
-    // Two signals at high stress can push past ELEVATED into HIGH
-    const result = computeFusedHealthScore(
-      { ndvi: 0.8, ndre: 0.8, thermal: 0 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.equal(result.score, 36);
-    assert.equal(result.level, HealthLevel.HIGH);
-    assert.equal(result.triggeredAlert, true);
+      assert.equal(result.growthScenario, 'drought');
+      assert.equal(result.weightsUsed.thermal, 0.40);
+    } finally {
+      restore();
+    }
   });
 });
 
-describe('computeFusedHealthScore — staleness redistribution', () => {
-  it('drops stale ndvi/ndre and redistributes weight to thermal', () => {
-    // ndvi and ndre stale (14d > 10d limit)
-    // Fresh: thermal(0.20) only → normalized: thermal=1.0
-    const result = computeFusedHealthScore(
-      { ndvi: 0.9, ndre: 0.9, thermal: 0.2 },
-      { ndvi: daysAgo(14), ndre: daysAgo(14), thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.ok(result.staleSignals.includes('ndvi'));
-    assert.ok(result.staleSignals.includes('ndre'));
-    // thermal carries 100% of weight: stress = 0.2 → health = 80
-    assert.equal(result.score, 80);
-  });
-
-  it('drops stale thermal and redistributes weight to ndvi/ndre', () => {
-    // thermal stale (25d > 20d limit)
-    // Fresh: ndvi(0.40) + ndre(0.40) = 0.80
-    // normalized: ndvi=0.5, ndre=0.5
-    const result = computeFusedHealthScore(
-      { ndvi: 0.3, ndre: 0.3, thermal: 0.9 },
-      { ndvi: NOW, ndre: NOW, thermal: daysAgo(25) },
-      null,
-      NOW,
-    );
-    assert.ok(result.staleSignals.includes('thermal'));
-    // weighted_stress = 0.5*0.3 + 0.5*0.3 = 0.3 → health = 70
-    assert.equal(result.score, 70);
-  });
-
-  it('falls back to neutral score when all signals are stale', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0.9, ndre: 0.9, thermal: 0.7 },
-      { ndvi: daysAgo(14), ndre: daysAgo(14), thermal: daysAgo(25) },
-      null,
-      NOW,
-    );
-    assert.ok(result.staleSignals.includes('ndvi'));
-    assert.ok(result.staleSignals.includes('ndre'));
-    assert.ok(result.staleSignals.includes('thermal'));
-    assert.equal(result.score, 50);
-    assert.equal(result.level, HealthLevel.WATCH);
-  });
-});
-
-describe('computeFusedHealthScore — component stress tracking', () => {
-  it('reports effective stress per component', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0.8, ndre: 0.4, thermal: 0.3 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.equal(result.componentStress.ndvi, 0.8);
-    assert.equal(result.componentStress.ndre, 0.4);
-    assert.equal(result.componentStress.thermal, 0.3);
-  });
-
-  it('reports normalized weights used', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0, ndre: 0, thermal: 0 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    const sum = Object.values(result.weightsUsed).reduce((a, b) => a + b, 0);
-    assert.ok(Math.abs(sum - 1.0) < 0.001, `Weights sum to ${sum}`);
-  });
-});
-
-describe('computeFusedHealthScore — edge cases', () => {
-  it('clamps score to 100 at zero stress', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0, ndre: 0, thermal: 0 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.equal(result.score, 100);
-  });
-
-  it('handles missing stress components as 0', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0.5 }, // only ndvi provided
-      { ndvi: NOW },
-      null,
-      NOW,
-    );
-    // Missing components default to 0 stress
-    // weighted_stress = 0.40*0.5 = 0.20 → health = 80
-    assert.ok(result.score > 70, `Expected score > 70, got ${result.score}`);
-  });
-
-  it('handles empty signal dates gracefully', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0.3, ndre: 0.2, thermal: 0.1 },
-      {}, // no dates
-      null,
-      NOW,
-    );
-    assert.equal(result.staleSignals.length, 0);
-  });
-
-  it('produces integer scores', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0.333, ndre: 0.667, thermal: 0.123 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    assert.ok(Number.isInteger(result.score), `Score ${result.score} should be an integer`);
-  });
-});
-
-describe('computeFusedHealthScore — realistic scenarios', () => {
-  it('healthy field: low stress across all signals', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0.02, ndre: 0.0, thermal: 0.0 },
-      { ndvi: daysAgo(2), ndre: daysAgo(2), thermal: daysAgo(5) },
-      null,
-      NOW,
-    );
-    assert.equal(result.level, HealthLevel.HEALTHY);
-    assert.equal(result.triggeredAlert, false);
-    assert.ok(result.score >= 90, `Healthy field should score >= 90, got ${result.score}`);
-  });
-
-  it('moderate risk: elevated NDVI + NDRE stress', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0.5, ndre: 0.5, thermal: 0.0 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    // weighted_stress = 0.40*0.5 + 0.40*0.5 = 0.40 → health = 60
-    assert.ok(result.score <= 65, `Moderate risk should be <= 65, got ${result.score}`);
-    assert.equal(result.level, HealthLevel.WATCH);
-  });
-
-  it('severe: all signals high stress', () => {
-    const result = computeFusedHealthScore(
-      { ndvi: 0.9, ndre: 0.9, thermal: 0.8 },
-      { ndvi: NOW, ndre: NOW, thermal: NOW },
-      null,
-      NOW,
-    );
-    // weighted = 0.40*0.9 + 0.40*0.9 + 0.20*0.8 = 0.36+0.36+0.16 = 0.88
-    // health = 100 * (1 - 0.88) = 12
-    assert.ok(result.score < 40, `Severe stress should score < 40, got ${result.score}`);
-    assert.equal(result.level, HealthLevel.HIGH);
-    assert.equal(result.triggeredAlert, true);
-  });
-});
-
-describe('getAlertThreshold', () => {
+describe('getAlertThreshold and recalibrateThreshold', () => {
   it('returns base threshold for unknown crop', () => {
     assert.equal(getAlertThreshold('unknown'), 0.6);
   });
@@ -379,9 +417,7 @@ describe('getAlertThreshold', () => {
     assert.equal(getAlertThreshold('Soybean'), 0.55);
     assert.equal(getAlertThreshold('SOYBEAN'), 0.55);
   });
-});
 
-describe('recalibrateThreshold', () => {
   it('increases threshold by 0.01 per call', () => {
     const initial = getAlertThreshold('cotton');
     recalibrateThreshold('cotton', 'bollworm');

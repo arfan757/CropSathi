@@ -112,9 +112,13 @@ export const GROWTH_WEIGHTS = {
   drought:      { ndvi: 0.30, ndre: 0.30, thermal: 0.40 },
 };
 
+// ─── Calibration Metadata (F-03, F-14, F-21) ──────────────────────────────
+export const CALIBRATION_VERSION = 'v1.0.0-literature_seed';
+export const CALIBRATION_STATUS = 'literature_seed'; // 'literature_seed' | 'calibrated'
+
 // ─── Growth-Stage → Scenario Mapping ─────────────────────────────────────
 
-const STAGE_TO_SCENARIO = {
+export const STAGE_TO_SCENARIO = {
   sowing:     'early_sparse',
   vegetative: 'early_sparse',
   flowering:  'balanced',
@@ -679,28 +683,27 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
     };
   }
 
-  // ── 10. Staleness redistribution ──
-  // Drop stale signals and redistribute weights proportionally
-  let activeWeights = { ...weights };
-  for (const signal of staleSignals) {
-    activeWeights[signal] = 0;
-  }
+  // ── 10. Staleness & unavailable signal handling (single-pass normalization, F-13) ──
+  const isNdviUsable = normalizedScores.ndvi?.score != null && !staleSignals.includes('ndvi');
+  const isNdreUsable = normalizedScores.ndre?.score != null && !staleSignals.includes('ndre');
+  // Formula-estimated thermal must not contribute to the score; only real Landsat LST does (Phase 3 / TC-07b)
+  const isThermalLandsat = thermalReading?.sceneSource === 'landsat-8-9';
+  const isThermalUsable = isThermalLandsat && normalizedScores.thermal?.score != null && !staleSignals.includes('thermal');
 
-  // Handle case where NDRE is missing (not stale, just not in reading)
-  if (!normalizedScores.ndre && !staleSignals.includes('ndre')) {
-    // NDRE not available — redistribute its weight to NDVI
-    activeWeights.ndvi += activeWeights.ndre;
-    activeWeights.ndre = 0;
-  }
+  let activeWeights = {
+    ndvi: isNdviUsable ? weights.ndvi : 0,
+    ndre: isNdreUsable ? weights.ndre : 0,
+    thermal: isThermalUsable ? weights.thermal : 0,
+  };
 
-  let activeTotal = activeWeights.ndvi + activeWeights.ndre + activeWeights.thermal;
+  const activeTotal = activeWeights.ndvi + activeWeights.ndre + activeWeights.thermal;
   if (activeTotal === 0) {
-    // All signals stale — null score (F-18, Ground Rule 3)
+    // All signals stale or unavailable — return null score (Ground Rule 3, F-18)
     return {
       score: null,
       level: null,
       triggeredAlert: false,
-      reason: 'all_signals_stale',
+      reason: staleSignals.length > 0 ? 'all_signals_stale' : 'no_satellite_data',
       staleSignals,
       lowConfidence: true,
       weightsUsed: { ndvi: 0, ndre: 0, thermal: 0 },
@@ -709,10 +712,12 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
       thermalConfidence: thermalResolutionConfidence,
       maxSignalGapDays: 0,
       noRecentSatelliteData: true,
+      calibrationVersion: CALIBRATION_VERSION,
+      calibrationStatus: CALIBRATION_STATUS,
     };
   }
 
-  // Normalize weights to sum to 1.0
+  // Normalize weights ONCE so they sum to 1.0 across all actually usable signals
   const normalizedWeights = {
     ndvi: activeWeights.ndvi / activeTotal,
     ndre: activeWeights.ndre / activeTotal,
@@ -721,49 +726,9 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
 
   // ── 11. Compute composite score ──
   let weightedSum = 0;
-  let signalsUsed = 0;
-
-  if (normalizedScores.ndvi != null && normalizedWeights.ndvi > 0) {
-    weightedSum += normalizedWeights.ndvi * normalizedScores.ndvi.score;
-    signalsUsed++;
-  }
-  if (normalizedScores.ndre != null && normalizedWeights.ndre > 0) {
-    weightedSum += normalizedWeights.ndre * normalizedScores.ndre.score;
-    signalsUsed++;
-  }
-  if (normalizedScores.thermal != null && normalizedWeights.thermal > 0 && normalizedScores.thermal.score != null) {
-    weightedSum += normalizedWeights.thermal * normalizedScores.thermal.score;
-    signalsUsed++;
-  }
-
-  if (signalsUsed === 0) {
-    return {
-      score: null,
-      level: null,
-      triggeredAlert: false,
-      reason: 'no_usable_signals',
-      staleSignals,
-      lowConfidence: true,
-      weightsUsed: normalizedWeights,
-      normalizedScores,
-      baselineSource: baselines.source,
-      thermalConfidence: thermalResolutionConfidence,
-      maxSignalGapDays: 0,
-      noRecentSatelliteData: true,
-    };
-  }
-
-  // If some signals were unavailable, renormalize remaining weights
-  if (signalsUsed > 0 && signalsUsed < 3) {
-    const usedWeightTotal =
-      (normalizedScores.ndvi != null && normalizedWeights.ndvi > 0 ? normalizedWeights.ndvi : 0) +
-      (normalizedScores.ndre != null && normalizedWeights.ndre > 0 ? normalizedWeights.ndre : 0) +
-      (normalizedScores.thermal != null && normalizedWeights.thermal > 0 && normalizedScores.thermal.score != null ? normalizedWeights.thermal : 0);
-
-    if (usedWeightTotal > 0 && usedWeightTotal < 1) {
-      weightedSum = weightedSum / usedWeightTotal;
-    }
-  }
+  if (isNdviUsable) weightedSum += normalizedWeights.ndvi * normalizedScores.ndvi.score;
+  if (isNdreUsable) weightedSum += normalizedWeights.ndre * normalizedScores.ndre.score;
+  if (isThermalUsable) weightedSum += normalizedWeights.thermal * normalizedScores.thermal.score;
 
   const score = Math.max(0, Math.min(100, Math.round(weightedSum)));
   const level = healthLevelForScore(score);
@@ -804,5 +769,7 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
     noRecentSatelliteData: maxGapDays > MAX_STALENESS_DAYS,
     normalizedScores,
     signalDates,
+    calibrationVersion: CALIBRATION_VERSION,
+    calibrationStatus: CALIBRATION_STATUS,
   };
 }

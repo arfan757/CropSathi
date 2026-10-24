@@ -4,8 +4,16 @@ import DiagnosisCase from '../models/DiagnosisCase.js';
 import { evaluateWeatherForFarm } from './weatherService.js';
 import { fetchNdviForFarm, isVegetationDetected, computeSpatialHotspot } from './ndviService.js';
 import { computeThermalReading, resolveDistrictFarmIds, getLatestThermalGrid } from './thermalService.js';
-import { createNotification } from './notificationService.js';
-import { computeVegetationHealthScore, HealthLevel as VegetationHealthLevel, healthLevelForScore as vegetationHealthLevelForScore, isStale as vegetationIsStale, STALENESS_LIMIT_DAYS } from './vegetationHealth.js';
+import {
+  computeVegetationHealthScore,
+  HealthLevel as VegetationHealthLevel,
+  healthLevelForScore as vegetationHealthLevelForScore,
+  isStale as vegetationIsStale,
+  STALENESS_LIMIT_DAYS,
+  STAGE_TO_SCENARIO,
+  CALIBRATION_VERSION,
+  CALIBRATION_STATUS,
+} from './vegetationHealth.js';
 
 // ─── Health Levels ────────────────────────────────────────────────────────
 // Re-export from vegetationHealth for backwards compatibility.
@@ -119,110 +127,6 @@ async function computePestHistoryComponent(farm) {
   }
 }
 
-// ─── Core Health Score Fusion ─────────────────────────────────────────────
-
-/**
- * Compute a 0-100 HEALTH score from component stress values.
- *
- * DEPRECATED: This function uses the old fusion logic for backwards
- * compatibility with existing tests. New code should use
- * computeVegetationHealthScore() from vegetationHealth.js directly.
- *
- * @param {Object} stressComponents - { ndvi, ndre, thermal } (0-1 each, 1 = max stress)
- * @param {Object} signalDates - { ndvi, ndre, thermal } Date or ISO string
- * @param {string|null} cropStage - current crop stage
- * @param {Date|null} now - reference time (for testing)
- * @param {string|null} cropType - crop type (unused in new system)
- * @param {string|null} diseaseHypothesis - unused in new system
- * @returns {{ score, level, weightsUsed, staleSignals, componentStress, triggeredAlert }}
- */
-export function computeFusedHealthScore(stressComponents, signalDates = {}, cropStage = null, now = null, cropType = null, diseaseHypothesis = null) {
-  now = now || new Date();
-  const signalNames = ['ndvi', 'ndre', 'thermal'];
-
-  // Scenario-based weights (inlined from vegetationHealth.js)
-  const STAGE_TO_SCENARIO = {
-    sowing: 'early_sparse', vegetative: 'early_sparse',
-    flowering: 'balanced', fruiting: 'late_dense',
-    maturity: 'late_dense', harvested: null,
-  };
-  const GROWTH_WEIGHTS = {
-    balanced:     { ndvi: 0.40, ndre: 0.40, thermal: 0.20 },
-    early_sparse: { ndvi: 0.40, ndre: 0.30, thermal: 0.30 },
-    late_dense:   { ndvi: 0.30, ndre: 0.40, thermal: 0.30 },
-  };
-
-  let weights;
-  if (cropStage === 'harvested') {
-    weights = null;
-  } else {
-    const scenario = STAGE_TO_SCENARIO[cropStage] || 'balanced';
-    weights = GROWTH_WEIGHTS[scenario];
-  }
-
-  // Detect stale signals
-  const staleSignals = signalNames.filter(name =>
-    isStale(name, signalDates[name], now)
-  );
-
-  // Compute active weights (drop stale, redistribute proportionally)
-  const activeWeights = {};
-  for (const name of signalNames) {
-    activeWeights[name] = staleSignals.includes(name) ? 0.0 : (weights?.[name] || 0);
-  }
-  let activeTotal = Object.values(activeWeights).reduce((sum, w) => sum + w, 0);
-
-  // Fallback: if ALL signals are stale, return neutral score
-  if (activeTotal === 0) {
-    return {
-      score: 50,
-      level: HealthLevel.WATCH,
-      weightsUsed: { ndvi: 0, ndre: 0, thermal: 0 },
-      staleSignals,
-      componentStress: {},
-      triggeredAlert: false,
-      alertThresholdUsed: 0,
-    };
-  }
-
-  // Normalize weights
-  const normalizedWeights = {};
-  for (const name of signalNames) {
-    normalizedWeights[name] = activeTotal > 0 ? activeWeights[name] / activeTotal : 0;
-  }
-
-  // Compute weighted stress
-  const componentStress = {};
-  let weightedStress = 0;
-  for (const name of signalNames) {
-    const stress = stressComponents[name] || 0;
-    componentStress[name] = Math.round(stress * 1000) / 1000;
-    weightedStress += normalizedWeights[name] * stress;
-  }
-
-  // Convert to health score (0-100, higher = healthier)
-  const score = Math.max(0, Math.min(Math.round(100 * (1 - weightedStress)), 100));
-  let level = healthLevelForScore(score);
-
-  // Adaptive stress threshold
-  const alertThreshold = getAlertThreshold(cropType, diseaseHypothesis);
-  if (level === HealthLevel.WATCH && (1 - score / 100) >= alertThreshold) {
-    level = HealthLevel.ELEVATED;
-  }
-
-  return {
-    score,
-    level,
-    weightsUsed: Object.fromEntries(
-      Object.entries(normalizedWeights).map(([k, v]) => [k, Math.round(v * 1000) / 1000])
-    ),
-    staleSignals,
-    componentStress,
-    triggeredAlert: shouldPromptForPhoto(level),
-    alertThresholdUsed: Math.round(alertThreshold * 1000) / 1000,
-  };
-}
-
 // ─── Core Risk Computation ────────────────────────────────────────────────
 
 /**
@@ -293,30 +197,47 @@ export async function computeRiskScore(farmId) {
   );
 
   // ── 6. Diagnostic: pest history (not in health score) ──
-  const pestHistoryStress = await computePestHistoryComponent(farm);
+  // Component stress values (0-1 stress semantics; null when no vegetation detected: F-07, F-20)
+  const ndviStress = vegetationDetected && vegetationResult.normalizedScores?.ndvi?.score != null
+    ? Math.round((1 - vegetationResult.normalizedScores.ndvi.score / 100) * 1000) / 1000
+    : null;
+  const ndreStress = vegetationDetected && vegetationResult.normalizedScores?.ndre?.score != null
+    ? Math.round((1 - vegetationResult.normalizedScores.ndre.score / 100) * 1000) / 1000
+    : null;
+  const thermalStress = vegetationDetected && (vegetationResult.normalizedScores?.thermal?.cwsi != null
+    ? Math.round(vegetationResult.normalizedScores.thermal.cwsi * 1000) / 1000
+    : (vegetationResult.normalizedScores?.thermal?.score != null
+      ? Math.round((1 - vegetationResult.normalizedScores.thermal.score / 100) * 1000) / 1000
+      : null));
+
+  // Actual alert threshold (F-14)
+  const thresholdUsed = getAlertThreshold(farm.cropType, weatherEval.diseaseHypothesis);
 
   // ── 7. Save ──
   const riskScore = await RiskScore.create({
     farmId,
     computedAt: new Date(),
     weatherComponent: Math.round((weatherEval.score || 0) * 1000) / 1000,
-    ndviComponent: vegetationResult.normalizedScores?.ndvi?.score != null
-      ? Math.round((1 - vegetationResult.normalizedScores.ndvi.score / 100) * 1000) / 1000
-      : 0.5,
-    ndreComponent: vegetationResult.normalizedScores?.ndre?.score != null
-      ? Math.round((1 - vegetationResult.normalizedScores.ndre.score / 100) * 1000) / 1000
-      : 0.5,
-    thermalComponent: vegetationResult.normalizedScores?.thermal?.cwsi != null
-      ? Math.round(vegetationResult.normalizedScores.thermal.cwsi * 1000) / 1000
-      : 0.5,
+    ndviStress,
+    ndreStress,
+    thermalStress,
+    ndviComponent: ndviStress,
+    ndreComponent: ndreStress,
+    thermalComponent: thermalStress,
     pestHistoryComponent: Math.round(pestHistoryStress * 1000) / 1000,
     compositeScore: vegetationResult.score,
     triggeredAlert: vegetationResult.triggeredAlert,
     healthLevel: vegetationResult.level,
     staleSignals: vegetationResult.staleSignals || [],
-    thresholdUsed: 0,
+    thresholdUsed,
     sceneSource,
     isSimulated,
+    growthScenario: vegetationResult.growthScenario || 'balanced',
+    cropStage: farm.cropStage || vegetationResult.effectiveStage || null,
+    stageSource: vegetationResult.stageSource || 'default',
+    calibrationVersion: vegetationResult.calibrationVersion || CALIBRATION_VERSION,
+    calibrationStatus: vegetationResult.calibrationStatus || CALIBRATION_STATUS,
+    noVegetationDetected: !vegetationDetected,
     diseaseHypothesis: weatherEval.diseaseHypothesis,
     matchedWeatherRules: weatherEval.matchedRules || [],
     weightsUsed: vegetationResult.weightsUsed,

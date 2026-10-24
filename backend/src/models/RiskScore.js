@@ -9,14 +9,24 @@ import supabase from '../config/supabase.js';
 
 export class RiskScoreDocument {
   constructor(row = {}) {
+    const parseStress = (val) => (val !== null && val !== undefined ? Number(val) : null);
+
     this._id = row.id || row._id || randomUUID();
     this.id = this._id;
     this.farmId = row.farm_id || row.farmId;
     this.computedAt = row.computed_at || row.computedAt || new Date().toISOString();
     this.weatherComponent = Number(row.weather_component ?? row.weatherComponent ?? 0);
-    this.ndviComponent = Number(row.ndvi_component ?? row.ndviComponent ?? 0.5);
-    this.ndreComponent = Number(row.ndre_component ?? row.ndreComponent ?? 0);
-    this.thermalComponent = Number(row.thermal_component ?? row.thermalComponent ?? 0.5);
+
+    // Stored component fields with 0-1 stress semantics (F-07, F-20)
+    this.ndviStress = parseStress(row.ndvi_stress ?? row.ndviStress ?? row.ndvi_component ?? row.ndviComponent);
+    this.ndreStress = parseStress(row.ndre_stress ?? row.ndreStress ?? row.ndre_component ?? row.ndreComponent);
+    this.thermalStress = parseStress(row.thermal_stress ?? row.thermalStress ?? row.thermal_component ?? row.thermalComponent);
+
+    // Read-compat layer: old documents / consumers accessing component names get the stress values
+    this.ndviComponent = this.ndviStress;
+    this.ndreComponent = this.ndreStress;
+    this.thermalComponent = this.thermalStress;
+
     this.pestHistoryComponent = Number(row.pest_history_component ?? row.pestHistoryComponent ?? 0);
     this.compositeScore = row.composite_score !== null && row.composite_score !== undefined ? Number(row.composite_score) : (row.compositeScore !== undefined ? row.compositeScore : null);
     this.healthLevel = row.health_level || row.healthLevel || null;
@@ -25,7 +35,24 @@ export class RiskScoreDocument {
     this.triggeredAlert = Boolean(row.triggered_alert ?? row.triggeredAlert ?? false);
     this.diseaseHypothesis = row.disease_hypothesis || row.diseaseHypothesis || null;
     this.matchedWeatherRules = row.matched_weather_rules || row.matchedWeatherRules || [];
+
+    // F-14: Persisted threshold and scoring metadata
     this.thresholdUsed = Number(row.threshold_used ?? row.thresholdUsed ?? 0.6);
+    this.growthScenario = row.growth_scenario || row.growthScenario || row.inputs_snapshot?.growthScenario || row.inputsSnapshot?.growthScenario || 'balanced';
+    this.cropStage = row.crop_stage || row.cropStage || row.inputs_snapshot?.cropStage || row.inputsSnapshot?.cropStage || null;
+    this.stageSource = row.stage_source || row.stageSource || row.inputs_snapshot?.stageSource || row.inputsSnapshot?.stageSource || 'default';
+    this.calibrationVersion = row.calibration_version || row.calibrationVersion || 'v1.0.0-literature_seed';
+    this.calibrationStatus = row.calibration_status || row.calibrationStatus || 'literature_seed';
+
+    // F-07: Top-level noVegetationDetected boolean
+    this.noVegetationDetected = Boolean(
+      row.no_vegetation_detected ??
+      row.noVegetationDetected ??
+      row.inputs_snapshot?.noVegetationDetected ??
+      row.inputsSnapshot?.noVegetationDetected ??
+      false
+    );
+
     this.sceneSource = row.scene_source || row.sceneSource || 'unknown';
     this.isSimulated = Boolean(row.is_simulated ?? row.isSimulated ?? false);
     this.inputsSnapshot = row.inputs_snapshot || row.inputsSnapshot || null;
@@ -47,6 +74,9 @@ export class RiskScoreDocument {
       farm_id: this.farmId,
       computed_at: this.computedAt,
       weather_component: this.weatherComponent,
+      ndvi_stress: this.ndviStress,
+      ndre_stress: this.ndreStress,
+      thermal_stress: this.thermalStress,
       ndvi_component: this.ndviComponent,
       ndre_component: this.ndreComponent,
       thermal_component: this.thermalComponent,
@@ -59,6 +89,12 @@ export class RiskScoreDocument {
       disease_hypothesis: this.diseaseHypothesis,
       matched_weather_rules: this.matchedWeatherRules,
       threshold_used: this.thresholdUsed,
+      growth_scenario: this.growthScenario,
+      crop_stage: this.cropStage,
+      stage_source: this.stageSource,
+      calibration_version: this.calibrationVersion,
+      calibration_status: this.calibrationStatus,
+      no_vegetation_detected: this.noVegetationDetected,
       scene_source: this.sceneSource,
       is_simulated: this.isSimulated,
       inputs_snapshot: this.inputsSnapshot,
