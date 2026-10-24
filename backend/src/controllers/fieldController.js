@@ -1,5 +1,6 @@
 import Field from '../models/Field.js';
 import NdviReading from '../models/NdviReading.js';
+import supabase from '../config/supabase.js';
 import { computeRiskScore } from '../services/riskService.js';
 import { fetchNdviForFarm, isVegetationDetected } from '../services/ndviService.js';
 import { computeThermalReading } from '../services/thermalService.js';
@@ -137,7 +138,66 @@ export const createField = async (req, res) => {
   }
 };
 
-// @desc    Get all fields for current user
+// Helper to build standardized healthScore object
+export function formatFieldHealthScore(score) {
+  if (!score) {
+    return {
+      hasData: false,
+      data: null,
+      compositeScore: null,
+      healthLevel: null,
+      confidence: 'low',
+      confidenceReasons: ['no_satellite_data'],
+      sceneSource: 'none',
+      isSimulated: false,
+      sceneAgeDays: null,
+      cloudCoverPct: null,
+      noVegetationDetected: false,
+      triggeredAlert: false,
+      weatherRiskHypothesis: null,
+      diseaseHypothesis: null,
+      staleSignals: [],
+      computedAt: null,
+      components: { ndviStress: null, ndreStress: null, thermalStress: null },
+    };
+  }
+
+  const noVeg = Boolean(score.no_vegetation_detected ?? score.noVegetationDetected ?? false);
+  const compScore = score.composite_score !== null && score.composite_score !== undefined
+    ? Number(score.composite_score)
+    : (score.compositeScore !== undefined ? Number(score.compositeScore) : null);
+  const isSim = Boolean(score.is_simulated ?? score.isSimulated ?? false);
+  const conf = score.confidence || 'low';
+
+  return {
+    hasData: compScore !== null || noVeg,
+    compositeScore: compScore,
+    healthLevel: score.health_level || score.healthLevel || null,
+    confidence: conf,
+    confidenceReasons: score.confidence_reasons || score.confidenceReasons || [],
+    sceneSource: score.scene_source || score.sceneSource || 'unknown',
+    isSimulated: isSim,
+    sceneAgeDays: score.scene_age_days !== null && score.scene_age_days !== undefined
+      ? Number(score.scene_age_days)
+      : (score.sceneAgeDays ?? null),
+    cloudCoverPct: score.cloud_cover_pct !== null && score.cloud_cover_pct !== undefined
+      ? Number(score.cloud_cover_pct)
+      : (score.cloudCoverPct ?? null),
+    noVegetationDetected: noVeg,
+    triggeredAlert: Boolean(score.triggered_alert ?? score.triggeredAlert ?? false),
+    weatherRiskHypothesis: score.weather_risk_hypothesis || score.disease_hypothesis || null,
+    diseaseHypothesis: score.weather_risk_hypothesis || score.disease_hypothesis || null,
+    staleSignals: score.stale_signals || score.staleSignals || [],
+    computedAt: score.computed_at || score.computedAt || null,
+    components: {
+      ndviStress: score.ndvi_stress ?? score.ndviStress ?? score.ndvi_component ?? null,
+      ndreStress: score.ndre_stress ?? score.ndreStress ?? score.ndre_component ?? null,
+      thermalStress: score.thermal_stress ?? score.thermalStress ?? score.thermal_component ?? null,
+    },
+  };
+}
+
+// @desc    Get all fields for current user (enriched with health scores in batch: F-02, F-16)
 // @route   GET /api/fields
 // @access  Private
 export const getFields = async (req, res) => {
@@ -145,10 +205,39 @@ export const getFields = async (req, res) => {
     const userId = req.user?.id || req.user?._id;
     const fields = await Field.find({ userId, deletedAt: null }).sort({ createdAt: -1 });
 
+    const fieldIds = fields.map(f => f._id);
+    const latestScoreByFarmId = {};
+
+    if (fieldIds.length > 0) {
+      try {
+        const { data: scores } = await supabase
+          .from('risk_scores')
+          .select('*')
+          .in('farm_id', fieldIds)
+          .order('computed_at', { ascending: false });
+
+        for (const s of scores || []) {
+          const farmId = s.farm_id || s.farmId;
+          if (!latestScoreByFarmId[farmId]) {
+            latestScoreByFarmId[farmId] = s;
+          }
+        }
+      } catch (scoreErr) {
+        console.warn('Failed to batch-fetch risk scores for fields:', scoreErr.message);
+      }
+    }
+
+    const enrichedFields = fields.map(f => {
+      const fieldObj = f.toObject ? f.toObject() : { ...f };
+      const score = latestScoreByFarmId[f._id] || null;
+      fieldObj.healthScore = formatFieldHealthScore(score);
+      return fieldObj;
+    });
+
     res.status(200).json({
       success: true,
-      count: fields.length,
-      data: fields,
+      count: enrichedFields.length,
+      data: enrichedFields,
     });
   } catch (error) {
     res.status(500).json({
@@ -177,9 +266,26 @@ export const getField = async (req, res) => {
       });
     }
 
+    let latestScore = null;
+    try {
+      const { data } = await supabase
+        .from('risk_scores')
+        .select('*')
+        .eq('farm_id', field._id)
+        .order('computed_at', { ascending: false })
+        .limit(1)
+        .single();
+      latestScore = data;
+    } catch {
+      // Best-effort
+    }
+
+    const fieldObj = field.toObject ? field.toObject() : { ...field };
+    fieldObj.healthScore = formatFieldHealthScore(latestScore);
+
     res.status(200).json({
       success: true,
-      data: field,
+      data: fieldObj,
     });
   } catch (error) {
     res.status(500).json({

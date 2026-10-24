@@ -95,6 +95,7 @@ describe('Phase 2 Test Suite', () => {
     NdviReading.findOne = () => ({
       sort: () => ({
         lean: async () => ({
+          sceneSource: 'sentinel-2',
           ndvi: 0.0,
           ndre: -0.1,
           cloudCoverPct: 5,

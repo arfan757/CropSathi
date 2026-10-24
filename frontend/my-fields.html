@@ -318,33 +318,105 @@
       </div>
 
       <!-- Stats Grid -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
-          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area (Hectares)</p>
-          <p id="detailAreaHa" class="text-base font-bold font-serif text-forest-700 mt-0.5">--</p>
-        </div>
-        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
-          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area (Acres)</p>
-          <p id="detailAreaAc" class="text-base font-bold font-serif text-forest-700 mt-0.5">--</p>
+          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area</p>
+          <p id="detailAreaHa" class="text-sm font-bold font-serif text-forest-700 mt-0.5">--</p>
         </div>
         <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
           <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Growth Stage</p>
-          <p id="detailStage" class="text-sm font-semibold text-forest-700 mt-1 capitalize">--</p>
+          <p id="detailStage" class="text-xs font-semibold text-forest-700 mt-1 capitalize truncate">--</p>
+        </div>
+        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Variety</p>
+          <p id="detailVariety" class="text-xs font-semibold text-forest-700 mt-1 truncate">Standard</p>
         </div>
         <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
           <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Sowing Date</p>
-          <p id="detailSowing" class="text-xs font-semibold text-forest-700 mt-1">--</p>
+          <p id="detailSowing" class="text-xs font-semibold text-forest-700 mt-1 truncate">--</p>
         </div>
-        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
-          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Polygon GPS</p>
-          <p id="detailPoints" class="text-xs font-semibold text-forest-700 mt-1">--</p>
-        </div>
-        <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300 flex items-center justify-between">
-          <div>
-            <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Telemetry</p>
-            <p class="text-xs font-semibold text-risk-green mt-1">Active Sync</p>
+      </div>
+
+      <!-- Remote Sensing & Crop Health Card in Modal (F-02, F-16) -->
+      <div id="detailHealthSection" class="bg-offwhite-200/40 rounded-2xl p-4 border border-offwhite-300 mb-5">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-offwhite-200">
+          <div class="flex items-center gap-2">
+            <i data-lucide="satellite" class="w-4 h-4 text-forest-500"></i>
+            <h4 class="font-heading font-semibold text-xs text-forest-700 uppercase tracking-wider">Remote Sensing Health Assessment</h4>
           </div>
-          <span class="flex h-2.5 w-2.5 rounded-full bg-risk-green"></span>
+          <span id="detailHealthBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold">--</span>
+        </div>
+
+        <div id="detailSimulatedBanner" class="hidden mb-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center gap-2">
+          <i data-lucide="info" class="w-4 h-4 shrink-0 text-amber-600"></i>
+          <span>Estimated score, not from recent satellite data</span>
+        </div>
+
+        <div id="detailNoVegBanner" class="hidden mb-3 p-2.5 rounded-xl bg-offwhite-200 border border-offwhite-300 text-xs text-forest-600 flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-forest-500"></i>
+          <span>No crop detected in the field boundary</span>
+        </div>
+
+        <div id="detailSmallFieldNote" class="hidden mb-3 p-2 rounded-xl bg-offwhite-200/70 border border-offwhite-300 text-[11px] text-forest-500 flex items-center gap-1.5">
+          <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0 text-amber-500"></i>
+          <span>Small field (&lt;1 ha): mixed-pixel risk at 10m/20m satellite resolution.</span>
+        </div>
+
+        <div id="detailUncalibratedNote" class="hidden mb-3 p-2 rounded-xl bg-blue-50 border border-blue-200 text-[11px] text-blue-700 flex items-center gap-1.5">
+          <i data-lucide="info" class="w-3.5 h-3.5 shrink-0 text-blue-500"></i>
+          <span>Uncalibrated literature-seed thresholds in use (validation in progress).</span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3 text-center">
+          <div class="bg-offwhite-50 p-2.5 rounded-xl border border-offwhite-200">
+            <span class="text-[10px] text-forest-400 uppercase font-semibold block">Health Score</span>
+            <span id="detailScoreValue" class="text-base font-bold font-serif text-forest-700">--</span>
+          </div>
+          <div class="bg-offwhite-50 p-2.5 rounded-xl border border-offwhite-200">
+            <span class="text-[10px] text-forest-400 uppercase font-semibold block">Last Scan</span>
+            <span id="detailScanDate" class="text-xs font-semibold text-forest-700 mt-1 block truncate">--</span>
+          </div>
+          <div class="bg-offwhite-50 p-2.5 rounded-xl border border-offwhite-200">
+            <span class="text-[10px] text-forest-400 uppercase font-semibold block">Source & Cloud</span>
+            <span id="detailSourceCloud" class="text-xs font-semibold text-forest-700 mt-1 block truncate">--</span>
+          </div>
+          <div class="bg-offwhite-50 p-2.5 rounded-xl border border-offwhite-200">
+            <span class="text-[10px] text-forest-400 uppercase font-semibold block">Confidence</span>
+            <span id="detailConfidenceBadge" class="text-xs font-semibold mt-1 block">--</span>
+          </div>
+        </div>
+
+        <!-- Stress breakdown -->
+        <div class="bg-offwhite-50 rounded-xl p-3 border border-offwhite-200 mb-3">
+          <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide mb-2">Component Stress (0 = Optimal, 100% = Maximum Stress)</p>
+          <div class="grid grid-cols-3 gap-2 text-center text-xs">
+            <div>
+              <span class="text-forest-400 block text-[10px]">NDVI Stress</span>
+              <span id="detailNdviStress" class="font-bold text-forest-700">--</span>
+            </div>
+            <div>
+              <span class="text-forest-400 block text-[10px]">NDRE Stress</span>
+              <span id="detailNdreStress" class="font-bold text-forest-700">--</span>
+            </div>
+            <div>
+              <span class="text-forest-400 block text-[10px]">Thermal Stress</span>
+              <span id="detailThermalStress" class="font-bold text-forest-700">--</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="detailConfidenceReasonsWrap" class="hidden text-[11px] text-forest-500 mb-2">
+          <span class="font-medium text-forest-600">Confidence factors: </span>
+          <span id="detailConfidenceReasons">--</span>
+        </div>
+
+        <!-- Weather risk hypothesis if present (F-04) -->
+        <div id="detailWeatherHypothesisWrap" class="hidden p-2.5 rounded-xl bg-forest-50 border border-forest-200 text-xs text-forest-700 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="cloud-rain" class="w-4 h-4 text-forest-500"></i>
+            <span id="detailWeatherHypothesis">--</span>
+          </div>
+          <a href="diagnose.html" class="px-2.5 py-1 bg-forest-500 text-offwhite-50 rounded-lg font-semibold text-[11px] hover:bg-forest-600 transition-colors shrink-0">Upload Photo</a>
         </div>
       </div>
 
@@ -514,62 +586,246 @@
       if (noResults) noResults.classList.add('hidden');
       grid.classList.remove('hidden');
 
-      grid.innerHTML = fields.map((field) => `
+    function getHealthDisplay(field) {
+      const h = field.healthScore || {};
+      const isHarvested = (field.cropStage || '').toLowerCase() === 'harvested';
+      const areaHa = Number(field.areaInHectares) || 0;
+      const isSmallField = areaHa < 1.0;
+
+      if (isHarvested) {
+        return {
+          statusLabel: 'Harvested',
+          badgeClass: 'bg-offwhite-200 text-forest-500 border border-offwhite-300',
+          dotClass: 'bg-forest-400',
+          scoreText: '—',
+          ageText: h.sceneAgeDays != null ? `${h.sceneAgeDays}d ago` : '—',
+          sourceLabel: h.sceneSource === 'sentinel-2' ? 'Sentinel-2' : (h.sceneSource || '—'),
+          confidenceBadge: '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-offwhite-200 text-forest-500">Muted</span>',
+          confidence: h.confidence || 'low',
+          banner: null,
+          photoPrompt: false,
+          isSmallField,
+        };
+      }
+
+      if (!h.hasData) {
+        return {
+          statusLabel: 'No Data',
+          badgeClass: 'bg-offwhite-200 text-forest-500 border border-offwhite-300',
+          dotClass: 'bg-forest-300',
+          scoreText: '—',
+          ageText: 'No satellite data yet',
+          sourceLabel: '—',
+          confidenceBadge: '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-offwhite-200 text-forest-400">No Data</span>',
+          confidence: 'low',
+          banner: null,
+          photoPrompt: false,
+          isSmallField,
+        };
+      }
+
+      if (h.noVegetationDetected) {
+        return {
+          statusLabel: 'No Crop Detected',
+          badgeClass: 'bg-offwhite-200 text-forest-600 border border-offwhite-300',
+          dotClass: 'bg-forest-400',
+          scoreText: '—',
+          ageText: h.sceneAgeDays != null ? `Scanned ${h.sceneAgeDays}d ago` : 'Recent scan',
+          sourceLabel: h.sceneSource === 'sentinel-2' ? 'Sentinel-2' : (h.isSimulated ? 'Estimated' : (h.sceneSource || 'Satellite')),
+          confidenceBadge: '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-offwhite-200 text-forest-500">Low</span>',
+          confidence: 'low',
+          banner: 'No crop detected in the field boundary',
+          photoPrompt: false,
+          isSmallField,
+        };
+      }
+
+      // Age text formatting
+      let ageText = 'No satellite data yet';
+      if (h.sceneAgeDays != null) {
+        if (h.sceneAgeDays === 0) ageText = 'Data from today';
+        else if (h.sceneAgeDays === 1) ageText = 'Data from 1 day ago';
+        else ageText = `Data from ${h.sceneAgeDays} days ago`;
+      }
+
+      const sourceLabel = h.isSimulated
+        ? 'Estimated'
+        : (h.sceneSource === 'sentinel-2' ? 'Sentinel-2' : (h.sceneSource || 'Satellite'));
+
+      const scoreNum = (h.compositeScore !== null && h.compositeScore !== undefined)
+        ? Math.round(h.compositeScore)
+        : null;
+
+      const isLowConfidence = h.confidence === 'low';
+      const isStale = (Array.isArray(h.staleSignals) && h.staleSignals.length > 0) || (h.sceneAgeDays > 14);
+
+      let statusLabel = 'Healthy';
+      let badgeClass = 'bg-forest-50 text-risk-green border border-forest-200';
+      let dotClass = 'bg-risk-green';
+
+      const level = (h.healthLevel || '').toLowerCase();
+      if (isLowConfidence || isStale) {
+        statusLabel = level ? `${level.charAt(0).toUpperCase() + level.slice(1)} (Low Conf)` : 'Low Confidence';
+        badgeClass = 'bg-offwhite-200 text-forest-500 border border-offwhite-300';
+        dotClass = 'bg-forest-400';
+      } else if (level === 'high') {
+        statusLabel = 'High Risk';
+        badgeClass = 'bg-red-50 text-risk-red border border-red-200';
+        dotClass = 'bg-risk-red';
+      } else if (level === 'elevated') {
+        statusLabel = 'Elevated Risk';
+        badgeClass = 'bg-terracotta-50 text-risk-orange border border-terracotta-200';
+        dotClass = 'bg-risk-orange';
+      } else if (level === 'watch') {
+        statusLabel = 'Watch';
+        badgeClass = 'bg-amber-50 text-amber-700 border border-amber-200';
+        dotClass = 'bg-risk-yellow';
+      } else {
+        statusLabel = 'Healthy';
+        badgeClass = 'bg-forest-50 text-risk-green border border-forest-200';
+        dotClass = 'bg-risk-green';
+      }
+
+      let banner = null;
+      if (h.isSimulated) {
+        banner = 'Estimated score, not from recent satellite data';
+      }
+
+      let confidenceBadge = '';
+      if (h.confidence === 'high') {
+        confidenceBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-forest-50 text-risk-green border border-forest-200">High Conf</span>';
+      } else if (h.confidence === 'medium') {
+        confidenceBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Medium Conf</span>';
+      } else {
+        confidenceBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-offwhite-200 text-forest-500 border border-offwhite-300">Low Conf</span>';
+      }
+
+      const photoPrompt = (level === 'elevated' || level === 'high') && !isLowConfidence && !h.isSimulated;
+
+      return {
+        statusLabel,
+        badgeClass,
+        dotClass,
+        scoreText: scoreNum !== null ? `${scoreNum} / 100` : '—',
+        ageText,
+        sourceLabel,
+        confidenceBadge,
+        confidence: h.confidence || 'low',
+        confidenceReasons: h.confidenceReasons || [],
+        banner,
+        photoPrompt,
+        isSmallField,
+        weatherRiskHypothesis: h.weatherRiskHypothesis,
+        components: h.components || {},
+        computedAt: h.computedAt,
+      };
+    }
+
+    // Render field cards with Bolt styling & Remote Sensing Telemetry (F-02, F-16)
+    function renderFields(fields) {
+      const grid = document.getElementById('fieldsGrid');
+      const loading = document.getElementById('loadingState');
+      const empty = document.getElementById('emptyState');
+      const noResults = document.getElementById('noResultsState');
+
+      loading.classList.add('hidden');
+
+      if (fields.length === 0) {
+        if (currentQuery.trim()) {
+          showNoResultsState();
+        } else {
+          showEmptyState();
+        }
+        return;
+      }
+
+      empty.classList.add('hidden');
+      if (noResults) noResults.classList.add('hidden');
+      grid.classList.remove('hidden');
+
+      grid.innerHTML = fields.map((field) => {
+        const disp = getHealthDisplay(field);
+        const stageText = field.cropStage
+          ? `<span class="capitalize">${CropSathiPrefs.escapeHtml(field.cropStage)}</span> <span class="text-[10px] text-forest-400">(${field.stageSource || 'inferred'})</span>`
+          : '';
+        const varietyText = field.variety ? ` · ${CropSathiPrefs.escapeHtml(field.variety)}` : '';
+
+        return `
         <div class="bg-offwhite-50 border border-offwhite-300 rounded-2xl shadow-card hover:shadow-card-hover hover:border-forest-200 transition-all p-5 flex flex-col justify-between">
           <!-- Card Top Row -->
           <div>
-            <div class="flex items-start justify-between gap-3 mb-4">
+            <div class="flex items-start justify-between gap-3 mb-3">
               <div class="flex items-center gap-3 min-w-0">
                 <div class="w-11 h-11 rounded-xl bg-forest-50 flex items-center justify-center shrink-0 shadow-sm text-forest-500">
                   <i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-5 h-5"></i>
                 </div>
                 <div class="min-w-0">
                   <h3 class="font-heading font-semibold text-base text-forest-700 leading-tight truncate">${CropSathiPrefs.escapeHtml(field.name)}</h3>
-                  <p class="text-xs text-forest-400 mt-0.5 truncate">${CropSathiPrefs.escapeHtml(field.cropType)}${field.cropStage ? ' · ' + CropSathiPrefs.escapeHtml(field.cropStage) : ''} · ${field.areaInHectares.toFixed(1)} ha</p>
+                  <p class="text-xs text-forest-400 mt-0.5 truncate">${CropSathiPrefs.escapeHtml(field.cropType)}${varietyText}${stageText ? ' · ' + stageText : ''}</p>
                 </div>
               </div>
-              <span class="bg-forest-50 text-risk-green px-2.5 py-1 rounded-full text-[10px] font-semibold flex items-center gap-1.5 shrink-0">
-                <span class="w-1.5 h-1.5 rounded-full bg-risk-green animate-pulse"></span>
-                Active
+              <span class="${disp.badgeClass} px-2.5 py-1 rounded-full text-[10px] font-semibold flex items-center gap-1.5 shrink-0 shadow-sm">
+                <span class="w-1.5 h-1.5 rounded-full ${disp.dotClass} animate-pulse"></span>
+                ${disp.statusLabel}
               </span>
             </div>
 
+            <!-- Banners & Prompts -->
+            ${disp.banner ? `
+            <div class="mb-3 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex items-center gap-1.5 font-medium">
+              <i data-lucide="info" class="w-3.5 h-3.5 text-amber-600 shrink-0"></i>
+              <span>${disp.banner}</span>
+            </div>` : ''}
+
+            ${disp.photoPrompt ? `
+            <div class="mb-3 px-3 py-2 rounded-xl bg-terracotta-50 border border-terracotta-200 text-xs text-risk-orange flex items-center justify-between font-medium">
+              <span class="flex items-center gap-1.5"><i data-lucide="camera" class="w-3.5 h-3.5"></i> Upload a photo to check your crop</span>
+              <a href="diagnose.html?farmId=${field._id}" class="underline font-semibold shrink-0">Upload &rarr;</a>
+            </div>` : ''}
+
+            ${disp.isSmallField ? `
+            <div class="mb-2 text-[10px] text-forest-400 flex items-center gap-1">
+              <i data-lucide="alert-triangle" class="w-3 h-3 text-amber-500 shrink-0"></i>
+              <span>Small field (&lt;1 ha): mixed-pixel risk</span>
+            </div>` : ''}
+
             <!-- Stats 2x2 Grid -->
             <div class="grid grid-cols-2 gap-2.5 mb-4">
-              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
+              <div class="bg-offwhite-200/60 p-2.5 rounded-xl border border-offwhite-300">
                 <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area</p>
-                <p class="text-base font-bold font-serif text-forest-700 mt-0.5">${field.areaInHectares.toFixed(1)} ha</p>
+                <p class="text-sm font-bold font-serif text-forest-700 mt-0.5">${field.areaInHectares.toFixed(1)} ha (${field.areaInAcres.toFixed(1)} ac)</p>
               </div>
-              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
-                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area (Acres)</p>
-                <p class="text-base font-bold font-serif text-forest-700 mt-0.5">${field.areaInAcres.toFixed(1)} ac</p>
+              <div class="bg-offwhite-200/60 p-2.5 rounded-xl border border-offwhite-300">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Health Score</p>
+                <p class="text-sm font-bold font-serif text-forest-700 mt-0.5">${disp.scoreText}</p>
               </div>
-              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
-                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Crop Type</p>
-                <p class="text-xs font-semibold text-forest-700 mt-1 truncate">${CropSathiPrefs.escapeHtml(field.cropType)}</p>
+              <div class="bg-offwhite-200/60 p-2.5 rounded-xl border border-offwhite-300">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide truncate">Satellite Scan</p>
+                <p class="text-xs font-semibold text-forest-700 mt-0.5 truncate">${disp.sourceLabel} · ${disp.ageText}</p>
               </div>
-              <div class="bg-offwhite-200/60 p-3 rounded-xl border border-offwhite-300">
-                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Sowing Date</p>
-                <p class="text-xs font-semibold text-forest-700 mt-1 truncate">${new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              <div class="bg-offwhite-200/60 p-2.5 rounded-xl border border-offwhite-300 flex flex-col justify-between">
+                <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Confidence</p>
+                <div class="mt-0.5">${disp.confidenceBadge}</div>
               </div>
             </div>
           </div>
 
           <!-- Action Buttons -->
           <div class="flex items-center gap-2 pt-3 border-t border-offwhite-200">
-            <button onclick="viewField('${field._id}')" class="flex-1 bg-forest-500 hover:bg-forest-600 text-offwhite-50 text-xs font-heading font-semibold py-2.5 px-3 rounded-xl transition-colors text-center shadow-card">
+            <button onclick="viewField('${field._id}')" class="flex-1 bg-forest-500 hover:bg-forest-600 text-offwhite-50 text-xs font-heading font-semibold py-2 px-3 rounded-xl transition-colors text-center shadow-card">
               ${CropSathiPrefs.t('mf_view_details')}
             </button>
-            <a href="analytics.html?fieldId=${field._id}" onclick="if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm('${field._id}')" class="px-3 py-2.5 bg-offwhite-200 hover:bg-offwhite-300 text-forest-700 text-xs font-heading font-semibold rounded-xl flex items-center gap-1.5 transition-colors" title="View Satellite Analytics">
+            <a href="analytics.html?fieldId=${field._id}" onclick="if (typeof CropSathiSession !== 'undefined') CropSathiSession.setActiveFarm('${field._id}')" class="px-3 py-2 bg-offwhite-200 hover:bg-offwhite-300 text-forest-700 text-xs font-heading font-semibold rounded-xl flex items-center gap-1.5 transition-colors" title="View Satellite Analytics">
               <i data-lucide="bar-chart-3" class="w-4 h-4 text-forest-500"></i>
               <span>Analytics</span>
             </a>
-            <button onclick="deleteField('${field._id}')" class="w-9 h-9 bg-offwhite-200 hover:bg-terracotta-50 text-terracotta-500 rounded-xl flex items-center justify-center transition-colors shrink-0" title="Delete field" aria-label="Delete field">
+            <button onclick="deleteField('${field._id}')" class="w-8 h-8 bg-offwhite-200 hover:bg-terracotta-50 text-terracotta-500 rounded-xl flex items-center justify-center transition-colors shrink-0" title="Delete field" aria-label="Delete field">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
 
       if (window.lucide) lucide.createIcons();
     }
@@ -610,16 +866,78 @@
         CropSathiSession.setActiveFarm(fieldId);
       }
 
+      const disp = getHealthDisplay(field);
+      const h = field.healthScore || {};
+
       const cropType = field.cropType || 'Not set';
       document.getElementById('detailTitle').textContent = field.name || 'Field Details';
       document.getElementById('detailCrop').innerHTML = `<i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-4 h-4 text-forest-500"></i> ${CropSathiPrefs.escapeHtml(cropType)}`;
-      document.getElementById('detailAreaHa').textContent = `${field.areaInHectares.toFixed(2)} ha`;
-      document.getElementById('detailAreaAc').textContent = `${field.areaInAcres.toFixed(2)} ac`;
+      document.getElementById('detailAreaHa').textContent = `${field.areaInHectares.toFixed(2)} ha (${field.areaInAcres.toFixed(2)} ac)`;
       document.getElementById('detailSowing').textContent = field.sowingDate
         ? new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
         : '—';
-      document.getElementById('detailStage').textContent = field.cropStage || '—';
-      document.getElementById('detailPoints').textContent = field.polygon ? `${field.polygon.length} points` : '0 points';
+      document.getElementById('detailStage').innerHTML = `${CropSathiPrefs.escapeHtml(field.cropStage || '—')} <span class="text-[10px] text-forest-400">(${field.stageSource || 'inferred'})</span>`;
+      document.getElementById('detailVariety').textContent = field.variety || 'Standard';
+
+      // Remote Sensing Health Card
+      const badgeElem = document.getElementById('detailHealthBadge');
+      badgeElem.className = `px-2.5 py-0.5 rounded-full text-xs font-semibold ${disp.badgeClass}`;
+      badgeElem.textContent = disp.statusLabel;
+
+      const simBanner = document.getElementById('detailSimulatedBanner');
+      if (h.isSimulated) simBanner.classList.remove('hidden'); else simBanner.classList.add('hidden');
+
+      const noVegBanner = document.getElementById('detailNoVegBanner');
+      if (h.noVegetationDetected) noVegBanner.classList.remove('hidden'); else noVegBanner.classList.add('hidden');
+
+      const smallNote = document.getElementById('detailSmallFieldNote');
+      if (disp.isSmallField) smallNote.classList.remove('hidden'); else smallNote.classList.add('hidden');
+
+      const uncalNote = document.getElementById('detailUncalibratedNote');
+      if (h.hasData && !h.isSimulated) uncalNote.classList.remove('hidden'); else uncalNote.classList.add('hidden');
+
+      document.getElementById('detailScoreValue').textContent = disp.scoreText;
+      document.getElementById('detailScanDate').textContent = h.computedAt
+        ? new Date(h.computedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : disp.ageText;
+      document.getElementById('detailSourceCloud').textContent = `${disp.sourceLabel}${h.cloudCoverPct != null ? ' (' + Math.round(h.cloudCoverPct) + '% cloud)' : ''}`;
+
+      const confBadgeElem = document.getElementById('detailConfidenceBadge');
+      confBadgeElem.textContent = disp.confidence.toUpperCase();
+      if (disp.confidence === 'high') {
+        confBadgeElem.className = 'text-xs font-semibold text-risk-green mt-1 block';
+      } else if (disp.confidence === 'medium') {
+        confBadgeElem.className = 'text-xs font-semibold text-amber-600 mt-1 block';
+      } else {
+        confBadgeElem.className = 'text-xs font-semibold text-forest-400 mt-1 block';
+      }
+
+      // Signal stress breakdown
+      const comps = h.components || {};
+      document.getElementById('detailNdviStress').textContent = (comps.ndviStress !== null && comps.ndviStress !== undefined)
+        ? Math.round(comps.ndviStress * 100) + '%' : '—';
+      document.getElementById('detailNdreStress').textContent = (comps.ndreStress !== null && comps.ndreStress !== undefined)
+        ? Math.round(comps.ndreStress * 100) + '%' : '—';
+      document.getElementById('detailThermalStress').textContent = (comps.thermalStress !== null && comps.thermalStress !== undefined)
+        ? Math.round(comps.thermalStress * 100) + '%' : '—';
+
+      // Confidence reasons
+      const reasonsWrap = document.getElementById('detailConfidenceReasonsWrap');
+      if (disp.confidenceReasons && disp.confidenceReasons.length > 0) {
+        document.getElementById('detailConfidenceReasons').textContent = disp.confidenceReasons.join('; ');
+        reasonsWrap.classList.remove('hidden');
+      } else {
+        reasonsWrap.classList.add('hidden');
+      }
+
+      // Weather risk hypothesis (F-04: Non-diagnostic wording)
+      const hypWrap = document.getElementById('detailWeatherHypothesisWrap');
+      if (h.weatherRiskHypothesis) {
+        document.getElementById('detailWeatherHypothesis').textContent = `Weather conditions favorable for ${h.weatherRiskHypothesis}. Take a photo to confirm.`;
+        hypWrap.classList.remove('hidden');
+      } else {
+        hypWrap.classList.add('hidden');
+      }
 
       modal.classList.remove('hidden');
       modal.setAttribute('aria-hidden', 'false');

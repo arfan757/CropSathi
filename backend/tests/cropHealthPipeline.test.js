@@ -247,6 +247,7 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
       NdviReading.findOne = () => ({
         sort: () => ({
           lean: async () => ({
+            sceneSource: 'sentinel-2',
             ndvi: -0.04,
             ndre: -0.04,
             cloudCoverPct: 0,
@@ -277,6 +278,7 @@ describe('Part B: Crop Health Scoring Pipeline Test Matrix', () => {
       NdviReading.findOne = () => ({
         sort: () => ({
           lean: async () => ({
+            sceneSource: 'sentinel-2',
             ndvi: -0.04,
             ndre: -0.04,
             cloudCoverPct: 0,

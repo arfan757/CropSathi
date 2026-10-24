@@ -39,9 +39,11 @@ function mockMongooseReadings({ ndviDoc = null, thermalDoc = null, baselineDoc =
   const origThermalFindOne = ThermalReading.findOne;
   const origBaselineFindOne = CropBaseline.findOne;
 
+  const finalNdviDoc = ndviDoc ? { sceneSource: 'sentinel-2', ...ndviDoc } : null;
+
   NdviReading.findOne = () => ({
     sort: () => ({
-      lean: async () => ndviDoc,
+      lean: async () => finalNdviDoc,
     }),
   });
 

@@ -208,6 +208,15 @@
                 </div>
               </div>
 
+              <!-- Variety (Optional) -->
+              <div>
+                <label for="variety" class="block text-xs font-heading font-semibold text-forest-400 uppercase tracking-wider mb-1.5">
+                  <span>Variety (Optional)</span>
+                </label>
+                <input type="text" id="variety" placeholder="e.g. Bt-2, Sonalika, Basmati"
+                  class="w-full px-4 py-2.5 border border-offwhite-300 rounded-xl text-xs font-body text-forest-700 focus:border-forest-400 focus:ring-1 focus:ring-forest-400 outline-none transition bg-offwhite-50">
+              </div>
+
               <!-- Sowing Date -->
               <div>
                 <label for="sowingDate" class="block text-xs font-heading font-semibold text-forest-400 uppercase tracking-wider mb-1.5">
@@ -333,6 +342,7 @@
           document.getElementById('headerTitle').textContent = 'Edit Field';
           document.getElementById('fieldName').value = field.name || '';
           document.getElementById('cropType').value = field.cropType || '';
+          if (field.variety) document.getElementById('variety').value = field.variety;
           document.getElementById('sowingDate').value = field.sowingDate
             ? new Date(field.sowingDate).toISOString().split('T')[0] : '';
           if (field.cropStage) document.getElementById('cropStage').value = field.cropStage;
@@ -559,6 +569,7 @@
       const cropType = document.getElementById('cropType').value;
       const sowingDate = document.getElementById('sowingDate').value;
       const cropStage = document.getElementById('cropStage').value || undefined;
+      const variety = document.getElementById('variety') ? document.getElementById('variety').value.trim() : '';
       if (!name || !cropType || !sowingDate || polygonPoints.length < 3) {
         alert('Please fill all fields and draw a polygon with at least 3 points');
         return;
@@ -577,6 +588,7 @@
       try {
         const payload = { name, cropType, sowingDate, polygon, areaInHectares, areaInAcres: areaInHectares * 2.47105 };
         if (cropStage) payload.cropStage = cropStage;
+        if (variety) payload.variety = variety;
         const res = await fetch(url, {
           method,
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
