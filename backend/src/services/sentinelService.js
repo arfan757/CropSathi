@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { fromArrayBuffer } from 'geotiff';
-import { computeBBox } from './copernicusClient.js';
+import { computeBBox, searchSentinel2Scenes } from './copernicusClient.js';
 
 // ─── Sentinel-2 NDVI/NDRE Service ────────────────────────────────────────
 // Uses Copernicus Sentinel Hub Process API to compute per-pixel NDVI and NDRE
@@ -59,34 +59,47 @@ export async function fetchSentinelNdvi(farm, options = {}) {
     maxCloudCover = 90,
   } = options;
 
-  // Progressive retry: 90 → 120 → 180 days
-  const RETRY_WINDOWS = [90, 120, 180];
+  // Progressive retry: try fresh window first (10 days), then 30, then 90 days
+  const RETRY_WINDOWS = [10, 30, 90];
   let lastError = null;
 
   for (const days of RETRY_WINDOWS) {
     const startDate = options.startDate || new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     try {
       const result = await fetchSentinelNdviOnce(farm, { startDate, endDate, maxCloudCover });
-      if (result.sceneInfo?.source !== 'simulated') {
-        console.log(`Sentinel-2: found clear scene in ${days}-day window`);
+      if (result.sceneInfo?.source !== 'simulated' && result.sceneInfo?.source !== 'none') {
+        console.log(`Sentinel-2: found scene in ${days}-day window (age: ${result.sceneAgeDays}d, isStale: ${result.isStale})`);
         return result;
       }
-      // All pixels masked — store error and try wider window
       lastError = new Error(`All ${days}-day window pixels cloud-masked`);
-      console.warn(`Sentinel-2: ${days}-day window fully cloud-masked, trying wider window...`);
     } catch (e) {
       lastError = e;
-      console.warn(`Sentinel-2: ${days}-day window failed: ${e.message}, trying wider...`);
+      console.warn(`Sentinel-2: ${days}-day window failed: ${e.message}`);
     }
   }
 
-  // All windows exhausted — return simulated fallback
-  console.warn('Sentinel-2: all search windows exhausted, using simulated fallback');
+  // All windows exhausted
+  if (process.env.ALLOW_SIMULATION === 'true') {
+    console.warn('Sentinel-2: all search windows exhausted, using simulated fallback (ALLOW_SIMULATION=true)');
+    return {
+      ndviGrid: generateFallbackGrid('NDVI'),
+      ndreGrid: generateFallbackGrid('NDRE'),
+      sceneInfo: { sceneId: null, sceneName: 'Simulated', cloudCover: 100, source: 'simulated', sceneAgeDays: 0, isStale: false },
+      observedAt: new Date(),
+      sceneAgeDays: 0,
+      isStale: false,
+    };
+  }
+
+  console.warn('Sentinel-2: all search windows exhausted or no credentials, no satellite data available');
   return {
-    ndviGrid: generateFallbackGrid('NDVI'),
-    ndreGrid: generateFallbackGrid('NDRE'),
-    sceneInfo: { sceneId: null, sceneName: 'Simulated', cloudCover: 100, source: 'simulated' },
-    observedAt: new Date(),
+    ndviGrid: null,
+    ndreGrid: null,
+    sceneInfo: { sceneId: null, sceneName: 'No Satellite Data', cloudCover: null, source: 'none', sceneAgeDays: null, isStale: true },
+    observedAt: null,
+    sceneAgeDays: null,
+    isStale: true,
+    noSatelliteData: true,
   };
 }
 
@@ -206,8 +219,20 @@ function evaluatePixel(samples) {
 
     const cloudCover = Math.round((1 - validPixelCount / (GRID_SIZE * GRID_SIZE)) * 100);
     console.log(`Sentinel-2: ${validPixelCount}/${GRID_SIZE * GRID_SIZE} valid pixels, ${cloudCover}% cloud-masked`);
-    // Extract scene metadata from response headers (or use endDate = latest in window)
-    const sceneDate = resp.headers['sentinel-data-date'] || endDate.toISOString();
+
+    // Obtain true acquisition date via Copernicus Catalog API or metadata headers.
+    // NEVER default to endDate or today (F-05/F-06). If unresolvable, set observedAt = null.
+    let observedAt = null;
+    if (resp.headers && resp.headers['sentinel-data-date']) {
+      observedAt = new Date(resp.headers['sentinel-data-date']);
+    } else {
+      observedAt = await resolveSentinelAcquisitionDate(bbox, startDate, endDate, token);
+    }
+
+    const sceneAgeDays = observedAt
+      ? Math.floor((Date.now() - new Date(observedAt).getTime()) / (24 * 60 * 60 * 1000))
+      : null;
+    const isStale = observedAt === null || (sceneAgeDays !== null && sceneAgeDays > 10);
 
     return {
       ndviGrid,
@@ -217,13 +242,63 @@ function evaluatePixel(samples) {
         sceneName: `Sentinel-2 L2A`,
         cloudCover,
         source: 'sentinel-2',
+        sceneAgeDays,
+        isStale,
       },
-      observedAt: new Date(sceneDate),
+      observedAt,
+      sceneAgeDays,
+      isStale,
     };
   } catch (error) {
     // Re-throw so the outer retry loop can try a wider window or fall back
     throw error;
   }
+}
+
+/**
+ * Obtain true acquisition date via Copernicus STAC or OData search.
+ * Returns Date object or null if unresolvable.
+ */
+export async function resolveSentinelAcquisitionDate(bbox, startDate, endDate, token = null) {
+  // 1. Try Copernicus Sentinel Hub STAC Catalog API
+  try {
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await axios.post(
+      'https://sh.dataspace.copernicus.eu/catalog/1.0.0/search',
+      {
+        collections: ['sentinel-2-l2a'],
+        datetime: `${new Date(startDate).toISOString()}/${new Date(endDate).toISOString()}`,
+        bbox: [bbox.west, bbox.south, bbox.east, bbox.north],
+        limit: 1,
+      },
+      {
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10_000,
+      }
+    );
+    const item = res.data?.features?.[0];
+    if (item?.properties?.datetime) {
+      return new Date(item.properties.datetime);
+    }
+  } catch {
+    // STAC endpoint failed or unavailable
+  }
+
+  // 2. Try Copernicus OData Product Search
+  try {
+    const scenes = await searchSentinel2Scenes(bbox, startDate, endDate, { maxResults: 1 });
+    if (scenes?.[0]?.beginPosition) {
+      return new Date(scenes[0].beginPosition);
+    }
+  } catch {
+    // OData search failed
+  }
+
+  // If cannot be determined, return null (never default to endDate/today)
+  return null;
 }
 
 // ─── TIFF Parser ──────────────────────────────────────────────────────────

@@ -26,6 +26,8 @@ export class RiskScoreDocument {
     this.diseaseHypothesis = row.disease_hypothesis || row.diseaseHypothesis || null;
     this.matchedWeatherRules = row.matched_weather_rules || row.matchedWeatherRules || [];
     this.thresholdUsed = Number(row.threshold_used ?? row.thresholdUsed ?? 0.6);
+    this.sceneSource = row.scene_source || row.sceneSource || 'unknown';
+    this.isSimulated = Boolean(row.is_simulated ?? row.isSimulated ?? false);
     this.inputsSnapshot = row.inputs_snapshot || row.inputsSnapshot || null;
     this.createdAt = row.created_at || row.createdAt || new Date().toISOString();
     this.updatedAt = row.updated_at || row.updatedAt || new Date().toISOString();
@@ -57,6 +59,8 @@ export class RiskScoreDocument {
       disease_hypothesis: this.diseaseHypothesis,
       matched_weather_rules: this.matchedWeatherRules,
       threshold_used: this.thresholdUsed,
+      scene_source: this.sceneSource,
+      is_simulated: this.isSimulated,
       inputs_snapshot: this.inputsSnapshot,
     };
 

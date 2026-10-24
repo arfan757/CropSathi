@@ -54,19 +54,18 @@ export async function getRiskLatestEndpoint(req, res) {
 
     const latest = await getLatestRiskScore(farmId);
 
-    res.status(200).json({
+    if (!latest) {
+      return res.status(200).json({
+        success: true,
+        hasData: false,
+        data: null,
+      });
+    }
+
+    return res.status(200).json({
       success: true,
-      data: latest || {
-        compositeScore: 50,
-        healthLevel: 'watch',
-        triggeredAlert: false,
-        weatherComponent: 0.5,
-        ndviComponent: 0.5,
-        thermalComponent: 0.5,
-        pestHistoryComponent: 0,
-        diseaseHypothesis: null,
-        computedAt: null,
-      },
+      hasData: true,
+      data: latest,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

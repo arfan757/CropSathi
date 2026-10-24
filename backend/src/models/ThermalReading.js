@@ -12,8 +12,10 @@ export class ThermalReadingDocument {
     this._id = row.id || row._id || randomUUID();
     this.id = this._id;
     this.farmId = row.farm_id || row.farmId;
-    this.observedAt = row.observed_at || row.observedAt || new Date().toISOString();
-    this.estimatedCanopyTempC = Number(row.estimated_canopy_temp_c ?? row.estimatedCanopyTempC ?? 0);
+    this.observedAt = row.observed_at !== undefined ? row.observed_at : (row.observedAt !== undefined ? row.observedAt : null);
+    this.estimatedCanopyTempC = row.estimated_canopy_temp_c !== null && row.estimated_canopy_temp_c !== undefined
+      ? Number(row.estimated_canopy_temp_c)
+      : (row.estimatedCanopyTempC !== null && row.estimatedCanopyTempC !== undefined ? Number(row.estimatedCanopyTempC) : null);
     this.baselineTempC = row.baseline_temp_c !== null && row.baseline_temp_c !== undefined ? Number(row.baseline_temp_c) : (row.baselineTempC !== undefined ? row.baselineTempC : null);
     this.anomalyC = Number(row.anomaly_c ?? row.anomalyC ?? 0);
     this.resolution = row.resolution || 'farm_simulated';

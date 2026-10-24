@@ -59,12 +59,10 @@ export function healthLevelForScore(score) {
   return vegetationHealthLevelForScore(score);
 }
 
-/**
- * The false-alarm gate rule from PRD.md Part 2:
- * This score never auto-declares a diagnosis. It only ever decides
- * whether to ask the farmer for a confirming photo.
- */
-export function shouldPromptForPhoto(healthLevel) {
+export function shouldPromptForPhoto(healthLevel, options = {}) {
+  if (options.isSimulated || options.sceneSource === 'simulated' || options.confidence === 'low' || options.isStale) {
+    return false;
+  }
   return healthLevel === HealthLevel.ELEVATED || healthLevel === HealthLevel.HIGH;
 }
 
@@ -267,7 +265,10 @@ export async function computeRiskScore(farmId) {
     weatherEval.weatherReading || null,
   );
 
-  // ── 4. Field validity override ──
+  // ── 4. Field validity & simulation overrides ──
+  const sceneSource = ndviReading?.sceneSource || thermalReading?.sceneSource || 'unknown';
+  const isSimulated = sceneSource === 'simulated' || ndviReading?.sceneSource === 'simulated';
+
   const vegetationDetected = isVegetationDetected(
     ndviReading?.ndvi,
     ndviReading?.ndre,
@@ -276,6 +277,11 @@ export async function computeRiskScore(farmId) {
   if (!vegetationDetected) {
     vegetationResult.score = null;
     vegetationResult.level = null;
+    vegetationResult.triggeredAlert = false;
+  }
+
+  // Simulated data must NEVER trigger an alert (F-01/F-10, Ground Rule 4)
+  if (isSimulated) {
     vegetationResult.triggeredAlert = false;
   }
 
@@ -309,6 +315,8 @@ export async function computeRiskScore(farmId) {
     healthLevel: vegetationResult.level,
     staleSignals: vegetationResult.staleSignals || [],
     thresholdUsed: 0,
+    sceneSource,
+    isSimulated,
     diseaseHypothesis: weatherEval.diseaseHypothesis,
     matchedWeatherRules: weatherEval.matchedRules || [],
     weightsUsed: vegetationResult.weightsUsed,
@@ -338,8 +346,8 @@ export async function computeRiskScore(farmId) {
   // Update farm timestamps
   await Field.findByIdAndUpdate(farmId, { lastRiskScoreAt: new Date() });
 
-  // Create notification when triggeredAlert is true
-  if (vegetationResult.triggeredAlert && farm.userId) {
+  // Create notification when triggeredAlert is true (NEVER for simulated data)
+  if (vegetationResult.triggeredAlert && !isSimulated && farm.userId) {
     try {
       await createNotification(farm.userId, 'weather_alert', {
         farmId: farm._id,

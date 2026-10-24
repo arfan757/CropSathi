@@ -12,7 +12,7 @@ export class NdviReadingDocument {
     this._id = row.id || row._id || randomUUID();
     this.id = this._id;
     this.farmId = row.farm_id || row.farmId;
-    this.observedAt = row.observed_at || row.observedAt || new Date().toISOString();
+    this.observedAt = row.observed_at !== undefined ? row.observed_at : (row.observedAt !== undefined ? row.observedAt : null);
     this.ndvi = Number(row.ndvi ?? 0);
     this.ndre = row.ndre !== null && row.ndre !== undefined ? Number(row.ndre) : null;
     this.cloudCoverPct = Number(row.cloud_cover_pct ?? row.cloudCoverPct ?? 0);
@@ -23,6 +23,7 @@ export class NdviReadingDocument {
     this.ndreGrid = row.ndre_grid || row.ndreGrid || null;
     this.sceneSource = row.scene_source || row.sceneSource || 'simulated';
     this.sceneId = row.scene_id || row.sceneId || null;
+    this.sceneAgeDays = row.scene_age_days !== undefined ? row.scene_age_days : (row.sceneAgeDays !== undefined ? row.sceneAgeDays : null);
     this.createdAt = row.created_at || row.createdAt || new Date().toISOString();
     this.updatedAt = row.updated_at || row.updatedAt || new Date().toISOString();
   }
@@ -50,6 +51,7 @@ export class NdviReadingDocument {
       ndre_grid: this.ndreGrid,
       scene_source: this.sceneSource,
       scene_id: this.sceneId,
+      scene_age_days: this.sceneAgeDays,
     };
 
     const { data, error } = await supabase

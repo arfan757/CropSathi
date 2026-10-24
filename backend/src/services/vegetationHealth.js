@@ -245,7 +245,7 @@ export function normalizeNdreToScore(ndre, baseline = DEFAULT_NDRE_BASELINE) {
  *   confidence: 'high' | 'low'
  */
 export function computeCWSI({ tCanopy, tAir, vpd, cropType = null }) {
-  if (vpd === null || vpd === undefined) {
+  if (tCanopy === null || tCanopy === undefined || vpd === null || vpd === undefined || tAir === null || tAir === undefined) {
     return { cwsi: null, confidence: 'low' };
   }
 
@@ -398,12 +398,19 @@ async function fetchValidNdvi(farmId, now) {
   }
 
   // Latest scene is clear — check staleness
+  if (!latest.observedAt) {
+    return {
+      reading: latest,
+      isStale: true,
+      lastValidAge: null,
+    };
+  }
   const ageMs = now.getTime() - new Date(latest.observedAt).getTime();
   const ageDays = ageMs / (24 * 60 * 60 * 1000);
   return {
     reading: latest,
-    isStale: ageDays > STALENESS_LIMIT_DAYS.ndvi,
-    lastValidAge: ageDays,
+    isStale: isNaN(ageDays) || ageDays > STALENESS_LIMIT_DAYS.ndvi,
+    lastValidAge: isNaN(ageDays) ? null : ageDays,
   };
 }
 
@@ -421,6 +428,15 @@ async function fetchValidThermal(farmId, now) {
     return { reading: null, isStale: true, lastValidAge: null, confidence: 'low' };
   }
 
+  if (!latest.observedAt) {
+    return {
+      reading: latest,
+      isStale: true,
+      lastValidAge: null,
+      confidence: 'low',
+    };
+  }
+
   // Formula-only readings are not real satellite data — flag as low confidence
   // but don't treat as cloudy (there's no cloud to check)
   if (latest.sceneSource !== 'landsat-8-9') {
@@ -428,8 +444,8 @@ async function fetchValidThermal(farmId, now) {
     const ageDays = ageMs / (24 * 60 * 60 * 1000);
     return {
       reading: latest,
-      isStale: ageDays > STALENESS_LIMIT_DAYS.thermal,
-      lastValidAge: ageDays,
+      isStale: isNaN(ageDays) || ageDays > STALENESS_LIMIT_DAYS.thermal,
+      lastValidAge: isNaN(ageDays) ? null : ageDays,
       confidence: 'low',
     };
   }
@@ -616,12 +632,12 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
   }
 
   // Thermal
-  if (thermalReading) {
+  if (thermalReading && thermalReading.estimatedCanopyTempC !== null && thermalReading.estimatedCanopyTempC !== undefined) {
     if (thermalReading.sceneSource === 'landsat-8-9' && vpd !== null) {
       // Real Landsat + VPD available → compute CWSI
       const { cwsi, confidence } = computeCWSI({
         tCanopy: thermalReading.estimatedCanopyTempC,
-        tAir: weatherReading.temperatureC,
+        tAir: weatherReading?.temperatureC,
         vpd,
         cropType: farm.cropType,
       });
@@ -633,13 +649,7 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
           confidence,
         };
       } else {
-        // CWSI unavailable — fall back to percentile proxy
-        normalizedScores.thermal = {
-          raw: thermalReading.estimatedCanopyTempC,
-          cwsi: null,
-          score: null, // will use thermal anomaly as proxy
-          confidence: 'low',
-        };
+        // CWSI unavailable — skip thermal sub-score (F-08)
       }
     } else {
       // Formula-only or no VPD — use anomaly as proxy
@@ -685,10 +695,10 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
 
   let activeTotal = activeWeights.ndvi + activeWeights.ndre + activeWeights.thermal;
   if (activeTotal === 0) {
-    // All signals stale — neutral fallback
+    // All signals stale — null score (F-18, Ground Rule 3)
     return {
-      score: 50,
-      level: HealthLevel.WATCH,
+      score: null,
+      level: null,
       triggeredAlert: false,
       reason: 'all_signals_stale',
       staleSignals,
@@ -698,7 +708,7 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
       baselineSource: baselines.source,
       thermalConfidence: thermalResolutionConfidence,
       maxSignalGapDays: 0,
-      noRecentSatelliteData: staleSignals.length === 3,
+      noRecentSatelliteData: true,
     };
   }
 
@@ -724,6 +734,23 @@ export async function computeVegetationHealthScore(farm, weatherReading = null, 
   if (normalizedScores.thermal != null && normalizedWeights.thermal > 0 && normalizedScores.thermal.score != null) {
     weightedSum += normalizedWeights.thermal * normalizedScores.thermal.score;
     signalsUsed++;
+  }
+
+  if (signalsUsed === 0) {
+    return {
+      score: null,
+      level: null,
+      triggeredAlert: false,
+      reason: 'no_usable_signals',
+      staleSignals,
+      lowConfidence: true,
+      weightsUsed: normalizedWeights,
+      normalizedScores,
+      baselineSource: baselines.source,
+      thermalConfidence: thermalResolutionConfidence,
+      maxSignalGapDays: 0,
+      noRecentSatelliteData: true,
+    };
   }
 
   // If some signals were unavailable, renormalize remaining weights

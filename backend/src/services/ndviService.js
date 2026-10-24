@@ -140,37 +140,53 @@ export function getExpectedNdvi(cropType, cropStage, date = new Date()) {
 }
 
 /**
- * Generate a realistic simulated NDVI reading for a farm.
- * In production, this would query Google Earth Engine for Sentinel-2 imagery.
- * The simulation produces values consistent with crop type, stage, and season.
+ * Create a deterministic pseudo-random number generator seeded with a string.
+ * Mulberry32 algorithm.
  */
-function generateSimulatedNdvi(farm) {
+export function createDeterministicRandom(seedStr) {
+  let hash = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = Math.imul(31, hash) + seedStr.charCodeAt(i) | 0;
+  }
+  let s = hash >>> 0;
+  return function next() {
+    s |= 0;
+    s = s + 0x6D2B79F5 | 0;
+    let t = Math.imul(s ^ s >>> 15, 1 | s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Generate a realistic simulated NDVI reading for a farm.
+ * Deterministic: seed = farmId + date. No unseeded Math.random() anomaly injection (F-01/F-10).
+ */
+export function generateSimulatedNdvi(farm, date = new Date()) {
+  const farmIdStr = String(farm._id || farm.id || 'farm');
+  const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : String(date);
+  const rng = createDeterministicRandom(`${farmIdStr}_${dateStr}`);
+
   const cropKey = farm.cropType?.toLowerCase() || 'other';
   const baseline = CROP_NDVI_BASELINE[cropKey] || 0.55;
   const stageMult = STAGE_MULTIPLIER[farm.cropStage] || 0.8;
-  const month = new Date().getMonth();
+  const month = date instanceof Date ? date.getMonth() : new Date().getMonth();
   const seasonal = getSeasonalFactor(month);
 
-  // Base NDVI = baseline * stage * seasonal + noise
-  const noise = (Math.random() - 0.5) * 0.08;
+  // Deterministic noise
+  const noise = (rng() - 0.5) * 0.08;
   let ndvi = baseline * stageMult * seasonal + noise;
-
-  // 10% chance of anomaly injection (depressed NDVI)
-  if (Math.random() < 0.10) {
-    ndvi -= 0.15 + Math.random() * 0.15;
-  }
-
   ndvi = Math.max(-0.1, Math.min(0.95, ndvi));
 
   // NDRE is typically ~0.7 * NDVI for healthy vegetation
-  const ndre = ndvi * (0.65 + Math.random() * 0.1);
+  const ndre = Math.max(-0.1, Math.min(0.95, ndvi * (0.65 + rng() * 0.1)));
 
-  // Cloud cover — most readings clear, some cloudy
-  const cloudCoverPct = Math.random() < 0.85 ? Math.random() * 20 : 20 + Math.random() * 40;
+  // Cloud cover
+  const cloudCoverPct = rng() < 0.85 ? rng() * 20 : 20 + rng() * 40;
 
   // Simulated pixel count (larger farms = more pixels)
   const areaHa = farm.areaInHectares || 1;
-  const pixelCountPureCrop = Math.round(areaHa * 100 + Math.random() * 50);
+  const pixelCountPureCrop = Math.round(areaHa * 100 + rng() * 50);
 
   return {
     ndvi: Math.round(ndvi * 1000) / 1000,
@@ -223,39 +239,50 @@ function computeAnomalyScore(currentNdvi, trailingAvg, readings) {
 
 /**
  * Fetch/store NDVI reading for a farm.
- * Tries real Sentinel-2 data first; falls back to simulated if credentials missing or API fails.
+ * Tries real Sentinel-2 data first; falls back to simulated ONLY if ALLOW_SIMULATION=true.
+ * In production with no credentials and no flag, returns null (no satellite data).
  */
 export async function fetchNdviForFarm(farm) {
   const now = new Date();
 
-  // Try real Sentinel-2 data first
   let ndvi, ndre, gridData = null, sceneSource = 'simulated', sceneId = null;
   let observedAt = now;
   let cloudCoverPct = 0;
   let pixelCountPureCrop = null;
+  let sceneAgeDays = null;
 
   const hasCopernicusCredentials = process.env.COPERNICUS_CLIENT_ID && process.env.COPERNICUS_CLIENT_SECRET;
+  const allowSimulation = process.env.ALLOW_SIMULATION === 'true';
 
   if (hasCopernicusCredentials) {
     try {
       const sentinel = await fetchSentinelNdvi(farm);
 
-      if (sentinel.sceneInfo?.source === 'simulated') {
-        const simulated = generateSimulatedNdvi(farm);
+      if (sentinel.sceneInfo?.source === 'simulated' || sentinel.noSatelliteData) {
+        if (!allowSimulation) {
+          console.warn('Sentinel-2 returned no real satellite data and ALLOW_SIMULATION is false');
+          return null;
+        }
+        const simulated = generateSimulatedNdvi(farm, now);
         ndvi = simulated.ndvi;
         ndre = simulated.ndre;
-        cloudCoverPct = sentinel.sceneInfo.cloudCover ?? 100;
+        cloudCoverPct = sentinel.sceneInfo?.cloudCover ?? 100;
         pixelCountPureCrop = simulated.pixelCountPureCrop;
         sceneSource = 'simulated';
         sceneId = null;
         gridData = { ndvi: sentinel.ndviGrid, ndre: sentinel.ndreGrid };
+        sceneAgeDays = 0;
       } else {
         // Average the grid to get scalar values
         ndvi = averageGrid(sentinel.ndviGrid);
         ndre = averageGrid(sentinel.ndreGrid);
 
         if (ndvi == null || ndre == null) {
-          const simulated = generateSimulatedNdvi(farm);
+          if (!allowSimulation) {
+            console.warn('Sentinel-2 grid invalid and ALLOW_SIMULATION is false');
+            return null;
+          }
+          const simulated = generateSimulatedNdvi(farm, now);
           ndvi = simulated.ndvi;
           ndre = simulated.ndre;
           cloudCoverPct = 100;
@@ -263,32 +290,45 @@ export async function fetchNdviForFarm(farm) {
           sceneSource = 'simulated';
           sceneId = null;
           gridData = { ndvi: sentinel.ndviGrid, ndre: sentinel.ndreGrid };
+          sceneAgeDays = 0;
         } else {
           gridData = { ndvi: sentinel.ndviGrid, ndre: sentinel.ndreGrid };
           sceneSource = 'sentinel-2';
           sceneId = sentinel.sceneInfo.sceneId;
           cloudCoverPct = sentinel.sceneInfo.cloudCover || 0;
           observedAt = sentinel.observedAt;
+          sceneAgeDays = sentinel.sceneAgeDays;
           pixelCountPureCrop = GRID_SIZE * GRID_SIZE;
         }
       }
     } catch (error) {
-      console.warn('Sentinel-2 fetch failed, falling back to simulated:', error.message);
-      const simulated = generateSimulatedNdvi(farm);
+      console.warn('Sentinel-2 fetch failed:', error.message);
+      if (!allowSimulation) {
+        return null;
+      }
+      const simulated = generateSimulatedNdvi(farm, now);
       ndvi = simulated.ndvi;
       ndre = simulated.ndre;
       cloudCoverPct = 100;
       pixelCountPureCrop = simulated.pixelCountPureCrop;
+      sceneSource = 'simulated';
+      sceneAgeDays = 0;
     }
   } else {
-    const simulated = generateSimulatedNdvi(farm);
+    if (!allowSimulation) {
+      console.warn('Copernicus credentials not configured and ALLOW_SIMULATION is false — no satellite data');
+      return null;
+    }
+    const simulated = generateSimulatedNdvi(farm, now);
     ndvi = simulated.ndvi;
     ndre = simulated.ndre;
     cloudCoverPct = simulated.cloudCoverPct;
     pixelCountPureCrop = simulated.pixelCountPureCrop;
+    sceneSource = 'simulated';
+    sceneAgeDays = 0;
   }
 
-  const trailingAvg = await computeTrailingAvg(farm._id, ndvi, observedAt);
+  const trailingAvg = await computeTrailingAvg(farm._id, ndvi, observedAt || now);
 
   // Get recent readings for stddev
   const recentForStd = await NdviReading.find({ farmId: farm._id })
@@ -311,6 +351,7 @@ export async function fetchNdviForFarm(farm) {
     ndreGrid: gridData?.ndre || null,
     sceneSource,
     sceneId,
+    sceneAgeDays,
   });
 
   return reading;

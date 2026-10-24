@@ -166,6 +166,9 @@ export async function computeThermalReading(farm, weatherReading) {
 
       // Average the grid for the scalar value
       const avgLst = averageGrid(landsat.thermalGrid);
+      if (avgLst === null) {
+        throw new Error('Landsat thermal grid empty or null');
+      }
 
       // Compute baseline (district-level, falls back to farm trailing avg)
       let baseline = await getDistrictBaseline(farm);
@@ -250,10 +253,10 @@ export async function computeThermalReading(farm, weatherReading) {
 
 // Helper to average a 10x10 grid
 const GRID_SIZE = 10;
-function averageGrid(grid) {
-  if (!grid || !Array.isArray(grid)) return 30;
+export function averageGrid(grid) {
+  if (!grid || !Array.isArray(grid)) return null;
   const flat = grid.flat().filter(v => v != null && !isNaN(v));
-  if (flat.length === 0) return 30;
+  if (flat.length === 0) return null;
   return Math.round((flat.reduce((s, v) => s + v, 0) / flat.length) * 100) / 100;
 }
 
@@ -313,6 +316,9 @@ export async function computeThermalComponent(farmId, weatherReading = null, cro
   if (readings.length === 0) return 0.5; // neutral if no data
 
   const latest = readings[0];
+  if (latest.estimatedCanopyTempC === null || latest.estimatedCanopyTempC === undefined) {
+    return null;
+  }
 
   const anomalyComponent = latest.anomalyC > 0 ? Math.min(1, latest.anomalyC / 10) : 0;
 
