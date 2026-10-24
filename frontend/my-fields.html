@@ -497,7 +497,10 @@
     };
 
     function applyFieldsData(fieldsData) {
-      if (!fieldsData || !fieldsData.success) return;
+      if (!fieldsData || !fieldsData.success) {
+        showEmptyState();
+        return;
+      }
       allFields = Array.isArray(fieldsData.data) ? fieldsData.data : [];
       renderCurrentFields();
     }
@@ -546,9 +549,13 @@
       if (navAvatar && profileData.user.name) {
         navAvatar.textContent = profileData.user.name.trim().charAt(0).toUpperCase();
       }
-      const topName = document.getElementById('userMenuNameTop');
+      const topName = document.getElementById('userName');
       if (topName && profileData.user.name) {
         topName.textContent = profileData.user.name;
+      }
+      const menuName = document.getElementById('userMenuName');
+      if (menuName && profileData.user.name) {
+        menuName.textContent = profileData.user.name;
       }
       if (typeof applyProfilePhoto === 'function') {
         applyProfilePhoto(profileData.user.profilePhoto);
@@ -563,28 +570,6 @@
         }
       }
     }
-
-    // Render field cards with Bolt styling
-    function renderFields(fields) {
-      const grid = document.getElementById('fieldsGrid');
-      const loading = document.getElementById('loadingState');
-      const empty = document.getElementById('emptyState');
-      const noResults = document.getElementById('noResultsState');
-
-      loading.classList.add('hidden');
-
-      if (fields.length === 0) {
-        if (currentQuery.trim()) {
-          showNoResultsState();
-        } else {
-          showEmptyState();
-        }
-        return;
-      }
-
-      empty.classList.add('hidden');
-      if (noResults) noResults.classList.add('hidden');
-      grid.classList.remove('hidden');
 
     function getHealthDisplay(field) {
       const h = field.healthScore || {};
@@ -793,7 +778,7 @@
             <div class="grid grid-cols-2 gap-2.5 mb-4">
               <div class="bg-offwhite-200/60 p-2.5 rounded-xl border border-offwhite-300">
                 <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Area</p>
-                <p class="text-sm font-bold font-serif text-forest-700 mt-0.5">${field.areaInHectares.toFixed(1)} ha (${field.areaInAcres.toFixed(1)} ac)</p>
+                <p class="text-sm font-bold font-serif text-forest-700 mt-0.5">${(Number(field.areaInHectares) || 0).toFixed(1)} ha (${(Number(field.areaInAcres) || (Number(field.areaInHectares) || 0) * 2.47105).toFixed(1)} ac)</p>
               </div>
               <div class="bg-offwhite-200/60 p-2.5 rounded-xl border border-offwhite-300">
                 <p class="text-[10px] font-semibold text-forest-400 uppercase tracking-wide">Health Score</p>
@@ -872,7 +857,7 @@
       const cropType = field.cropType || 'Not set';
       document.getElementById('detailTitle').textContent = field.name || 'Field Details';
       document.getElementById('detailCrop').innerHTML = `<i data-lucide="${cropEmojis[field.cropType] || 'sprout'}" class="w-4 h-4 text-forest-500"></i> ${CropSathiPrefs.escapeHtml(cropType)}`;
-      document.getElementById('detailAreaHa').textContent = `${field.areaInHectares.toFixed(2)} ha (${field.areaInAcres.toFixed(2)} ac)`;
+      document.getElementById('detailAreaHa').textContent = `${(Number(field.areaInHectares) || 0).toFixed(2)} ha (${(Number(field.areaInAcres) || (Number(field.areaInHectares) || 0) * 2.47105).toFixed(2)} ac)`;
       document.getElementById('detailSowing').textContent = field.sowingDate
         ? new Date(field.sowingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
         : '—';
@@ -984,7 +969,7 @@
         }).addTo(detailMap);
 
         detailMap.fitBounds(polygon.getBounds(), { padding: [30, 30] });
-        polygon.bindPopup(`Area: ${field.areaInHectares.toFixed(2)} ha`).openPopup();
+        polygon.bindPopup(`Area: ${(Number(field.areaInHectares) || 0).toFixed(2)} ha`).openPopup();
 
         field.polygon.forEach((p, i) => {
           L.circleMarker([p.lat, p.lng], {

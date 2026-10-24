@@ -205,21 +205,28 @@ export const getFields = async (req, res) => {
     const userId = req.user?.id || req.user?._id;
     const fields = await Field.find({ userId, deletedAt: null }).sort({ createdAt: -1 });
 
-    const fieldIds = fields.map(f => f._id);
+    const fieldIds = fields.map(f => String(f._id));
     const latestScoreByFarmId = {};
 
-    if (fieldIds.length > 0) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validUuids = fieldIds.filter(id => uuidRegex.test(id));
+
+    if (validUuids.length > 0) {
       try {
-        const { data: scores } = await supabase
+        const { data: scores, error } = await supabase
           .from('risk_scores')
           .select('*')
-          .in('farm_id', fieldIds)
+          .in('farm_id', validUuids)
           .order('computed_at', { ascending: false });
 
-        for (const s of scores || []) {
-          const farmId = s.farm_id || s.farmId;
-          if (!latestScoreByFarmId[farmId]) {
-            latestScoreByFarmId[farmId] = s;
+        if (error) {
+          console.warn('Supabase risk_scores query warning:', error.message);
+        } else {
+          for (const s of scores || []) {
+            const farmId = String(s.farm_id || s.farmId);
+            if (!latestScoreByFarmId[farmId]) {
+              latestScoreByFarmId[farmId] = s;
+            }
           }
         }
       } catch (scoreErr) {
@@ -229,7 +236,8 @@ export const getFields = async (req, res) => {
 
     const enrichedFields = fields.map(f => {
       const fieldObj = f.toObject ? f.toObject() : { ...f };
-      const score = latestScoreByFarmId[f._id] || null;
+      const fieldIdStr = String(f._id);
+      const score = latestScoreByFarmId[fieldIdStr] || latestScoreByFarmId[f._id] || null;
       fieldObj.healthScore = formatFieldHealthScore(score);
       return fieldObj;
     });
@@ -267,17 +275,20 @@ export const getField = async (req, res) => {
     }
 
     let latestScore = null;
-    try {
-      const { data } = await supabase
-        .from('risk_scores')
-        .select('*')
-        .eq('farm_id', field._id)
-        .order('computed_at', { ascending: false })
-        .limit(1)
-        .single();
-      latestScore = data;
-    } catch {
-      // Best-effort
+    const fieldIdStr = String(field._id);
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fieldIdStr)) {
+      try {
+        const { data, error } = await supabase
+          .from('risk_scores')
+          .select('*')
+          .eq('farm_id', fieldIdStr)
+          .order('computed_at', { ascending: false })
+          .limit(1)
+          .single();
+        if (!error) latestScore = data;
+      } catch {
+        // Best-effort
+      }
     }
 
     const fieldObj = field.toObject ? field.toObject() : { ...field };
